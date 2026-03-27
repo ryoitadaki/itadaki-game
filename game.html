@@ -20619,13 +20619,17 @@ function endGame(winnerId){
   setTimeout(()=>showResultComments(sorted, winnerId), 800);
   setTimeout(()=>showSpecialAwards(sorted, winnerId), 1200);
 
-  // ツアーモード中なら結果を処理
-  if(_tourState && _tourState.active){
+  // ツアーモード中なら結果を処理（activeフラグに依存しない）
+  if(_tourState && _tourState.mapIdx !== undefined){
+    _tourState.active = true; // 確実にtrueに
     const playerWon = sorted[0] && !G.players[sorted[0].id].isCPU;
     // タイトルへ戻るボタンを非表示
     const _tb = document.getElementById('result-title-btn');
     if(_tb) _tb.style.display = 'none';
     setTimeout(()=>onTourMapEnd(playerWon), 2000);
+  } else {
+    // デバッグ: _tourStateの状態をトースト表示（確認後削除）
+    showToast('DEBUG: _tourState=' + JSON.stringify(_tourState));
   }
 }
 
@@ -24862,9 +24866,15 @@ function showTourGameOver(stageIdx, playerRank){
 function _saveTourState(){
   if(!_tourState) return;
   const cleared = _tourState.clearedStages || [];
-  // localStorageに保存
   try{
-    const save = {mode:_tourState.mode, clearedStages:cleared, maps:TOUR_NORMAL_MAPS, mapIdx:_tourState.mapIdx||0};
+    const save = {
+      mode: _tourState.mode,
+      clearedStages: cleared,
+      maps: TOUR_NORMAL_MAPS,
+      mapIdx: _tourState.mapIdx||0,
+      charaKey: _tourState.charaKey||null,
+      charaName: _tourState.charaName||'',
+    };
     localStorage.setItem('tour_save_'+_tourState.mode, JSON.stringify(save));
   }catch(e){}
 }
