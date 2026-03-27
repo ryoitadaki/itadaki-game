@@ -20367,13 +20367,32 @@ function endGame(winnerId){
   setTimeout(()=>showSpecialAwards(sorted, winnerId), 1200);
   // ツアーモード中なら結果を処理
   if(_tourState && _tourState.active){
-    // クリア条件に応じた順位で判定
     const stageIdx = _tourState.mapIdx;
-    const reqRank = TOUR_CLEAR_RANK[stageIdx] || 0; // 0=1位必須, 1=2位以上
+    const reqRank = TOUR_CLEAR_RANK[stageIdx] || 0;
     let playerRank = -1;
     sorted.forEach((p, rank) => { if(!G.players[p.id].isCPU) playerRank = rank; });
     const playerWon = playerRank >= 0 && playerRank <= reqRank;
-    setTimeout(()=>onTourMapEnd(playerWon, playerRank), 2000);
+    // 結果画面が十分表示された後（5秒）にタップ促進ボタンを表示
+    setTimeout(()=>{
+      const resultEl = document.getElementById('result-screen');
+      if(!resultEl) return;
+      // 既存のボタンがあれば削除
+      const old = document.getElementById('tour-next-btn-wrap');
+      if(old) old.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'tour-next-btn-wrap';
+      wrap.style.cssText = 'position:sticky;bottom:0;padding:.8rem;background:linear-gradient(transparent,rgba(13,15,26,.95));';
+      const btn = document.createElement('button');
+      btn.className = 'menu-btn';
+      btn.style.cssText = 'width:100%;touch-action:manipulation;';
+      btn.textContent = playerWon ? '⭐ 次へ進む' : '🔄 結果を確認';
+      btn.onclick = () => {
+        wrap.remove();
+        onTourMapEnd(playerWon, playerRank);
+      };
+      wrap.appendChild(btn);
+      resultEl.appendChild(wrap);
+    }, 4000);
   }
 }
 
@@ -24046,6 +24065,9 @@ function showScreen(id){
   // 画面切り替え時にサイコロcanvasを必ず非表示にする（黒い長方形防止）
   const dc=document.getElementById('dice-canvas-3d');
   if(dc) dc.style.display='none';
+  // ツアー次へボタンを画面遷移時に必ず削除
+  const tnb=document.getElementById('tour-next-btn-wrap');
+  if(tnb) tnb.remove();
   if(id==='game-screen')setTimeout(()=>{renderMap();},100);
   if(id==='mapselect-screen')buildMapSelectUI();
 }
