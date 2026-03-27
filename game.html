@@ -4855,15 +4855,8 @@ function saveGame(silent) {
     // 変わるマークマスの現在状態を保存
     data.changeMarks = G.map.filter(n=>n.type==='changemark').map(n=>({id:n.id,mark:n.mark}));
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-    // URLパラメータも同時更新（ブックマーク保存対応）
-    try{
-      const b64=btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-      const url=new URL(location.href);
-      url.searchParams.set('save',b64);
-      history.replaceState(null,'',url.toString());
-    }catch(_){}
     if(!silent){
-      showToast('💾 保存しました！URLをブックマークすれば続きから遊べます');
+      showToast('💾 保存しました！続きから遊ぶボタンで再開できます');
       addLog('💾 ゲームを保存しました', 'important');
     }
   } catch(e) {
@@ -4874,12 +4867,12 @@ function saveGame(silent) {
 // URLをクリップボードにコピー（スマホのブックマーク保存の代替）
 function copyGameURL(){
   try{
-    saveGame(true); // まず保存してURLを更新
+    saveGame(true); // まず保存
     const url=location.href;
     if(navigator.clipboard&&navigator.clipboard.writeText){
       navigator.clipboard.writeText(url).then(()=>{
-        showToast('🔗 URLをコピーしました！ブックマークまたはメモ帳に貼り付けて保存してください');
-        addLog('🔗 セーブURLをコピーしました','important');
+        showToast('🔗 URLをコピーしました！次回はこのURLから開いてください');
+        addLog('🔗 URLをコピーしました','important');
       }).catch(()=>_fallbackCopyURL(url));
     }else{
       _fallbackCopyURL(url);
@@ -4898,14 +4891,6 @@ function _fallbackCopyURL(url){
 
 function hasSaveData() {
   try {
-    // URLパラメータにセーブデータがあれば優先
-    const urlParam = new URLSearchParams(location.search).get('save');
-    if(urlParam){
-      try{
-        const d=JSON.parse(decodeURIComponent(escape(atob(urlParam))));
-        if(d&&d.version) return d;
-      }catch(_){}
-    }
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const d = JSON.parse(raw);
@@ -4915,11 +4900,6 @@ function hasSaveData() {
 
 function deleteSaveData() {
   localStorage.removeItem(SAVE_KEY);
-  try{
-    const u=new URL(location.href);
-    u.searchParams.delete('save');
-    history.replaceState(null,'',u.toString());
-  }catch(_){}
 }
 
 function loadGame() {
@@ -20622,14 +20602,16 @@ function endGame(winnerId){
   showScreen('result-screen');
   // ツアーモード中は「タイトルへ戻る」ボタンを非表示（「次へ進む」ボタンのみで進む）
   const _resultTitleBtn = document.getElementById('result-title-btn');
-  if(_resultTitleBtn) _resultTitleBtn.style.display = (_tourState && _tourState.active) ? 'none' : '';
+  const _isTourActive = !!(_tourState && _tourState.mapIdx !== undefined);
+  if(_resultTitleBtn) _resultTitleBtn.style.display = _isTourActive ? 'none' : '';
   setTimeout(()=>drawResultGraph(), 300);
   // CPUコメントコーナー（少し遅らせて表示）
   setTimeout(()=>showResultComments(sorted, winnerId), 800);
   // 特別賞（少し遅らせて表示）
   setTimeout(()=>showSpecialAwards(sorted, winnerId), 1200);
   // ツアーモード中なら結果を処理
-  if(_tourState && _tourState.active){
+  if(_tourState && (_tourState.active || _tourState.mapIdx !== undefined)){
+    _tourState.active = true; // 念のため確実にtrueに
     const stageIdx = _tourState.mapIdx;
     const reqRank = TOUR_CLEAR_RANK[stageIdx] || 0;
     let playerRank = -1;
@@ -24802,12 +24784,10 @@ function onTourMapEnd(playerWon, playerRank){
     // ノーマル10章クリアでハード1章解放フラグを保存
     if(_tourState.mode==='normal' && _tourState.clearedStages.includes(9)){
       try{ localStorage.setItem('tour_hard_unlocked','1'); }catch(e){}
-      _setUrlParam('thu','1');
     }
     // ハード10章クリアでBGMシアター解放
     if(_tourState.mode==='hard' && _tourState.clearedStages.includes(9)){
       try{ localStorage.setItem('bgm_theater_unlocked','1'); }catch(e){}
-      _setUrlParam('bgu','1');
       _saveTourState(); // 必ずセーブしてからモーダルへ
       showModal('🎵 BGMシアター解放！',
         ['おめでとうございます！','ハードモード全10章制覇の証として','タイトル画面のBGMシアターが解放されました！'],
@@ -24893,11 +24873,7 @@ function showTourGameOver(stageIdx, playerRank){
 function _saveTourState(){
   if(!_tourState) return;
   const cleared = _tourState.clearedStages || [];
-  // 10桁のビット文字列を生成
-  const bits = TOUR_NORMAL_MAPS.map((_,i) => cleared.includes(i) ? '1' : '0').join('');
-  const param = _tourState.mode === 'hard' ? 'th' : 'tn';
-  _setUrlParam(param, bits);
-  // localStorageにも保存（フォールバック）
+  // localStorageに保存
   try{
     const save = {mode:_tourState.mode, clearedStages:cleared, maps:TOUR_NORMAL_MAPS, mapIdx:_tourState.mapIdx||0};
     localStorage.setItem('tour_save_'+_tourState.mode, JSON.stringify(save));
@@ -24906,21 +24882,12 @@ function _saveTourState(){
 
 function _isHardModeUnlocked(){
   try{ if(localStorage.getItem('tour_hard_unlocked')==='1') return true; }catch(e){}
-  if(_getUrlParam('thu')==='1') return true;
   const save = _loadTourSave('normal');
   return !!(save && (save.clearedStages||[]).includes(9));
 }
 
 function _loadTourSave(mode){
-  if(_getUrlParam('thu')==='1'){ try{ localStorage.setItem('tour_hard_unlocked','1'); }catch(e){} }
-  if(_getUrlParam('bgu')==='1'){ try{ localStorage.setItem('bgm_theater_unlocked','1'); }catch(e){} }
-  const param = mode === 'hard' ? 'th' : 'tn';
-  const bits = _getUrlParam(param);
-  if(bits && /^[01]{10}$/.test(bits)){
-    const clearedStages = bits.split('').map((b,i)=>b==='1'?i:-1).filter(i=>i>=0);
-    return {mode, clearedStages, maps:TOUR_NORMAL_MAPS, mapIdx:0};
-  }
-  // URLになければlocalStorageをフォールバック
+  // localStorageから読む
   try{
     const s = localStorage.getItem('tour_save_'+mode);
     return s ? JSON.parse(s) : null;
@@ -25025,7 +24992,7 @@ let _bgmtCurrentKey = null;
 
 function _isBgmTheaterUnlocked(){
   try{ if(localStorage.getItem('bgm_theater_unlocked')==='1') return true; }catch(e){}
-  return _getUrlParam('bgu')==='1';
+  return false;
 }
 
 function _updateBgmTheaterBtn(){
