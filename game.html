@@ -4851,6 +4851,7 @@ function saveGame(silent) {
       history: G.history.slice(),
       _mapId: G._mapId || 'shisaku',
       _spectateMode: !!_spectateMode,
+      _tourState: _tourState ? {mode:_tourState.mode, mapIdx:_tourState.mapIdx, clearedStages:_tourState.clearedStages||[], charaKey:_tourState.charaKey, charaName:_tourState.charaName||''} : null,
     };
     // 変わるマークマスの現在状態を保存
     data.changeMarks = G.map.filter(n=>n.type==='changemark').map(n=>({id:n.id,mark:n.mark}));
@@ -5006,6 +5007,20 @@ function loadGame() {
 
     // 観戦モードフラグを復元
     _spectateMode = !!(data._spectateMode);
+    // ツアー状態を復元
+    if(data._tourState){
+      _tourState = {
+        mode: data._tourState.mode||'normal',
+        mapIdx: data._tourState.mapIdx||0,
+        clearedStages: data._tourState.clearedStages||[],
+        charaKey: data._tourState.charaKey||null,
+        charaName: data._tourState.charaName||'',
+        maps: TOUR_NORMAL_MAPS,
+        results: [], active: true,
+      };
+    } else {
+      _tourState = null;
+    }
     showScreen('game-screen');
     initAudio();
     stopBGM(); // タイトルBGMを確実に止める
