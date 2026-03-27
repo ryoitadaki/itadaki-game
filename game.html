@@ -5018,8 +5018,10 @@ function loadGame() {
         maps: TOUR_NORMAL_MAPS,
         results: [], active: true,
       };
+      showToast('DEBUG load: ツアー復元OK mode='+_tourState.mode+' idx='+_tourState.mapIdx);
     } else {
       _tourState = null;
+      showToast('DEBUG load: セーブに_tourState無し data keys='+Object.keys(data).join(','));
     }
     showScreen('game-screen');
     initAudio();
