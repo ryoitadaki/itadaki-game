@@ -20620,6 +20620,9 @@ function endGame(winnerId){
   // 最初はグラフを表示
   document.getElementById('result-graph-wrap').style.display='block';
   showScreen('result-screen');
+  // ツアーモード中は「タイトルへ戻る」ボタンを非表示（「次へ進む」ボタンのみで進む）
+  const _resultTitleBtn = document.querySelector('#result-screen > .menu-btn');
+  if(_resultTitleBtn) _resultTitleBtn.style.display = (_tourState && _tourState.active) ? 'none' : '';
   setTimeout(()=>drawResultGraph(), 300);
   // CPUコメントコーナー（少し遅らせて表示）
   setTimeout(()=>showResultComments(sorted, winnerId), 800);
