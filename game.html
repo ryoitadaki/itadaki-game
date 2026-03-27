@@ -145,7 +145,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
 
 /* TOP BAR */
 #top-bar{
-  display:flex;align-items:center;padding:.4rem .8rem;
+  display:flex;align-items:center;padding:.2rem .5rem;
   background:rgba(7,12,24,.92);border-bottom:1px solid var(--border);
   gap:.6rem;flex-shrink:0;z-index:10;
   backdrop-filter:blur(4px);
@@ -158,7 +158,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
 
 /* PLAYER STRIP (横スクロール) */
 /* ===== プレイヤーチップ改善 ===== */
-#player-strip{display:flex;gap:.35rem;padding:.4rem .5rem;overflow-x:auto;overflow-y:hidden;
+#player-strip{display:flex;gap:.3rem;padding:.25rem .4rem;overflow-x:auto;overflow-y:hidden;
   scrollbar-width:none;flex-shrink:0;background:rgba(7,12,24,.92);
   max-height:120px;min-height:60px;}
 /* .p-chip replaced by new design */
@@ -2123,7 +2123,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
 <!-- SETUP -->
 <div id="setup-screen" class="screen">
   <div style="width:100%;max-width:500px;margin:0 auto;padding:.8rem .8rem 2rem;overflow-y:auto;height:100vh;">
-    <div class="setup-title">${t('setupTitle')}</div>
+    <div class="setup-title" id="setup-title-text">対戦相手を選ぼう</div>
     <button onclick="randomizeCpuSlots()" style="
       width:100%;margin-bottom:.6rem;padding:.55rem;
       background:linear-gradient(135deg,#6366f1,#8b5cf6);
@@ -2137,7 +2137,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
     <!-- 目標金額 -->
     <div class="setup-card" style="margin-top:.6rem;">
       <div class="goal-row" style="flex-wrap:wrap;gap:.4rem;">
-        <label style="width:100%;font-size:.85rem;color:var(--gray);">${t('goalLabel')}</label>
+        <label style="width:100%;font-size:.85rem;color:var(--gray);" id="goal-label-text">目標金額（10,000G〜）</label>
         <input type="number" id="goal-select" min="10000" max="9999999" step="1" value="10000"
           style="flex:1;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);
           padding:.5rem .7rem;border-radius:7px;font-size:1rem;font-family:inherit;min-width:0;">
@@ -2176,21 +2176,18 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
 <!-- MAP SELECT -->
 <div id="mapselect-screen" class="screen" style="overflow-y:auto;-webkit-overflow-scrolling:touch;align-items:flex-start;">
   <div style="width:100%;max-width:500px;margin:0 auto;padding:.8rem .8rem 3rem;box-sizing:border-box;">
-    <div class="setup-title">${t('mapSelectTitle')}</div>
+    <div class="setup-title" id="mapselect-title-text">マップを選ぼう</div>
     <div id="map-cards"></div>
-    <button class="menu-btn secondary" style="width:100%;margin-top:.6rem" onclick="showSetup(_spectateMode)">${t('backToSetup')}</button>
+    <button class="menu-btn secondary" style="width:100%;margin-top:.6rem" onclick="showSetup(_spectateMode)" id="back-to-setup-text">← 対戦相手選択へ戻る</button>
     <button class="menu-btn secondary" style="width:100%;margin-top:.4rem" onclick="showTitle()">タイトルへ</button>
   </div>
 </div>
 
 <!-- GAME -->
 <div id="game-screen" class="screen">
-  <div id="top-bar">
-    <span style="font-weight:700;font-size:.85rem;">いただきSTREET</span>
-    <span class="top-goal">${t('goalDisplay')}<span id="goal-display">0</span>G</span>
-    <span id="turn-label" class="top-turn"></span>
-    <span class="top-hint">↑↓:選択 Enter:決定 Backspace:戻る S:株売 A:競売</span>
-    <button id="speed-toggle-btn" onclick="toggleCpuSpeed()" style="font-size:.7rem;padding:.2rem .55rem;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;cursor:pointer;white-space:nowrap;">▶ 通常速度</button>
+  <div id="top-bar" style="display:flex;align-items:center;gap:.4rem;padding:.3rem .5rem;justify-content:space-between;">
+    <span class="top-goal" style="font-size:.8rem;font-weight:700;color:var(--gold);">目標:<span id="goal-display">0</span>G</span>
+    <button id="speed-toggle-btn" onclick="toggleCpuSpeed()" style="font-size:.68rem;padding:.18rem .45rem;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;cursor:pointer;white-space:nowrap;touch-action:manipulation;">▶ 通常速度</button>
   </div>
 
   <div id="player-strip"></div>
@@ -2234,8 +2231,8 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
 
 <!-- ORDER SLOT -->
 <div id="order-slot-screen" class="screen">
-  <div class="oss-title">${t('orderSlotTitle')}</div>
-  <div class="oss-subtitle">${t('orderSlotDesc')}</div>
+  <div class="oss-title" id="order-slot-title">🎲 順番決め</div>
+  <div class="oss-subtitle" id="order-slot-desc">数字が大きい順にサイコロを振れます</div>
   <div class="oss-cards" id="oss-cards"></div>
   <div class="oss-result-row" id="oss-result-row"></div>
 </div>
@@ -2246,7 +2243,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
     <div style="text-align:center;padding:.8rem 0;">
       <div style="font-size:2.2rem;margin-bottom:.2rem;">🗺️</div>
       <div style="font-size:1.4rem;font-weight:700;color:#4ade80;text-shadow:0 0 16px rgba(74,222,128,.5);">ツアーモード</div>
-      <div style="font-size:.78rem;color:rgba(255,255,255,.6);margin-top:.25rem;">${t('tourSubtitle')}</div>
+      <div style="font-size:.78rem;color:rgba(255,255,255,.6);margin-top:.25rem;">全マップを制覇する旅に出よう！</div>
     </div>
     <!-- ノーマル -->
     <div id="tour-normal-card" style="background:linear-gradient(135deg,rgba(20,50,20,.95),rgba(10,30,10,.95));border:2px solid #4ade80;border-radius:14px;padding:1rem 1.2rem;cursor:pointer;transition:transform .1s,filter .1s;touch-action:manipulation;min-height:80px;" onclick="showTourCharaSelect('normal')">
@@ -2254,7 +2251,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
         <span style="font-size:1.5rem;">🌿</span>
         <div>
           <div style="font-weight:700;font-size:1.05rem;color:#4ade80;">ノーマルモード</div>
-          <div style="font-size:.72rem;color:rgba(255,255,255,.6);">${t('tourNormalSub')}</div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.6);">10マップ・ステップアップの旅</div>
         </div>
       </div>
       <div id="tour-normal-progress" style="font-size:.75rem;color:rgba(255,255,255,.5);">マップ1〜10を順番にクリアせよ</div>
@@ -2265,12 +2262,12 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
         <span id="tour-hard-icon" style="font-size:1.5rem;">🔥</span>
         <div>
           <div id="tour-hard-title" style="font-weight:700;font-size:1.05rem;color:#f87171;">ハードモード</div>
-          <div id="tour-hard-sub" style="font-size:.72rem;color:rgba(255,255,255,.6);">${t('tourHardSub')}</div>
+          <div id="tour-hard-sub" style="font-size:.72rem;color:rgba(255,255,255,.6);">10マップ・Sランクとの死闘</div>
         </div>
       </div>
       <div id="tour-hard-progress" style="font-size:.75rem;color:rgba(255,255,255,.5);">全マップでSランクCPUと対決！</div>
     </div>
-    <button class="menu-btn secondary" style="width:100%;margin-top:.4rem" onclick="showScreen('title-screen')">${t('tourBackTitle')}</button>
+    <button class="menu-btn secondary" style="width:100%;margin-top:.4rem" onclick="showScreen('title-screen')">← タイトルへ戻る</button>
     <!-- クリアデータURL共有（データあり時のみ表示） -->
     <div id="tour-url-share" style="display:none;margin-top:.2rem;">
       <button onclick="copyTourUrl()" style="width:100%;background:rgba(251,191,36,.12);border:1.5px solid rgba(251,191,36,.4);border-radius:10px;color:#fbbf24;font-size:.8rem;padding:.55rem;cursor:pointer;touch-action:manipulation;">
@@ -2300,7 +2297,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
       <div style="font-size:.75rem;color:rgba(255,255,255,.6);margin-top:.2rem;">${_lang==='ja'?'犬か猫、どちらで旅に出る？':'Dog or Cat?'}</div>
     </div>
     <div id="tour-chara-list" style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;"></div>
-    <button class="menu-btn secondary" style="width:100%;margin-top:.2rem" onclick="showScreen('tour-stage-screen')">${t('tourCharaBack')}</button>
+    <button class="menu-btn secondary" style="width:100%;margin-top:.2rem" onclick="showScreen('tour-stage-screen')">← ステージ選択へ</button>
   </div>
 </div>
 
@@ -2441,7 +2438,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
       </div>
     </div>
 
-    <button class="menu-btn secondary" style="width:100%;margin-top:1.2rem;touch-action:manipulation;" onclick="showScreen('title-screen')">${t('tourBackTitle')}</button>
+    <button class="menu-btn secondary" style="width:100%;margin-top:1.2rem;touch-action:manipulation;" onclick="showScreen('title-screen')">← タイトルへ戻る</button>
   </div>
 </div>
 
@@ -2449,21 +2446,21 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
   <div style="max-width:520px;margin:0 auto;padding:1rem .8rem 3rem;display:flex;flex-direction:column;gap:.5rem;">
     <div style="text-align:center;padding:.6rem 0 .3rem;">
       <div style="font-size:2rem;margin-bottom:.15rem;">🎵</div>
-      <div style="font-size:1.3rem;font-weight:700;color:#fbbf24;text-shadow:0 0 16px rgba(251,191,36,.5);">${t('bgmTitle')}</div>
+      <div style="font-size:1.3rem;font-weight:700;color:#fbbf24;text-shadow:0 0 16px rgba(251,191,36,.5);">BGMシアター</div>
       <div style="font-size:.75rem;color:rgba(255,255,255,.5);margin-top:.2rem;">曲名をタップして再生</div>
     </div>
     <!-- 再生中バー -->
     <div id="bgmt-now" style="background:rgba(251,191,36,.12);border:1.5px solid rgba(251,191,36,.35);border-radius:10px;padding:.6rem .8rem;display:flex;align-items:center;gap:.6rem;min-height:44px;">
       <span id="bgmt-note" style="font-size:1.2rem;">🎵</span>
       <div style="flex:1;min-width:0;">
-        <div id="bgmt-playing" style="font-size:.82rem;color:#fbbf24;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('bgmStopped')}</div>
+        <div id="bgmt-playing" style="font-size:.82rem;color:#fbbf24;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">停止中</div>
         <div id="bgmt-sub" style="font-size:.68rem;color:rgba(255,255,255,.45);margin-top:.05rem;"></div>
       </div>
-      <button id="bgmt-stop-btn" onclick="bgmtStop()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#fff;font-size:.72rem;padding:.3rem .55rem;cursor:pointer;touch-action:manipulation;display:none;">${t('bgmStop')}</button>
+      <button id="bgmt-stop-btn" onclick="bgmtStop()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#fff;font-size:.72rem;padding:.3rem .55rem;cursor:pointer;touch-action:manipulation;display:none;">■ 停止</button>
     </div>
     <!-- 曲リスト -->
     <div id="bgmt-list" style="display:flex;flex-direction:column;gap:.3rem;margin-top:.2rem;"></div>
-    <button class="menu-btn secondary" style="width:100%;margin-top:.6rem;touch-action:manipulation;" onclick="bgmtStop();showScreen('title-screen')">${t('tourBackTitle')}</button>
+    <button class="menu-btn secondary" style="width:100%;margin-top:.6rem;touch-action:manipulation;" onclick="bgmtStop();showScreen('title-screen')">← タイトルへ戻る</button>
   </div>
 </div>
 
@@ -2762,6 +2759,20 @@ function _updateLangBtn(){
     't-rules-label':   t('rules'),
     't-save-label':    t('save'),
   };
+  // HTML静的テキストの言語切替
+  const htmlTextMap = {
+    'setup-title-text':   t('setupTitle'),
+    'goal-label-text':    t('goalLabel'),
+    'mapselect-title-text':t('mapSelectTitle'),
+    'back-to-setup-text': t('backToSetup'),
+    'to-title-text':      t('toTitle'),
+    'order-slot-title':   t('orderSlotTitle'),
+    'order-slot-desc':    t('orderSlotDesc'),
+  };
+  Object.entries(htmlTextMap).forEach(([id,text])=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = text;
+  });
   Object.entries(labelMap).forEach(([id, text])=>{
     const el = document.getElementById(id);
     if(el) el.textContent = text;
@@ -9456,6 +9467,22 @@ function playBGM(name){
   const dur=fn();
   _bgmLoop=setTimeout(()=>{if(_bgmName===name)playBGM(name);},dur*1000);
 }
+// ── イベントBGM管理 ──
+let _eventBgmActive = false; // イベントBGM再生中フラグ
+
+// イベント開始時に呼ぶ（event_card BGM開始＋フラグON）
+function startEventBGM(){
+  _eventBgmActive = true;
+  playBGM('event_card');
+}
+
+// イベント効果完全終了時に呼ぶ（マップBGMに戻す）
+function endEventBGM(){
+  if(!_eventBgmActive) return;
+  _eventBgmActive = false;
+  updateMapBGM();
+}
+
 function stopBGM(){
   if(_bgmLoop)clearTimeout(_bgmLoop);
   _bgmName=null;
@@ -9635,7 +9662,7 @@ function initGame(playerDefs,goalAmount,bankruptLimit){
     p.stat={tollPaid:0,tollReceived:0,tollPaidCount:0,tollReceivedCount:0,
             fiveBuyCount:0,riderGain:0,restSaved:0,stockDamageDealt:0};
   });
-  mapScale=1;mapOffX=0;mapOffY=0;
+  mapScale=0.85;mapOffX=0;mapOffY=0; // 少し引いた状態でスタート
   G._pendingStockDown={};
   G._pendingStockBought={};
   G._pendingStockBoughtUp={};
@@ -9649,7 +9676,7 @@ function initGame(playerDefs,goalAmount,bankruptLimit){
   addLog('💰 初期現金: 2,000G（全員）','');
   _initEventDeck(); // イベントデッキ初期化
   document.getElementById('goal-display').textContent=goalAmount.toLocaleString();
-  document.getElementById('turn-label').textContent='ターン1';
+  // turn-label removed
   setTimeout(()=>preRollPhase(),500);
 }
 
@@ -12420,20 +12447,16 @@ function showEventCard(no, callback, cardType, markIdx){
 
   overlay.classList.add('show');
 
-  // イベントカードBGMを再生（マップBGMを一時退避して復元）
-  const _prevBgm=_bgmName;
-  playBGM('event_card');
+  // イベントカードBGM開始（効果終了までevent_card BGMを維持）
+  startEventBGM();
 
   // 前回のタイマーをキャンセル（マークマスで連続呼び出しされる場合の二重発火防止）
   if(overlay._ecTimer) clearTimeout(overlay._ecTimer);
 
-  // 2.8秒表示してから閉じる
+  // 2.8秒表示してから閉じる（BGMはコールバック側で終了させる）
   overlay._ecTimer=setTimeout(()=>{
     overlay._ecTimer=null;
     overlay.classList.remove('show');
-    // 元のBGMに戻す
-    if(_prevBgm&&_prevBgm!=='event_card') playBGM(_prevBgm);
-    else updateMapBGM();
     setTimeout(()=>{if(callback)callback();},350);
   },_td(2800));
 }
@@ -17988,6 +18011,8 @@ function endAction(){
   if(_endActionLock){console.warn('endAction double call ignored');return;}
   _endActionLock=true;
   setTimeout(()=>{_endActionLock=false;},100); // 100ms以内の二重呼び出しを防止
+  // イベントBGM中であればマップBGMに戻す
+  endEventBGM();
   _endActionProceed();
 }
 function _endActionProceed(){
@@ -18136,7 +18161,7 @@ function nextTurn(){
   const _prevPlayer=G.players[(G.currentPlayerIdx-1+G.players.length)%G.players.length];
   // No.19/25/68: player系フラグは preRollPhase でそのプレイヤー自身のターン開始時にリセット
   G.currentPlayerIdx=(G.currentPlayerIdx+1)%G.players.length;
-  updateMapBGM(); // 目標金額達成者がいる→tension、いない→game
+  endEventBGM(); updateMapBGM(); // 目標金額達成者がいる→tension、いない→game
   // 破産人数が設定値に達している場合は終了（bankrupt()内で呼ばれるが念のため）
   const _bCount=G.players.filter(p=>p.bankrupt).length;
   if(_bCount>=(G.bankruptLimit||1)||G.players.every(p=>p.bankrupt)){endGame(-1);return;}
@@ -18175,7 +18200,7 @@ function preRollPhase(){
     addLog(`↩️ ${player.name} 今ターンは方向転換可能！`,'event');
     showToast('↩️ 今ターンは引き返す方向も選べます！');
   }
-  document.getElementById('turn-label').textContent=`ターン${G.turn} / ${player.name}`;
+  // turn-label removed
   // ターン切り替わり時はカメラを即座にテレポート（ぬるっと動かない）
   snapCamera(player);
   focusOnPlayer(player);
@@ -18793,7 +18818,7 @@ function _startForcedAuctionBody(seller, sq, callback){
     }
     renderStatus();
     // 競売終了後はカメラをプレイヤーフォーカスに戻す
-    setTimeout(()=>{ mapScale=1; mapOffX=0; mapOffY=0; mapFocusMode=true; updateFocusBtn(); renderMap(); }, 100);
+    setTimeout(()=>{ mapScale=0.85; mapOffX=0; mapOffY=0; mapFocusMode=true; updateFocusBtn(); renderMap(); }, 100);
     setTimeout(callback, 400);
   }
 
@@ -19030,7 +19055,7 @@ function _startAuctionBody(seller, sq, done, overrideStartPrice=null){
     }
     renderStatus();
     // 競売終了後はカメラをプレイヤーフォーカスに戻す
-    setTimeout(()=>{ mapScale=1; mapOffX=0; mapOffY=0; mapFocusMode=true; updateFocusBtn(); renderMap(); }, 100);
+    setTimeout(()=>{ mapScale=0.85; mapOffX=0; mapOffY=0; mapFocusMode=true; updateFocusBtn(); renderMap(); }, 100);
     setTimeout(done, 400);
   }
 
@@ -21074,10 +21099,8 @@ function renderStatus(){
       </div>
       <div class="p-chip-detail">
         <span class="p-chip-stat">💰${a.cash.toLocaleString()}</span>
-        <span class="p-chip-stat">📈${a.stockAsset.toLocaleString()}</span>
-        <span class="p-chip-stat">🏪${a.shopAsset.toLocaleString()}</span>
       </div>
-      <div class="p-chip-marks">${marksHtml}${anyCardsHtml}${stockHtml?' '+stockHtml:''}</div>
+      <div class="p-chip-marks">${marksHtml}${anyCardsHtml}</div>
       ${p.resting?'<div class="badge-state rest">😴休業</div>':''}
       ${p.lucky?'<div class="badge-state lucky">⭐ラッキー</div>':''}
       ${p.bankrupt?'<div class="badge-state bust">💀破産</div>':''}
@@ -21288,7 +21311,7 @@ function renderMap(){
       const tx=nx*ISO_X + SQ*ISO_X*0.5;
       const ty=ny*ISO_Y + SQ*ISO_Y*0.5;
       const fitScale=Math.min((W-24)/baseW,(H-24)/baseH);
-      const zoomMul=Math.max(2.6, Math.min(6.0, 1.8/fitScale));
+      const zoomMul=Math.max(2.0, Math.min(4.5, 1.35/fitScale));
       tScale = Math.max(0.5, fitScale*zoomMul);
       tOX = W/2 - tx*tScale;
       tOY = H*0.42 - ty*tScale;
@@ -23525,7 +23548,7 @@ function zoomMap(factor){
   if(mapFocusMode){mapFocusMode=false; updateFocusBtn();}
   mapScale=Math.max(.4,Math.min(3,mapScale*factor));renderMap();
 }
-function resetMapView(){mapScale=1;mapOffX=0;mapOffY=0;renderMap();}
+function resetMapView(){mapScale=0.85;mapOffX=0;mapOffY=0;renderMap();}
 
 function toggleFocusMode(){
   mapFocusMode=!mapFocusMode;
@@ -24514,8 +24537,13 @@ function showTourStageSelect(mode){
   if(modeLabel) modeLabel.textContent = mode==='hard'?'🔥 ハードモード':'🌿 ノーマルモード';
 
   const config  = mode==='hard' ? TOUR_HARD_CONFIG : TOUR_NORMAL_CONFIG;
+  // _tourStateのcleared（直前のクリア含む）とURLセーブの両方をマージ
   const save    = _loadTourSave(mode) || {clearedStages:[]};
-  const cleared = save.clearedStages || [];
+  const urlCleared = save.clearedStages || [];
+  const stateCleared = (_tourState && _tourState.mode===mode) ? (_tourState.clearedStages||[]) : [];
+  // どちらか一方にあれば解放済みとみなす
+  const allCleared  = [...new Set([...urlCleared, ...stateCleared])];
+  const cleared = allCleared;
 
   // 解放済み章を計算
   // ノーマル: 全章選択可
@@ -24612,13 +24640,17 @@ function _getTourMapIcon(mapId){
 
 function selectTourStage(mode, stageIdx){
   // ステージを選択してキャラ選択へ
+  const _savedCleared = (_loadTourSave(mode)||{clearedStages:[]}).clearedStages || [];
   if(!_tourState || _tourState.mode !== mode){
     _tourState = {
       mode, charaKey:null, charaName:'', mapIdx:stageIdx,
       maps: TOUR_NORMAL_MAPS, results:[], active:false,
-      clearedStages: (_loadTourSave(mode)||{clearedStages:[]}).clearedStages || [],
+      clearedStages: _savedCleared,
     };
   } else {
+    // 既存_tourStateのclearedとURLのclearedをマージ
+    const merged = [...new Set([...(_tourState.clearedStages||[]), ..._savedCleared])];
+    _tourState.clearedStages = merged;
     _tourState.mapIdx = stageIdx;
     _tourState.charaKey = null;
     _tourState.charaName = '';
