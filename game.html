@@ -2481,7 +2481,6 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
   </div>
   <!-- 詳細テーブル -->
   <div id="result-detail-wrap" style="display:none;"></div>
-  <button id="tour-next-btn" class="menu-btn" style="margin-top:1rem;width:100%;display:none;" onclick="onTourNextBtn()">⭐ 次へ進む</button>
   <button id="result-title-btn" class="menu-btn" style="margin-top:.5rem;width:100%;" onclick="showTitle()">タイトルへ戻る</button>
 </div>
 
@@ -20605,35 +20604,16 @@ function endGame(winnerId){
   setTimeout(()=>showResultComments(sorted, winnerId), 800);
   setTimeout(()=>showSpecialAwards(sorted, winnerId), 1200);
 
-  if(_tourState){
-    _tourState.active = true;
-    const stageIdx = _tourState.mapIdx || 0;
-    const reqRank = TOUR_CLEAR_RANK[stageIdx] || 0;
-    let playerRank = -1;
-    sorted.forEach((p, rank) => { if(!G.players[p.id].isCPU) playerRank = rank; });
-    const playerWon = playerRank >= 0 && playerRank <= reqRank;
-    // タイトルボタン非表示、次へボタン表示
-    const tb = document.getElementById('result-title-btn');
-    const nb = document.getElementById('tour-next-btn');
-    if(tb) tb.style.display = 'none';
-    if(nb){
-      nb.style.display = 'block';
-      nb.textContent = playerWon ? '⭐ 次へ進む' : '🔄 結果を確認';
-      nb.dataset.won = playerWon ? '1' : '0';
-      nb.dataset.rank = String(playerRank);
-    }
+  // ツアーモード中なら結果を処理
+  if(_tourState && _tourState.active){
+    const playerWon = sorted[0] && !G.players[sorted[0].id].isCPU;
+    // タイトルへ戻るボタンを非表示
+    const _tb = document.getElementById('result-title-btn');
+    if(_tb) _tb.style.display = 'none';
+    setTimeout(()=>onTourMapEnd(playerWon), 2000);
   }
 }
 
-function onTourNextBtn(){
-  const nb = document.getElementById('tour-next-btn');
-  const tb = document.getElementById('result-title-btn');
-  if(nb) nb.style.display = 'none';
-  if(tb) tb.style.display = '';
-  const playerWon = nb && nb.dataset.won === '1';
-  const playerRank = nb ? parseInt(nb.dataset.rank) : -1;
-  onTourMapEnd(playerWon, playerRank);
-}
 
 // ── 特別賞コーナー ──
 function showSpecialAwards(sorted, winnerId){
