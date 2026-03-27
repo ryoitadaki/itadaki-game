@@ -2021,28 +2021,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
 
 
 </style>
-<script>
-// ===== グローバルエラーハンドラ =====
-window.onerror = function(msg, src, line, col, err){
-  const info = `[ERROR] ${msg}\nL${line}:${col}\n${err&&err.stack?err.stack.split('\n').slice(0,4).join('\n'):''}`;
-  console.error(info);
-  // ゲーム画面が表示されている場合はトースト表示
-  try{
-    const gs = document.getElementById('game-screen');
-    if(gs && gs.classList.contains('active')){
-      const t = document.createElement('div');
-      t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#ff3333;color:#fff;padding:.6rem 1rem;border-radius:8px;z-index:99999;font-size:.8rem;max-width:90vw;word-break:break-all;white-space:pre-wrap;';
-      t.textContent = info.slice(0,300);
-      document.body.appendChild(t);
-      setTimeout(()=>t.remove(), 8000);
-    }
-  }catch(e2){}
-  return false;
-};
-window.onunhandledrejection = function(e){
-  console.error('[PROMISE ERROR]', e.reason);
-};
-</script>
+
 </head>
 <body>
 
@@ -2077,38 +2056,45 @@ window.onunhandledrejection = function(e){
       <span style="color:#22d3ee;font-size:.95rem;text-shadow:0 0 8px #22d3ee88;">♣</span>
     </div>
 
+    <!-- 言語切替ボタン -->
+    <div style="position:absolute;top:12px;right:12px;z-index:30;pointer-events:auto;">
+      <button id="lang-toggle-btn" onclick="setLang(_lang==='ja'?'en':'ja')"
+        style="background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.3);border-radius:20px;color:#fff;font-size:.78rem;font-weight:700;padding:.3rem .7rem;cursor:pointer;touch-action:manipulation;">
+        🌐 EN
+      </button>
+    </div>
     <!-- ボタン群 -->
     <div id="title-btns" style="display:flex;flex-direction:column;align-items:center;gap:clamp(.25rem,1vh,.45rem);pointer-events:auto;width:100%;">
 
       <!-- ツアーモード -->
       <button class="menu-btn title-menu-btn" style="width:100%;padding:.55rem .8rem !important;font-size:.9rem !important;background:linear-gradient(160deg,#1a3a1a 0%,#0f2a0f 60%,#071a07 100%) !important;border-color:#4ade80 !important;box-shadow:0 4px 0 #166534,0 6px 18px rgba(0,0,0,.6) !important;" onclick="showTourMode();initAudio();playBGM('title')">
-        🗺️ ツアーモード
+        🗺️ <span id="t-tour-label">ツアーモード</span>
         <span style="font-size:.58rem;background:rgba(74,222,128,.2);color:#4ade80;border:1px solid #4ade80;border-radius:4px;padding:.02rem .28rem;margin-left:.35rem;vertical-align:middle;">NEW</span>
       </button>
 
       <!-- フリーモード -->
       <button class="menu-btn title-menu-btn" style="width:100%;padding:.6rem .8rem !important;font-size:.95rem !important;" onclick="showSetup(false);initAudio();playBGM('title')">
-        🎮 フリーモード
+        🎮 <span id="t-free-label">フリーモード</span>
       </button>
 
       <!-- CPU観戦 -->
       <button class="menu-btn title-menu-btn" style="width:100%;padding:.6rem .8rem !important;font-size:.95rem !important;background:linear-gradient(160deg,#3b2a6e 0%,#251848 60%,#160f30 100%) !important;border-color:#8b6fd4 !important;box-shadow:0 4px 0 #3a1e80,0 6px 18px rgba(0,0,0,.6) !important;" onclick="showSetup(true);initAudio();playBGM('title')">
-        👁 CPU観戦
+        👁 <span id="t-cpu-label">CPU観戦</span>
       </button>
 
       <!-- 4つのサブボタン：アイコン＋ラベルの横並び1行 -->
       <div style="display:flex;justify-content:center;gap:.4rem;width:100%;">
         <button class="menu-btn secondary title-menu-btn" style="flex:1;max-width:72px;padding:.45rem .2rem !important;font-size:.68rem !important;line-height:1.4;text-align:center;" onclick="showCpuGuide()">
-          📖<br>CPU図鑑
+          📖<br><span id="t-cpuguide-label">CPU図鑑</span>
         </button>
-        <button class="menu-btn secondary title-menu-btn" style="flex:1;max-width:72px;padding:.45rem .2rem !important;font-size:.68rem !important;line-height:1.4;text-align:center;touch-action:manipulation;" onclick="showScreen('rulebook-screen')">
-          📜<br>ルール<br><span style="font-size:.52rem;color:#4ade80;">NEW</span>
+        <button class="menu-btn secondary title-menu-btn" style="flex:1;max-width:72px;padding:.45rem .2rem !important;font-size:.68rem !important;line-height:1.4;text-align:center;touch-action:manipulation;" onclick="buildRulebookUI();showScreen('rulebook-screen')">
+          📜<br><span id="t-rules-label">ルール</span><br><span style="font-size:.52rem;color:#4ade80;">NEW</span>
         </button>
         <button id="bgm-theater-btn" class="menu-btn secondary title-menu-btn" style="flex:1;max-width:72px;padding:.45rem .2rem !important;font-size:.68rem !important;line-height:1.4;text-align:center;touch-action:manipulation;opacity:.4;cursor:not-allowed;" onclick="_onBgmTheaterBtnClick()">
           🎵<br>BGM<br><span id="bgm-theater-badge" style="font-size:.52rem;color:#fbbf24;">????</span>
         </button>
         <button class="menu-btn secondary title-menu-btn" style="flex:1;max-width:72px;padding:.45rem .2rem !important;font-size:.68rem !important;line-height:1.4;text-align:center;" onclick="_titleSaveBtn()">
-          💾<br>セーブ
+          💾<br><span id="t-save-label">セーブ</span>
         </button>
       </div>
 
@@ -2137,7 +2123,7 @@ window.onunhandledrejection = function(e){
 <!-- SETUP -->
 <div id="setup-screen" class="screen">
   <div style="width:100%;max-width:500px;margin:0 auto;padding:.8rem .8rem 2rem;overflow-y:auto;height:100vh;">
-    <div class="setup-title">対戦相手を選ぼう</div>
+    <div class="setup-title">${t('setupTitle')}</div>
     <button onclick="randomizeCpuSlots()" style="
       width:100%;margin-bottom:.6rem;padding:.55rem;
       background:linear-gradient(135deg,#6366f1,#8b5cf6);
@@ -2151,7 +2137,7 @@ window.onunhandledrejection = function(e){
     <!-- 目標金額 -->
     <div class="setup-card" style="margin-top:.6rem;">
       <div class="goal-row" style="flex-wrap:wrap;gap:.4rem;">
-        <label style="width:100%;font-size:.85rem;color:var(--gray);">目標金額（10,000G〜）</label>
+        <label style="width:100%;font-size:.85rem;color:var(--gray);">${t('goalLabel')}</label>
         <input type="number" id="goal-select" min="10000" max="9999999" step="1" value="10000"
           style="flex:1;background:var(--bg2);border:1.5px solid var(--border);color:var(--white);
           padding:.5rem .7rem;border-radius:7px;font-size:1rem;font-family:inherit;min-width:0;">
@@ -2190,9 +2176,9 @@ window.onunhandledrejection = function(e){
 <!-- MAP SELECT -->
 <div id="mapselect-screen" class="screen" style="overflow-y:auto;-webkit-overflow-scrolling:touch;align-items:flex-start;">
   <div style="width:100%;max-width:500px;margin:0 auto;padding:.8rem .8rem 3rem;box-sizing:border-box;">
-    <div class="setup-title">マップを選ぼう</div>
+    <div class="setup-title">${t('mapSelectTitle')}</div>
     <div id="map-cards"></div>
-    <button class="menu-btn secondary" style="width:100%;margin-top:.6rem" onclick="showSetup(_spectateMode)">← 対戦相手選択へ戻る</button>
+    <button class="menu-btn secondary" style="width:100%;margin-top:.6rem" onclick="showSetup(_spectateMode)">${t('backToSetup')}</button>
     <button class="menu-btn secondary" style="width:100%;margin-top:.4rem" onclick="showTitle()">タイトルへ</button>
   </div>
 </div>
@@ -2201,7 +2187,7 @@ window.onunhandledrejection = function(e){
 <div id="game-screen" class="screen">
   <div id="top-bar">
     <span style="font-weight:700;font-size:.85rem;">いただきSTREET</span>
-    <span class="top-goal">目標:<span id="goal-display">0</span>G</span>
+    <span class="top-goal">${t('goalDisplay')}<span id="goal-display">0</span>G</span>
     <span id="turn-label" class="top-turn"></span>
     <span class="top-hint">↑↓:選択 Enter:決定 Backspace:戻る S:株売 A:競売</span>
     <button id="speed-toggle-btn" onclick="toggleCpuSpeed()" style="font-size:.7rem;padding:.2rem .55rem;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;cursor:pointer;white-space:nowrap;">▶ 通常速度</button>
@@ -2248,8 +2234,8 @@ window.onunhandledrejection = function(e){
 
 <!-- ORDER SLOT -->
 <div id="order-slot-screen" class="screen">
-  <div class="oss-title">🎲 順番決め</div>
-  <div class="oss-subtitle">数字が大きい順にサイコロを振れます</div>
+  <div class="oss-title">${t('orderSlotTitle')}</div>
+  <div class="oss-subtitle">${t('orderSlotDesc')}</div>
   <div class="oss-cards" id="oss-cards"></div>
   <div class="oss-result-row" id="oss-result-row"></div>
 </div>
@@ -2260,7 +2246,7 @@ window.onunhandledrejection = function(e){
     <div style="text-align:center;padding:.8rem 0;">
       <div style="font-size:2.2rem;margin-bottom:.2rem;">🗺️</div>
       <div style="font-size:1.4rem;font-weight:700;color:#4ade80;text-shadow:0 0 16px rgba(74,222,128,.5);">ツアーモード</div>
-      <div style="font-size:.78rem;color:rgba(255,255,255,.6);margin-top:.25rem;">全マップを制覇する旅に出よう！</div>
+      <div style="font-size:.78rem;color:rgba(255,255,255,.6);margin-top:.25rem;">${t('tourSubtitle')}</div>
     </div>
     <!-- ノーマル -->
     <div id="tour-normal-card" style="background:linear-gradient(135deg,rgba(20,50,20,.95),rgba(10,30,10,.95));border:2px solid #4ade80;border-radius:14px;padding:1rem 1.2rem;cursor:pointer;transition:transform .1s,filter .1s;touch-action:manipulation;min-height:80px;" onclick="showTourCharaSelect('normal')">
@@ -2268,7 +2254,7 @@ window.onunhandledrejection = function(e){
         <span style="font-size:1.5rem;">🌿</span>
         <div>
           <div style="font-weight:700;font-size:1.05rem;color:#4ade80;">ノーマルモード</div>
-          <div style="font-size:.72rem;color:rgba(255,255,255,.6);">10マップ・ステップアップの旅</div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.6);">${t('tourNormalSub')}</div>
         </div>
       </div>
       <div id="tour-normal-progress" style="font-size:.75rem;color:rgba(255,255,255,.5);">マップ1〜10を順番にクリアせよ</div>
@@ -2279,12 +2265,12 @@ window.onunhandledrejection = function(e){
         <span id="tour-hard-icon" style="font-size:1.5rem;">🔥</span>
         <div>
           <div id="tour-hard-title" style="font-weight:700;font-size:1.05rem;color:#f87171;">ハードモード</div>
-          <div id="tour-hard-sub" style="font-size:.72rem;color:rgba(255,255,255,.6);">10マップ・Sランクとの死闘</div>
+          <div id="tour-hard-sub" style="font-size:.72rem;color:rgba(255,255,255,.6);">${t('tourHardSub')}</div>
         </div>
       </div>
       <div id="tour-hard-progress" style="font-size:.75rem;color:rgba(255,255,255,.5);">全マップでSランクCPUと対決！</div>
     </div>
-    <button class="menu-btn secondary" style="width:100%;margin-top:.4rem" onclick="showScreen('title-screen')">← タイトルへ戻る</button>
+    <button class="menu-btn secondary" style="width:100%;margin-top:.4rem" onclick="showScreen('title-screen')">${t('tourBackTitle')}</button>
     <!-- クリアデータURL共有（データあり時のみ表示） -->
     <div id="tour-url-share" style="display:none;margin-top:.2rem;">
       <button onclick="copyTourUrl()" style="width:100%;background:rgba(251,191,36,.12);border:1.5px solid rgba(251,191,36,.4);border-radius:10px;color:#fbbf24;font-size:.8rem;padding:.55rem;cursor:pointer;touch-action:manipulation;">
@@ -2311,21 +2297,21 @@ window.onunhandledrejection = function(e){
     <div style="text-align:center;padding:.5rem 0;">
       <div id="tour-chara-stage-label" style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:.1rem;"></div>
       <div style="font-size:1.1rem;font-weight:700;color:#4ade80;">キャラクターを選んでください</div>
-      <div style="font-size:.75rem;color:rgba(255,255,255,.6);margin-top:.2rem;">犬か猫、どちらで旅に出る？</div>
+      <div style="font-size:.75rem;color:rgba(255,255,255,.6);margin-top:.2rem;">${_lang==='ja'?'犬か猫、どちらで旅に出る？':'Dog or Cat?'}</div>
     </div>
     <div id="tour-chara-list" style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;"></div>
-    <button class="menu-btn secondary" style="width:100%;margin-top:.2rem" onclick="showScreen('tour-stage-screen')">← ステージ選択へ</button>
+    <button class="menu-btn secondary" style="width:100%;margin-top:.2rem" onclick="showScreen('tour-stage-screen')">${t('tourCharaBack')}</button>
   </div>
 </div>
 
 <div id="rulebook-screen" class="screen" style="overflow-y:auto;-webkit-overflow-scrolling:touch;">
-  <div style="max-width:560px;margin:0 auto;padding:1rem .9rem 3rem;display:flex;flex-direction:column;gap:.1rem;">
+  <div id="rulebook-content" style="max-width:560px;margin:0 auto;padding:1rem .9rem 3rem;display:flex;flex-direction:column;gap:.1rem;">
 
     <!-- ヘッダー -->
     <div style="text-align:center;padding:.8rem 0 .6rem;">
       <div style="font-size:2rem;margin-bottom:.15rem;">📖</div>
       <div style="font-size:1.35rem;font-weight:700;color:#fbbf24;text-shadow:0 0 16px rgba(251,191,36,.5);">いただきSTREET</div>
-      <div style="font-size:1rem;font-weight:700;color:rgba(255,255,255,.8);margin-top:.1rem;">ルールブック</div>
+      <div style="font-size:1rem;font-weight:700;color:rgba(255,255,255,.8);margin-top:.1rem;" id="rb-main-title">ルールブック</div>
     </div>
 
     <!-- 目次 -->
@@ -2455,7 +2441,7 @@ window.onunhandledrejection = function(e){
       </div>
     </div>
 
-    <button class="menu-btn secondary" style="width:100%;margin-top:1.2rem;touch-action:manipulation;" onclick="showScreen('title-screen')">← タイトルへ戻る</button>
+    <button class="menu-btn secondary" style="width:100%;margin-top:1.2rem;touch-action:manipulation;" onclick="showScreen('title-screen')">${t('tourBackTitle')}</button>
   </div>
 </div>
 
@@ -2463,21 +2449,21 @@ window.onunhandledrejection = function(e){
   <div style="max-width:520px;margin:0 auto;padding:1rem .8rem 3rem;display:flex;flex-direction:column;gap:.5rem;">
     <div style="text-align:center;padding:.6rem 0 .3rem;">
       <div style="font-size:2rem;margin-bottom:.15rem;">🎵</div>
-      <div style="font-size:1.3rem;font-weight:700;color:#fbbf24;text-shadow:0 0 16px rgba(251,191,36,.5);">BGMシアター</div>
+      <div style="font-size:1.3rem;font-weight:700;color:#fbbf24;text-shadow:0 0 16px rgba(251,191,36,.5);">${t('bgmTitle')}</div>
       <div style="font-size:.75rem;color:rgba(255,255,255,.5);margin-top:.2rem;">曲名をタップして再生</div>
     </div>
     <!-- 再生中バー -->
     <div id="bgmt-now" style="background:rgba(251,191,36,.12);border:1.5px solid rgba(251,191,36,.35);border-radius:10px;padding:.6rem .8rem;display:flex;align-items:center;gap:.6rem;min-height:44px;">
       <span id="bgmt-note" style="font-size:1.2rem;">🎵</span>
       <div style="flex:1;min-width:0;">
-        <div id="bgmt-playing" style="font-size:.82rem;color:#fbbf24;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">停止中</div>
+        <div id="bgmt-playing" style="font-size:.82rem;color:#fbbf24;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('bgmStopped')}</div>
         <div id="bgmt-sub" style="font-size:.68rem;color:rgba(255,255,255,.45);margin-top:.05rem;"></div>
       </div>
-      <button id="bgmt-stop-btn" onclick="bgmtStop()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#fff;font-size:.72rem;padding:.3rem .55rem;cursor:pointer;touch-action:manipulation;display:none;">■ 停止</button>
+      <button id="bgmt-stop-btn" onclick="bgmtStop()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#fff;font-size:.72rem;padding:.3rem .55rem;cursor:pointer;touch-action:manipulation;display:none;">${t('bgmStop')}</button>
     </div>
     <!-- 曲リスト -->
     <div id="bgmt-list" style="display:flex;flex-direction:column;gap:.3rem;margin-top:.2rem;"></div>
-    <button class="menu-btn secondary" style="width:100%;margin-top:.6rem;touch-action:manipulation;" onclick="bgmtStop();showScreen('title-screen')">← タイトルへ戻る</button>
+    <button class="menu-btn secondary" style="width:100%;margin-top:.6rem;touch-action:manipulation;" onclick="bgmtStop();showScreen('title-screen')">${t('tourBackTitle')}</button>
   </div>
 </div>
 
@@ -2598,6 +2584,255 @@ window.onunhandledrejection = function(e){
 </div>
 
 <script>
+
+// ===== 言語システム =====
+let _lang = 'ja';
+try{ _lang = localStorage.getItem('lang') || 'ja'; }catch(e){}
+
+const _T = {
+  // タイトル
+  tourMode:       {ja:'ツアーモード',    en:'Tour Mode'},
+  freeMode:       {ja:'フリーモード',    en:'Free Play'},
+  cpuWatch:       {ja:'CPU観戦',         en:'CPU Battle'},
+  cpuGuide:       {ja:'CPU図鑑',         en:'CPU Guide'},
+  rules:          {ja:'ルール',          en:'Rules'},
+  save:           {ja:'セーブ',          en:'Save'},
+  continueGame:   {ja:'続きから遊ぶ',    en:'Continue'},
+  // セットアップ
+  setupTitle:     {ja:'対戦設定',        en:'Game Setup'},
+  goal:           {ja:'目標金額',        en:'Goal'},
+  bankruptLimit:  {ja:'破産人数',        en:'Bankrupt Limit'},
+  selectMap:      {ja:'マップを選ぶ',    en:'Select Map'},
+  selectCpu:      {ja:'対戦相手を選ぶ',  en:'Select Opponents'},
+  startGame:      {ja:'ゲームスタート',  en:'Start Game'},
+  back:           {ja:'戻る',            en:'Back'},
+  // アクションパネル
+  rollDice:       {ja:'サイコロを振る',  en:'Roll Dice'},
+  viewStocks:     {ja:'株を見る/売る',   en:'Stocks'},
+  auction:        {ja:'自主競売',        en:'Auction'},
+  toTitle:        {ja:'タイトルへ',      en:'Title'},
+  copyUrl:        {ja:'URLコピー',       en:'Copy URL'},
+  // マスラベル
+  bank:           {ja:'銀行',            en:'Bank'},
+  rest:           {ja:'休',              en:'Rest'},
+  lucky:          {ja:'★',              en:'★'},
+  chance:         {ja:'チャンス',        en:'Chance'},
+  stockShop:      {ja:'株屋',            en:'Stocks'},
+  warp:           {ja:'ワープ',          en:'Warp'},
+  // ゲーム中フラッシュ
+  levelUp:        {ja:'LEVEL UP!',       en:'LEVEL UP!'},
+  bankrupt:       {ja:'BANKRUPT!',       en:'BANKRUPT!'},
+  warpFlash:      {ja:'WARP!',           en:'WARP!'},
+  luckyFlash:     {ja:'LUCKY!',          en:'LUCKY!'},
+  auctionStart:   {ja:'AUCTION START',   en:'AUCTION START'},
+  // 増資画面
+  investTitle:    {ja:'増資する',        en:'Invest'},
+  investSelect:   {ja:'増資するお店を選んでください', en:'Select a shop to invest in'},
+  investGrade:    {ja:'グレード',        en:'Grade'},
+  investCost:     {ja:'増資額',          en:'Cost'},
+  investAfter:    {ja:'増資後の料金',    en:'Toll After'},
+  investBtn:      {ja:'増資する',        en:'Invest'},
+  cancelBtn:      {ja:'やめる',          en:'Cancel'},
+  // 株画面
+  stockTitle:     {ja:'株売買',          en:'Stocks'},
+  stockBuy:       {ja:'買う',            en:'Buy'},
+  stockSell:      {ja:'売る',            en:'Sell'},
+  stockPrice:     {ja:'株価',            en:'Price'},
+  stockholding:   {ja:'保有',            en:'Hold'},
+  // 競売
+  auctionTitle:   {ja:'🔨 自主競売',     en:'🔨 Auction'},
+  auctionDesc:    {ja:'競売に出す店を選んでください', en:'Select a shop to auction'},
+  bid:            {ja:'入札',            en:'Bid'},
+  pass:           {ja:'パス',            en:'Pass'},
+  // 結果画面
+  result:         {ja:'結果発表',        en:'Results'},
+  totalAsset:     {ja:'総資産',          en:'Total Assets'},
+  cash:           {ja:'現金',            en:'Cash'},
+  stockAsset:     {ja:'株資産',          en:'Stock Value'},
+  shopAsset:      {ja:'店資産',          en:'Shop Value'},
+  tollPaid:       {ja:'支払い計',        en:'Paid'},
+  tollReceived:   {ja:'受取り計',        en:'Received'},
+  // ツアー
+  normalMode:     {ja:'ノーマルモード',  en:'Normal Mode'},
+  hardMode:       {ja:'ハードモード',    en:'Hard Mode'},
+  stageSelect:    {ja:'ステージを選んでください', en:'Select Stage'},
+  charaSelect:    {ja:'キャラクターを選んでください', en:'Select Character'},
+  tourStart:      {ja:'スタート！',      en:'Start!'},
+  cleared:        {ja:'⭐ クリア済',     en:'⭐ Cleared'},
+  locked:         {ja:'🔒',              en:'🔒'},
+  target:         {ja:'目標',            en:'Goal'},
+  rank1:          {ja:'🥇 1位',          en:'🥇 1st'},
+  rank2:          {ja:'🥈 2位以上',      en:'🥈 2nd or better'},
+  // ─── セットアップ画面 ───
+  setupTitle:     {ja:'対戦相手を選ぼう',         en:'Select Opponents'},
+  cpuRandom:      {ja:'🎲 CPUをランダムで選ぶ',   en:'🎲 Random CPU'},
+  goalLabel:      {ja:'目標金額（10,000G〜）',     en:'Goal Amount (10,000G+)'},
+  bankruptLabel:  {ja:'破産人数',                  en:'Bankrupt Limit'},
+  startBtn:       {ja:'ゲームスタート！',           en:'Start Game!'},
+  cpuWatchMode:   {ja:'👁 CPU観戦モード — CPU4人で自動進行', en:'👁 CPU Watch — 4 CPUs auto play'},
+  youLabel:       {ja:'あなた',                    en:'You'},
+  nameLabel:      {ja:'名前',                      en:'Name'},
+  backToSetup:    {ja:'← 対戦相手選択へ戻る',      en:'← Back'},
+  // ─── マップ選択画面 ───
+  mapSelectTitle: {ja:'マップを選ぼう',             en:'Select Map'},
+  goalDisplay:    {ja:'目標:',                      en:'Goal:'},
+  // ─── 順番決めスロット ───
+  orderSlotTitle: {ja:'🎲 順番決め',               en:'🎲 Turn Order'},
+  orderSlotDesc:  {ja:'数字が大きい順にサイコロを振れます', en:'Highest number goes first'},
+  // ─── 結果画面 ───
+  resultTitle:    {ja:'結果発表',                   en:'Results'},
+  rank1st:        {ja:'1位',                        en:'1st'},
+  rank2nd:        {ja:'2位',                        en:'2nd'},
+  rank3rd:        {ja:'3位',                        en:'3rd'},
+  rank4th:        {ja:'4位',                        en:'4th'},
+  resultGraph:    {ja:'📊 資産推移',               en:'📊 Asset Chart'},
+  resultDetail:   {ja:'📋 詳細',                   en:'📋 Details'},
+  resultComment:  {ja:'💬 コメント',               en:'💬 Comments'},
+  resultAward:    {ja:'🏅 特別賞',                 en:'🏅 Awards'},
+  backToTitle:    {ja:'🏠 タイトルへ',             en:'🏠 Title'},
+  playAgain:      {ja:'もう一度',                   en:'Play Again'},
+  // ─── BGMシアター ───
+  bgmTitle:       {ja:'BGMシアター',               en:'BGM Theater'},
+  bgmSubtitle:    {ja:'曲名をタップして再生',       en:'Tap a track to play'},
+  bgmStopped:     {ja:'停止中',                    en:'Stopped'},
+  bgmStop:        {ja:'■ 停止',                    en:'■ Stop'},
+  bgmSystem:      {ja:'🎮 システム曲',             en:'🎮 System'},
+  bgmMap:         {ja:'🗺️ マップBGM',             en:'🗺️ Map BGM'},
+  // ─── ルールブック ───
+  rbTitle:        {ja:'ルールブック',              en:'Rulebook'},
+  rbIntro:        {ja:'📖 はじめに',              en:'📖 Introduction'},
+  rbFlow:         {ja:'🎮 ゲームの流れ',          en:'🎮 How to Play'},
+  rbSquares:      {ja:'🗺️ マスの種類',           en:'🗺️ Square Types'},
+  rbShop:         {ja:'🏪 お店について',          en:'🏪 Shops'},
+  rbStock:        {ja:'📈 株について',            en:'📈 Stocks'},
+  rbLevel:        {ja:'🎚️ レベルアップ',         en:'🎚️ Level Up'},
+  rbBankrupt:     {ja:'💀 破産',                 en:'💀 Bankrupt'},
+  rbWin:          {ja:'🏆 勝利条件',             en:'🏆 Win Condition'},
+  rbTips:         {ja:'💡 初心者向け攻略ヒント', en:'💡 Beginner Tips'},
+  rbBackToTitle:  {ja:'← タイトルへ戻る',        en:'← Back to Title'},
+  // ─── CPU図鑑 ───
+  cpuGuideTitle:  {ja:'📖 CPU図鑑',             en:'📖 CPU Guide'},
+  cpuGuideBack:   {ja:'← 戻る',                en:'← Back'},
+  cpuRankLabel:   {ja:'ランク',                 en:'Rank'},
+  cpuStars:       {ja:'★',                     en:'★'},
+  cpuTend:        {ja:'傾向',                   en:'Tendency'},
+  cpuTips:        {ja:'攻略のヒント',           en:'Tips'},
+  // ─── ツアー画面追加 ───
+  tourSubtitle:   {ja:'全マップを制覇する旅に出よう！', en:'Conquer all maps!'},
+  tourNormalSub:  {ja:'10マップ・ステップアップの旅',   en:'10 maps · step by step'},
+  tourHardSub:    {ja:'10マップ・Sランクとの死闘',       en:'10 maps · face S-rank CPUs'},
+  tourLocked:     {ja:'前章をクリアせよ',              en:'Clear prev stage'},
+  tourBackTitle:  {ja:'← タイトルへ戻る',             en:'← Back to Title'},
+  tourCharaBack:  {ja:'← ステージ選択へ',             en:'← Stage Select'},
+  // 続きから・ターン
+  continueBtn:    {ja:'続きから遊ぶ',    en:'Continue'},
+  turn:           {ja:'ターン',          en:'Turn'},
+  // 株単位
+  sheets:         {ja:'枚',              en:''},   // 英語では単位なし（数字のみ）
+  sheetsUnit:     {ja:'枚',              en:' sh'},
+  perSheet:       {ja:'G/枚',            en:'G/sh'},
+  maxSheets:      {ja:'枚',              en:' sh'},
+  // 汎用
+  ok:             {ja:'OK',              en:'OK'},
+  yes:            {ja:'はい',            en:'Yes'},
+  no:             {ja:'いいえ',          en:'No'},
+  confirm:        {ja:'決定',            en:'Confirm'},
+  // 破産・レベルアップ通知
+  lvUpMsg:        {ja:'レベルアップ！',  en:'Level Up!'},
+  bankruptMsg:    {ja:'破産…',          en:'Bankrupt...'},
+  // 買い物料
+  toll:           {ja:'買い物料',        en:'Toll'},
+  // 銀行
+  bankPass:       {ja:'銀行通過！',      en:'Bank!'},
+  // イベント
+  eventCard:      {ja:'イベント',        en:'Event'},
+};
+
+function t(key){ return (_T[key]&&_T[key][_lang]) || (_T[key]&&_T[key]['ja']) || key; }
+
+function _updateLangBtn(){
+  const btn = document.getElementById('lang-toggle-btn');
+  if(btn) btn.textContent = _lang==='ja' ? '🌐 EN' : '🌐 JP';
+  // タイトルテキスト更新（span id ベース）
+  const labelMap = {
+    't-tour-label':    t('tourMode'),
+    't-free-label':    t('freeMode'),
+    't-cpu-label':     t('cpuWatch'),
+    't-cpuguide-label':t('cpuGuide'),
+    't-rules-label':   t('rules'),
+    't-save-label':    t('save'),
+  };
+  Object.entries(labelMap).forEach(([id, text])=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = text;
+  });
+  // 続きから遊ぶボタン
+  const cBtn = document.getElementById('continue-btn');
+  if(cBtn && cBtn.style.display !== 'none'){
+    try{
+      const save = hasSaveData();
+      if(save){
+        const d = new Date(save.savedAt);
+        const ds = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+        cBtn.textContent = `📂 ${t('continueBtn')}（${t('turn')}${save.turn} / ${ds}）`;
+      }
+    }catch(e){}
+  }
+}
+
+function setLang(lang){
+  _lang = lang;
+  try{ localStorage.setItem('lang', lang); }catch(e){}
+  _applyLang();
+}
+
+function _applyLang(){
+  // タイトルボタン
+  _updateLangBtn();
+  // 現在表示中の画面に応じて再描画
+  const activeScreen = document.querySelector('.screen.active');
+  const screenId = activeScreen ? activeScreen.id : '';
+  if(screenId === 'game-screen'){
+    if(typeof renderActionPanel === 'function') renderActionPanel();
+    if(typeof renderStatus === 'function') renderStatus();
+  } else if(screenId === 'tour-stage-screen'){
+    if(typeof _tourState !== 'undefined' && _tourState)
+      showTourStageSelect(_tourState.mode);
+  } else if(screenId === 'tour-chara-screen'){
+    if(typeof _tourState !== 'undefined' && _tourState)
+      _buildTourCharaUI(_tourState.mode);
+  } else if(screenId === 'rulebook-screen'){
+    buildRulebookUI();
+  } else if(screenId === 'cpuguide-screen'){
+    showCpuGuide();
+  } else if(screenId === 'bgmtheater-screen'){
+    _buildBgmTheaterUI();
+  }
+}
+
+
+// ===== グローバルエラーハンドラ =====
+window.onerror = function(msg, src, line, col, err){
+  const info = `[ERROR] ${msg}\nL${line}:${col}\n${err&&err.stack?err.stack.split('\n').slice(0,4).join('\n'):''}`;
+  console.error(info);
+  // ゲーム画面が表示されている場合はトースト表示
+  try{
+    const gs = document.getElementById('game-screen');
+    if(gs && gs.classList.contains('active')){
+      const t = document.createElement('div');
+      t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#ff3333;color:#fff;padding:.6rem 1rem;border-radius:8px;z-index:99999;font-size:.8rem;max-width:90vw;word-break:break-all;white-space:pre-wrap;';
+      t.textContent = info.slice(0,300);
+      document.body.appendChild(t);
+      setTimeout(()=>t.remove(), 8000);
+    }
+  }catch(e2){}
+  return false;
+};
+window.onunhandledrejection = function(e){
+  console.error('[PROMISE ERROR]', e.reason);
+};
+
+
 
 // CanvasRenderingContext2D.roundRect polyfill
 if(typeof CanvasRenderingContext2D!=='undefined'&&!CanvasRenderingContext2D.prototype.roundRect){
@@ -10696,7 +10931,7 @@ function showBustFlash(player, callback){
   const nameEl=document.getElementById('bsf-name');
   const subEl=document.getElementById('bsf-sub');
   if(iconEl) iconEl.textContent='💀';
-  if(textEl) textEl.textContent='BANKRUPT!';
+  if(textEl) textEl.textContent=t('bankrupt');
   if(nameEl){
     nameEl.textContent=player.name;
     nameEl.style.color=player.color||'#ff6b6b';
@@ -10736,7 +10971,7 @@ function showLvFlash(name,lv,bonus,callback){
   const bonusEl=document.getElementById('lvf-bonus');
   const subEl=document.getElementById('lvf-sub');
   if(iconEl) iconEl.textContent='🎉';
-  if(textEl) textEl.textContent='LEVEL UP!';
+  if(textEl) textEl.textContent=t('levelUp');
   if(lvEl) lvEl.textContent=`Lv. ${lv}`;
   if(bonusEl) bonusEl.textContent=`+${bonus.toLocaleString()} G`;
   if(subEl) subEl.textContent=`${name} がレベルアップ！`;
@@ -11370,7 +11605,7 @@ function payToll(player,sq,callback){
           `あなたの現金+株資産: ${liqRest.toLocaleString()}G`,
         ],[
           {label:`⚡ 5倍買いする！(${fiveP.toLocaleString()}G)`,key:'Enter',primary:true,action:()=>{fiveTimesBuy(player,owner,sq,()=>callback());}},
-          {label:'やめる',key:'Backspace',action:()=>callback()},
+          {label:t('cancelBtn'),key:'Backspace',action:()=>callback()},
         ],{rowButtons:true});
       }
     } else {
@@ -11576,7 +11811,7 @@ function payToll(player,sq,callback){
           `あなたの現金+株資産: ${(playerAssetsPrePay.cash+playerAssetsPrePay.stockAsset).toLocaleString()}G`,
         ],[
           {label:`⚡ する！(${fiveP.toLocaleString()}G)`,key:'Enter',primary:true,action:()=>{fiveTimesBuy(player,owner,sq,()=>_afterFiveBuy());}},
-          {label:'やめる',key:'Backspace',action:()=>_afterFiveBuy()},
+          {label:t('cancelBtn'),key:'Backspace',action:()=>_afterFiveBuy()},
         ],{rowButtons:true});
       }
     } else {
@@ -12333,7 +12568,7 @@ function landEvent(player,sq){
         [{label:'100G払ってワープ',key:'Enter',primary:true,action:()=>{
           player.cash-=100;const from54b=getNode(player.pos);player.pos=bankNd54.id;player._warpedThisTurn=true;
           showWarpFlash(player,from54b,bankNd54,null,()=>{renderMap();landedOnSquare(player,bankNd54);});
-        }},{label:'やめる',key:'Backspace',action:()=>endAction()}]);
+        }},{label:t('cancelBtn'),key:'Backspace',action:()=>endAction()}]);
     }
     return;
   }}
@@ -12458,7 +12693,7 @@ function landEvent(player,sq){
             if(e.key==='Enter'&&!confirmBtn.disabled){e.preventDefault();confirmBtn.click();}
           };
           document.addEventListener('keydown',G._freewarpKeyHandler);
-        }},{label:'やめる',key:'Backspace',action:()=>endAction()}]);
+        }},{label:t('cancelBtn'),key:'Backspace',action:()=>endAction()}]);
     }
     return;
   }}
@@ -12476,7 +12711,7 @@ function landEvent(player,sq){
       const cost=Math.floor(G.areas[area].stockPrice*0.9);
       const maxBuy=Math.floor(player.cash/cost);
       if(maxBuy<1){endAction();return;}
-      showNumInputModal(`A${area}株を10%安く購入`,[`株価: ${G.areas[area].stockPrice.toLocaleString()}G → 10%引: ${cost.toLocaleString()}G/枚`,`最大: ${maxBuy}枚`],1,maxBuy,cnt=>{
+      showNumInputModal(`A${area}株を10%安く購入`,[`株価: ${G.areas[area].stockPrice.toLocaleString()}G → 10%引: ${cost.toLocaleString()}${_lang==='ja'?'G/枚':'G/sh'}`,`${_lang==='ja'?'最大':'Max'}: ${maxBuy}${_lang==='ja'?'枚':' sh'}`],1,maxBuy,cnt=>{
         player.cash-=cnt*cost;player.stocks[area]=(player.stocks[area]||0)+cnt;pendingStockBought(area,cnt);
         addLog(`📊 ${player.name} A${area}株×${cnt}枚を10%引で購入 -${(cnt*cost).toLocaleString()}G`,'event');
         renderStatus();endAction();
@@ -12618,7 +12853,7 @@ function landEvent(player,sq){
     if(!areas67.length){showEventNotif('📊','好きな株が買える！','現金不足で利用不可','#4da6ff',()=>endAction(),!player.isCPU);return;}
     function _doBuy67(area){
       const sp=G.areas[area].stockPrice;const maxBuy=Math.floor(player.cash/sp);
-      showNumInputModal(`A${area}株を購入`,[`株価: ${sp.toLocaleString()}G/枚`,`最大: ${maxBuy}枚`],1,maxBuy,cnt=>{
+      showNumInputModal(`A${area}株を購入`,[`株価: ${sp.toLocaleString()}${_lang==='ja'?'G/枚':'G/sh'}`,`${_lang==='ja'?'最大':'Max'}: ${maxBuy}${_lang==='ja'?'枚':' sh'}`],1,maxBuy,cnt=>{
         player.cash-=cnt*sp;player.stocks[area]=(player.stocks[area]||0)+cnt;pendingStockBought(area,cnt);
         addLog(`📊 ${player.name} A${area}株×${cnt}枚購入 -${(cnt*sp).toLocaleString()}G`,'event');
         renderStatus();endAction();
@@ -13395,7 +13630,7 @@ function landEvent(player,sq){
             shopFilter:sq=>sq.owner===player.id,
           },sq=>_doSell3xOpt(sq),()=>endAction());
         }},
-        {label:'やめる',key:'Backspace',action:()=>endAction()},
+        {label:t('cancelBtn'),key:'Backspace',action:()=>endAction()},
       ]);
     }
     return;
@@ -13488,7 +13723,7 @@ function landEvent(player,sq){
             endAction();
           });
         }},
-        {label:'やめる',key:'Backspace',action:()=>endAction()},
+        {label:t('cancelBtn'),key:'Backspace',action:()=>endAction()},
       ]);
     }
     return;
@@ -13522,7 +13757,7 @@ function landEvent(player,sq){
       const maxBuy=Math.floor(player.cash/cost);
       if(maxBuy<1){endAction();return;}
       showNumInputModal(`A${area}株を10%高く購入`,
-        [`株価: ${sp.toLocaleString()}G → 10%増: ${cost.toLocaleString()}G/枚`,`最大: ${maxBuy}枚`],
+        [`株価: ${sp.toLocaleString()}G → 10%増: ${cost.toLocaleString()}${_lang==='ja'?'G/枚':'G/sh'}`,`${_lang==='ja'?'最大':'Max'}: ${maxBuy}${_lang==='ja'?'枚':' sh'}`],
         1,maxBuy,
         cnt=>{
           player.cash-=cnt*cost;
@@ -14645,7 +14880,7 @@ function _showInvestHTML(player,done){
       const isMe=p.id===player.id;
       return `<div class="sh-holder ${isMe?'me':''}" style="--pc:${p.color}">
         <span class="sh-hname">${p.name}</span>
-        <span class="sh-hcount">${h}枚</span>
+        <span class="sh-hcount">${h}${_lang==='ja'?'枚':' sh'}</span>
       </div>`;
     }).join('');
     const rowsHtml=allAreaShops.map(sq=>{
@@ -14700,7 +14935,7 @@ function _showInvestHTML(player,done){
       return `<div class="inv-stock-chip ${held>0?'has':'none'}" style="border-color:${AREA_CLR[a]||'#888'}">
         <span class="isc-a" style="color:${AREA_CLR[a]||'#888'}">A${a}</span>
         <span class="isc-a" style="color:${AREA_CLR[a]||'#888'};font-size:.58rem;font-weight:400"> ${aname}</span>
-        <span class="isc-n ${held>=99?'hot':held>0?'ok':''}">${held}枚</span>
+        <span class="isc-n ${held>=99?'hot':held>0?'ok':''}">${held}${_lang==='ja'?'枚':' sh'}</span>
         ${held>0?`<span class="isc-v">${(held*sp).toLocaleString()}G</span>`:''}
         ${myShops>0?`<span class="isc-own">🏪×${myShops}</span>`:''}
       </div>`;
@@ -14834,7 +15069,7 @@ function showInvestModal(player,sq,done){
     if(h<=0)return '';
     const isMe=p.id===player.id;
     return `<span style="display:inline-flex;align-items:center;gap:.2rem;padding:.1rem .35rem;border-radius:5px;font-size:.7rem;font-weight:700;${isMe?'background:rgba(240,180,41,.12);border:1px solid rgba(240,180,41,.3);':'background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);'}">
-      <span style="color:${p.color}">●</span>${p.name} ${h}枚</span>`;
+      <span style="color:${p.color}">●</span>${p.name} ${h}${_lang==='ja'?'枚':' sh'}</span>`;
   }).filter(Boolean).join(' ');
 
   const c=document.getElementById('modal-content');
@@ -14887,7 +15122,7 @@ function showInvestModal(player,sq,done){
       const gain=h*spDiff;
       const isMe=p.id===player.id;
       gainRows+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:.15rem;">
-        <span style="font-size:.65rem;color:${p.color};font-weight:700;">💰 ${p.name}（${h}枚）</span>
+        <span style="font-size:.65rem;color:${p.color};font-weight:700;">💰 ${p.name}（${h}${_lang==='ja'?'枚':' sh'}）</span>
         <span style="font-size:.8rem;font-weight:800;color:${gain>0?'var(--green)':'var(--gray)'}">
           ${gain>0?'+':''}${gain.toLocaleString()}G
         </span>
@@ -15083,7 +15318,7 @@ function _showStockBuyHTML(player,callback){
       const isMe=p.id===player.id;
       return `<div class="sh-holder ${isMe?'me':''}" style="--pc:${p.color}">
         <span class="sh-hname">${p.name}</span>
-        <span class="sh-hcount">${h}枚</span>
+        <span class="sh-hcount">${h}${_lang==='ja'?'枚':' sh'}</span>
       </div>`;
     }).join('');
     // 1軒ごと詳細
@@ -15105,8 +15340,8 @@ function _showStockBuyHTML(player,callback){
     rows+=`<div class="sh-area">
       <div class="sh-area-head" style="--ac:${areaColor}">
         <span class="sh-a-num">A${a} <span style="font-size:.72rem;font-weight:400">${getAreaName(a)}</span></span>
-        <span class="sh-a-price">${sp.toLocaleString()}G/枚</span>
-        <span class="sh-a-self">自分: <b>${player.stocks[a]||0}枚</b></span>
+        <span class="sh-a-price">${sp.toLocaleString()}${_lang==='ja'?'G/枚':'G/sh'}</span>
+        <span class="sh-a-self">${_lang==='ja'?'自分':'Hold'}: <b>${player.stocks[a]||0}${_lang==='ja'?'枚':' sh'}</b></span>
         ${canBuy&&maxBuy>0
           ?`<button class="sh-buy-btn" data-area="${a}" data-max="${maxBuy}" data-price="${sp}">購入</button>`
           :`<span class="sh-ng">${canBuy?'上限':'現金不足'}</span>`
@@ -15151,8 +15386,8 @@ function _showStockBuyHTML(player,callback){
       const maxB=parseInt(btn.dataset.max);
       closeModal();
       showNumInputModal(`エリア${ar}株を購入`,
-        [`株価: ${price.toLocaleString()}G/枚`,
-         `自分の保有: ${player.stocks[ar]||0}枚（1回最大99枚・累計制限なし）`,
+        [`株価: ${price.toLocaleString()}${_lang==='ja'?'G/枚':'G/sh'}`,
+         `${_lang==='ja'?'自分の保有':'Hold'}: ${player.stocks[ar]||0}${_lang==='ja'?'枚（1回最大99枚・累計制限なし）':' sh (max 99/turn)'}`,
          `現金: ${player.cash.toLocaleString()}G`],
         maxB,maxB,
         cnt=>{
@@ -15190,7 +15425,7 @@ function showStockStatusModal(player,done){
       const isMe=p.id===player.id;
       return `<div class="sh-holder ${isMe?'me':''}" style="--pc:${p.color}">
         <span class="sh-hname">${p.name}</span>
-        <span class="sh-hcount">${h}枚</span>
+        <span class="sh-hcount">${h}${_lang==='ja'?'枚':' sh'}</span>
       </div>`;
     }).join('');
     // 1軒ごと詳細
@@ -15213,7 +15448,7 @@ function showStockStatusModal(player,done){
     rows+=`<div class="sh-area">
       <div class="sh-area-head" style="--ac:${areaColor}">
         <span class="sh-a-num">A${a} <span style="font-size:.72rem;font-weight:400">${getAreaName(a)}</span></span>
-        <span class="sh-a-price">${sp.toLocaleString()}G/枚</span>
+        <span class="sh-a-price">${sp.toLocaleString()}${_lang==='ja'?'G/枚':'G/sh'}</span>
         <span class="sh-a-self">自分: <b>${myHeld}枚${myHeld>0?' = '+(myHeld*sp).toLocaleString()+'G':''}</b></span>
         ${myHeld>0
           ?`<button class="sh-sell-btn" data-area="${a}" data-max="${myHeld}" data-price="${sp}">売る</button>`
@@ -15243,7 +15478,7 @@ function showStockStatusModal(player,done){
       const sp=parseInt(btn.dataset.price);
       closeModal();
       showNumInputModal(`A${ar}株を売却`,
-        [`株価: ${sp.toLocaleString()}G/枚`,`保有: ${held}枚`],
+        [`株価: ${sp.toLocaleString()}${_lang==='ja'?'G/枚':'G/sh'}`,`保有: ${held}枚`],
         1,held,
         n=>{
           player.stocks[ar]-=n; player.cash+=n*sp;
@@ -15724,7 +15959,7 @@ function _showSellStockHTML(player,done,neededCash){
       const isMe=p.id===player.id;
       return `<div class="sh-holder ${isMe?'me':''}" style="--pc:${p.color}">
         <span class="sh-hname">${p.name}</span>
-        <span class="sh-hcount">${h}枚</span>
+        <span class="sh-hcount">${h}${_lang==='ja'?'枚':' sh'}</span>
       </div>`;
     }).join('');
     const shopRows=shops.map(sq=>{
@@ -15745,7 +15980,7 @@ function _showSellStockHTML(player,done,neededCash){
     rows+=`<div class="sh-area">
       <div class="sh-area-head" style="--ac:${areaColor}">
         <span class="sh-a-num">A${a} <span style="font-size:.72rem;font-weight:400">${getAreaName(a)}</span></span>
-        <span class="sh-a-price">${sp.toLocaleString()}G/枚</span>
+        <span class="sh-a-price">${sp.toLocaleString()}${_lang==='ja'?'G/枚':'G/sh'}</span>
         <span class="sh-a-self">自分: <b>${held}枚 = ${(held*sp).toLocaleString()}G</b></span>
         ${canSell
           ?`<button class="sh-sell-btn" data-area="${a}" data-max="${held}" data-price="${sp}">売却</button>`
@@ -15796,7 +16031,7 @@ function _showSellStockHTML(player,done,neededCash){
         ?[`⚠️ あと ${shortage.toLocaleString()}G 不足（最低 ${defaultN} 枚売れば解消）`]
         :[];
       showNumInputModal(`A${ar}株を売却`,
-        [`株価: ${price.toLocaleString()}G/枚`,`保有: ${maxSell}枚`,...extraInfo],
+        [`株価: ${price.toLocaleString()}${_lang==='ja'?'G/枚':'G/sh'}`,`保有: ${maxSell}枚`,...extraInfo],
         1,maxSell,
         n=>{
           player.stocks[ar]-=n; player.cash+=n*price;
@@ -17992,11 +18227,11 @@ function levelUp(player){
 function showVoluntaryAuction(player,done){
   const shops=G.map.filter(s=>s.type==='shop'&&s.owner===player.id);
   if(!shops.length){showToast('売れる店がありません');done();return;}
-  showModal('🔨 自主競売',
+  showModal(t('auction'),
     ['競売に出す店を選んでください','開始価格から全員で入札！最後に5秒残った人が落札します'],
     [
       {label:'競売する',key:'Enter',action:()=>_showAuctionShopSelect(player,done)},
-      {label:'やめる',key:'Backspace',action:()=>done()},
+      {label:t('cancelBtn'),key:'Backspace',action:()=>done()},
     ]
   );
 }
@@ -18028,7 +18263,7 @@ function _showEventShopSelectUI(player, opts, onSelect, onCancel){
   const btnLabel=opts.btnLabel||'選択';
   const cpuBtnLabel=opts.cpuBtnLabel||`✅ ${btnLabel}決定！`;
   const allowCancel=opts.allowCancel!==false;
-  const cancelLabel=opts.cancelLabel||'やめる';
+  const cancelLabel=opts.cancelLabel||t('cancelBtn');
 
   // 選択対象の店（data-idx用に並び替え済みリスト）
   const selectableShops=G.map.filter(s=>s.type==='shop'&&shopFilter(s));
@@ -18043,7 +18278,7 @@ function _showEventShopSelectUI(player, opts, onSelect, onCancel){
       const h=p.stocks[aNum]||0;
       return `<div class="sh-holder ${p.id===player.id?'me':''}" style="--pc:${p.color}">
         <span class="sh-hname">${p.name}</span>
-        <span class="sh-hcount">${h}枚</span>
+        <span class="sh-hcount">${h}${_lang==='ja'?'枚':' sh'}</span>
       </div>`;
     }).join('');
     const rowsHtml=allAreaShops.map(sq=>{
@@ -18179,7 +18414,7 @@ function _showAuctionShopSelect(player,done){
       const h=p.stocks[aNum]||0;
       return `<div class="sh-holder ${p.id===player.id?'me':''}" style="--pc:${p.color}">
         <span class="sh-hname">${p.name}</span>
-        <span class="sh-hcount">${h}枚</span>
+        <span class="sh-hcount">${h}${_lang==='ja'?'枚':' sh'}</span>
       </div>`;
     }).join('');
     const rowsHtml=allAreaShops.map(sq=>{
@@ -18361,7 +18596,7 @@ function _showAuctionAnnounce(sq, sellerName, isForced, callback){
       ? `${sellerName} の店が競売に出されました`
       : `${sellerName} が競売に出しました`;
   document.getElementById('aann-type').textContent=
-    isForced ? '🏦 銀行主催・強制競売' : '🔨 自主競売';
+    isForced ? '🏦 銀行主催・強制競売' : t('auction');
   el.classList.add('show');
 
   // 4秒後にパネルを消してカメラを戻し、競売本体へ
@@ -20143,7 +20378,7 @@ function showWarpFlash(player, fromNd, destNd, warpColor, callback){
 
   bg.style.background=c.bg;
   iconEl.textContent=c.emoji;
-  titleEl.textContent='WARP!';
+  titleEl.textContent=t('warpFlash');
   titleEl.style.color=c.title;
   destEl.textContent='→ '+destNd.label;
 
@@ -20344,12 +20579,12 @@ function endGame(winnerId){
       </div>
       <div class="res-stats">
         <div class="res-stat"><span>レベル</span><span class="rsv">Lv.${p.level}</span></div>
-        <div class="res-stat"><span>総資産</span><span class="rsv gold">${a.total.toLocaleString()}G</span></div>
-        <div class="res-stat"><span>現金</span><span class="rsv">${a.cash.toLocaleString()}G</span></div>
-        <div class="res-stat"><span>株資産</span><span class="rsv cyan">${a.stockAsset.toLocaleString()}G</span></div>
-        <div class="res-stat"><span>店資産</span><span class="rsv pink">${a.shopAsset.toLocaleString()}G</span></div>
-        <div class="res-stat"><span>支払い計</span><span class="rsv red">${(st.tollPaid||0).toLocaleString()}G</span></div>
-        <div class="res-stat"><span>受取り計</span><span class="rsv green">${(st.tollReceived||0).toLocaleString()}G</span></div>
+        <div class="res-stat">${t("totalAsset")}<span class="rsv gold">${a.total.toLocaleString()}G</span></div>
+        <div class="res-stat">${t("cash")}<span class="rsv">${a.cash.toLocaleString()}G</span></div>
+        <div class="res-stat">${t("stockAsset")}<span class="rsv cyan">${a.stockAsset.toLocaleString()}G</span></div>
+        <div class="res-stat">${t("shopAsset")}<span class="rsv pink">${a.shopAsset.toLocaleString()}G</span></div>
+        <div class="res-stat">${t("tollPaid")}<span class="rsv red">${(st.tollPaid||0).toLocaleString()}G</span></div>
+        <div class="res-stat">${t("tollReceived")}<span class="rsv green">${(st.tollReceived||0).toLocaleString()}G</span></div>
         <div class="res-stat"><span>支払い回数</span><span class="rsv">${st.tollPaidCount||0}回</span></div>
         <div class="res-stat"><span>受取り回数</span><span class="rsv">${st.tollReceivedCount||0}回</span></div>
       </div>
@@ -20916,15 +21151,15 @@ function renderActionPanel(){
     const btnHtml=G._junctionPending
       ?`<div class="dice-row"><div class="die" id="die1">${d[0]}</div></div>
         <div class="act-grid">
-          <button class="action-btn primary" onclick="doRoll()">🎲 サイコロを振る<span class="key-hint">Enter</span></button>
+          <button class="action-btn primary" onclick="doRoll()">${t('rollDice')}<span class="key-hint">Enter</span></button>
         </div>`
       :`<div class="dice-row"><div class="die" id="die1">${d[0]}</div></div>
         <div class="act-grid">
-          <button class="action-btn primary" onclick="doRoll()">🎲 サイコロを振る<span class="key-hint">Enter</span></button>
-          <button class="action-btn" onclick="showStockStatusModal(cp(),()=>renderActionPanel())">📊 株を見る/売る<span class="key-hint">S</span></button>
-          <button class="action-btn" onclick="showVoluntaryAuction(cp(),()=>renderActionPanel())">🔨 自主競売<span class="key-hint">A</span></button>
-          <button class="action-btn" onclick="confirmReturnToTitle()" style="color:var(--gray);font-size:.8rem;">🏠 タイトルへ</button>
-          <button class="action-btn save-btn" onclick="copyGameURL()" style="font-size:.8rem;">🔗 URLコピー</button>
+          <button class="action-btn primary" onclick="doRoll()">${t('rollDice')}<span class="key-hint">Enter</span></button>
+          <button class="action-btn" onclick="showStockStatusModal(cp(),()=>renderActionPanel())">${t('viewStocks')}<span class="key-hint">S</span></button>
+          <button class="action-btn" onclick="showVoluntaryAuction(cp(),()=>renderActionPanel())">${t('auction')}<span class="key-hint">A</span></button>
+          <button class="action-btn" onclick="confirmReturnToTitle()" style="color:var(--gray);font-size:.8rem;">${t('toTitle')}</button>
+          <button class="action-btn save-btn" onclick="copyGameURL()" style="font-size:.8rem;">${t('copyUrl')}</button>
         </div>`;
     if(existingBubble){
       // 吹き出しを残してボタン部分だけ更新
@@ -23800,7 +24035,7 @@ function _showShopStockPanel(sq){
   if(!panel||!rowsEl)return;
   const aNum=sq.area;
   const sp=G.areas&&G.areas[aNum]?G.areas[aNum].stockPrice:0;
-  if(areaLabel) areaLabel.textContent=`A${aNum}  株価 ${sp>0?sp.toLocaleString()+'G/枚':'---'}`;
+  if(areaLabel) areaLabel.textContent=`A${aNum}  株価 ${sp>0?sp.toLocaleString()+(_lang==='ja'?'G/枚':'G/sh'):'---'}`;
   const allPlayers=G.players.filter(p=>!p.bankrupt);
   rowsEl.innerHTML=allPlayers.map(p=>{
     const cnt=p.stocks[aNum]||0;
@@ -24130,7 +24365,7 @@ function showTitle(){
       const d=new Date(save.savedAt);
       const ds=`${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
       btn.style.display='';
-      btn.textContent=`📂 続きから遊ぶ（ターン${save.turn} / ${ds}）`;
+      btn.textContent=`📂 ${t('continueBtn')}（${t('turn')}${save.turn} / ${ds}）`;
     } else {
       btn.style.display='none';
     }
@@ -24307,7 +24542,7 @@ function showTourStageSelect(mode){
     const mapName    = unlocked ? _getTourMapName(cfg.mapId) : '？？？？';
     const mapIcon    = unlocked ? _getTourMapIcon(cfg.mapId) : '🔒';
     const reqRank    = TOUR_CLEAR_RANK[idx];
-    const reqLabel   = reqRank===0 ? '🥇 1位' : '🥈 2位以上';
+    const reqLabel   = reqRank===0 ? t('rank1') : t('rank2');
     const reqColor   = reqRank===0 ? '#f87171' : '#fbbf24';
 
     const card = document.createElement('div');
@@ -24330,9 +24565,9 @@ function showTourStageSelect(mode){
       <div style="font-size:.68rem;color:rgba(255,255,255,.45);font-weight:600;">第${stageNum}章</div>
       <div style="font-size:1.6rem">${mapIcon}</div>
       <div style="font-size:.72rem;font-weight:700;color:${unlocked?'#fff':'rgba(255,255,255,.4)'};text-align:center;line-height:1.3;">${mapName}</div>
-      <div style="font-size:.65rem;color:rgba(255,255,255,.4);">${unlocked ? `目標 ${cfg.goal.toLocaleString()}G` : '前章をクリアせよ'}</div>
+      <div style="font-size:.65rem;color:rgba(255,255,255,.4);">${unlocked ? `目標 ${cfg.goal.toLocaleString()}G` : _lang==='ja'?'前章をクリアせよ':'Clear prev stage'}</div>
       ${unlocked ? `<div style="font-size:.62rem;font-weight:700;color:${reqColor};background:rgba(0,0,0,.3);border-radius:4px;padding:.05rem .3rem;">${reqLabel}</div>` : ''}
-      <div style="font-size:.7rem;color:${isCleared?'#4ade80':'rgba(255,255,255,.25)'};">${isCleared?'⭐ クリア済':unlocked?'─':'🔒'}</div>`;
+      <div style="font-size:.7rem;color:${isCleared?'#4ade80':'rgba(255,255,255,.25)'};">${isCleared?t('cleared'):unlocked?'─':'🔒'}</div>`;
 
     if(unlocked){
       card.onmouseenter = ()=>{ card.style.transform='translateY(-3px)'; card.style.filter='brightness(1.15)'; };
@@ -24561,7 +24796,7 @@ function showTourStageClear(stageIdx, playerRank){
   if(!_tourState) return;
   const cleared = _tourState.clearedStages.length;
   const total   = TOUR_NORMAL_MAPS.length;
-  const rankStr = playerRank===0?'🥇 1位':playerRank===1?'🥈 2位':`${playerRank+1}位`;
+  const rankStr = playerRank===0?t('rank1'):playerRank===1?'🥈 2位':`${playerRank+1}位`;
   showModal(`第${stageIdx+1}章クリア！⭐`,[
     `おめでとうございます！（${rankStr}）`,
     `クリア済：${cleared}/${total}章`,
@@ -24780,6 +25015,139 @@ function _onBgmTheaterBtnClick(){
   initAudio();
 }
 
+function buildRulebookUI(){
+  const el = document.getElementById('rulebook-content');
+  if(!el) return;
+  const ja = _lang==='ja';
+
+  const sections = ja ? [
+    {id:'rb-intro',   h2:'📖 はじめに',   body:`いただきSTREETは、サイコロを振ってマップを移動しながら<strong>お店を買い、買い物料を集め、株を運用して</strong>目標金額を目指すボードゲームです。最初に目標金額を達成し、銀行にたどり着いたプレイヤーが勝利です。`},
+    {id:'rb-flow',    h2:'🎮 ゲームの流れ', subsections:[
+      {h3:'ゲーム開始前', body:`<div class="rb-step"><span class="rb-num">1</span>対戦相手（CPU）を選ぶ</div><div class="rb-step"><span class="rb-num">2</span>目標金額を設定する</div><div class="rb-step"><span class="rb-num">3</span>マップを選ぶ</div><div class="rb-step"><span class="rb-num">4</span>スロットで順番を決める</div>`},
+      {h3:'1ターンの流れ', body:`<div class="rb-step"><span class="rb-num">1</span><strong>サイコロを振る</strong> → 出た目の数だけマスを進む</div><div class="rb-step"><span class="rb-num">2</span><strong>止まったマスのイベントが発生する</strong></div><div class="rb-step"><span class="rb-num">3</span>次のプレイヤーへ交代</div>`},
+      {note:'💡 銀行マス（スタート地点）をマークを4種類集めて通過するたびに<strong>レベルアップ</strong>できます。'},
+    ]},
+    {id:'rb-squares', h2:'🗺️ マスの種類', squares:[
+      ['🏦','銀行','スタート地点。マークを集めて通過・停止するとレベルアップできる。株も買える。'],
+      ['🏪','お店','誰も持っていなければ購入できる。オーナーがいると買い物料を払う。'],
+      ['♠♥♦♣','マーク','4種類のマーク。集めると銀行でレベルアップできる。'],
+      ['🌀','変わるマーク','止まるたびにマークの種類が変わる特殊マーク。'],
+      ['⭐','ラッキー','止まると誰かが買い物料を支払うたびに現金がもらえる。'],
+      ['🛏️','休日','次のターンまで店がお休みになる。'],
+      ['📈','株屋','株の売買ができる。'],
+      ['🎴','チャンス','イベントカードを引ける。'],
+      ['🌀','ワープ','同じ色のワープマスへ飛ぶ。'],
+    ]},
+    {id:'rb-shop', h2:'🏪 お店について', subsections:[
+      {h3:'お店を買う', body:'誰も持っていないお店に止まると<strong>購入できます</strong>。購入するかどうかは自分で選べます（断ってもOK）。購入すると店主になり、他のプレイヤーが止まると<strong>買い物料</strong>がもらえます。'},
+      {h3:'買い物料', body:'お店に止まった人は、そのお店のオーナーに買い物料を払います。<strong>増資（グレードアップ）するほど買い物料が増えます。</strong>'},
+      {h3:'増資する', body:'自分のお店に止まったとき、お金を払ってお店をグレードアップできます。グレードが上がるほど買い物料が高くなります。'},
+      {h3:'独占ボーナス', body:'同じエリアの店舗をたくさん持つと<strong>買い物料が大幅アップ！</strong>同じエリアを集めることを意識しましょう。'},
+    ]},
+    {id:'rb-stock', h2:'📈 株について', subsections:[
+      {h3:'株の基本', body:'各エリアには<strong>株</strong>があり、株屋マスや銀行で購入できます。株を持っているエリアの店が増資されると、<strong>株価が上がって利益</strong>が出ます。'},
+      {h3:'株を買う', body:'1枚あたりの価格は各エリアの<strong>株価×1枚分</strong>です。銀行通過時または株屋マスで購入できます。'},
+      {h3:'株を売る', body:'売りたいときにいつでも売れます。株価が上がっていれば<strong>差額分が利益</strong>になります。'},
+      {h3:'株価が変動するとき', body:'お店が増資されると、そのエリアの株価が上がります。イベントカードでも株価が変動することがあります。'},
+    ]},
+    {id:'rb-level', h2:'🎚️ レベルアップ', subsections:[
+      {h3:'レベルアップの方法', body:'<strong>銀行マスを通過または停止</strong>するとレベルアップできます。レベルアップには<strong>マークかどこでもカード</strong>が必要です。'},
+      {h3:'マークとは', body:'マップ上の♠♥♦♣のマスに止まると、そのマークが手に入ります。レベルアップには<strong>4種類全てのマーク</strong>が必要です。'},
+      {h3:'レベルアップのメリット', body:'<strong>資産が増えます。</strong>レベルが高いほど賞金額がアップします。'},
+    ]},
+    {id:'rb-bankrupt', h2:'💀 破産', body:'手持ち現金がマイナスになり、株とお店を売っても返済できない場合<strong>破産</strong>になります。破産するとゲームから脱落します。'},
+    {id:'rb-win', h2:'🏆 勝利条件', body:'<strong>目標金額を最初に達成し、銀行にたどり着いたプレイヤー</strong>が勝利です。総資産は「現金＋株資産＋店資産」の合計で判定されます。'},
+    {id:'rb-tips', h2:'💡 初心者向け攻略ヒント', subsections:[
+      {h3:'🌱 序盤', color:'#4ade80', tips:['なるべく多くのお店を購入しよう','同じエリアの店を集めて独占を狙おう','自分のエリアの株は早めに買っておこう']},
+      {h3:'⚔️ 中盤', color:'#fbbf24', tips:['増資して買い物料を上げよう','他のプレイヤーが多く止まるエリアの株を狙うのも有効']},
+      {h3:'🔥 終盤', color:'#f87171', tips:['目標金額に近づいたら株を売って現金を増やそう','マークを集めてレベルアップのチャンスを逃さないようにしよう']},
+    ]},
+  ] : [
+    {id:'rb-intro', h2:'📖 Introduction', body:`itadakiSTREET is a board game where you roll dice, move around the map, <strong>buy shops, collect tolls, and manage stocks</strong> to reach the goal amount. The first player to reach the goal and return to the Bank wins!`},
+    {id:'rb-flow', h2:'🎮 How to Play', subsections:[
+      {h3:'Before the Game', body:`<div class="rb-step"><span class="rb-num">1</span>Select opponents (CPU)</div><div class="rb-step"><span class="rb-num">2</span>Set the goal amount</div><div class="rb-step"><span class="rb-num">3</span>Choose a map</div><div class="rb-step"><span class="rb-num">4</span>Decide turn order with the slot</div>`},
+      {h3:'Each Turn', body:`<div class="rb-step"><span class="rb-num">1</span><strong>Roll dice</strong> → move that many squares</div><div class="rb-step"><span class="rb-num">2</span><strong>The square's effect activates</strong></div><div class="rb-step"><span class="rb-num">3</span>Next player's turn</div>`},
+      {note:'💡 Each time you pass the Bank with all 4 marks, you can <strong>Level Up</strong>!'},
+    ]},
+    {id:'rb-squares', h2:'🗺️ Square Types', squares:[
+      ['🏦','Bank','Start point. Pass/stop here with all marks to Level Up. Also buy stocks here.'],
+      ['🏪','Shop','Buy unowned shops. Pay toll to the owner when you land here.'],
+      ['♠♥♦♣','Mark','4 types. Collect all 4 to Level Up at the Bank.'],
+      ['🌀','Changing Mark','The mark type changes each time you land here.'],
+      ['⭐','Lucky','Receive a cut of tolls paid to others each turn.'],
+      ['🛏️','Rest','Shops closed next turn.'],
+      ['📈','Stock Shop','Buy or sell stocks.'],
+      ['🎴','Chance','Draw an event card.'],
+      ['🌀','Warp','Teleport to the matching warp square.'],
+    ]},
+    {id:'rb-shop', h2:'🏪 Shops', subsections:[
+      {h3:'Buying Shops', body:'When you land on an unowned shop, you can <strong>buy it</strong>. You can choose to buy or skip. Once you own it, others must <strong>pay toll</strong> when they land on it.'},
+      {h3:'Toll', body:'Landing on another player\'s shop means paying their toll. <strong>Higher investment = higher toll.</strong>'},
+      {h3:'Investing', body:'When you land on your own shop, you can pay to <strong>upgrade it</strong>. Higher grade = higher toll collected.'},
+      {h3:'Monopoly Bonus', body:'Own many shops in the same area and your <strong>toll skyrockets!</strong> Focus on collecting within one area.'},
+    ]},
+    {id:'rb-stock', h2:'📈 Stocks', subsections:[
+      {h3:'Basics', body:'Each area has <strong>stocks</strong>. Buy them at Stock Shops or the Bank. When shops in that area are upgraded, <strong>stock price rises</strong> and you profit.'},
+      {h3:'Buying', body:'Price per share = <strong>stock price × 1 share</strong>. Buy when passing the Bank or at a Stock Shop.'},
+      {h3:'Selling', body:'Sell anytime. If the price has risen, you earn the <strong>difference as profit</strong>.'},
+      {h3:'Price Changes', body:'Shop upgrades raise that area\'s stock price. Event cards can also affect stock prices.'},
+    ]},
+    {id:'rb-level', h2:'🎚️ Level Up', subsections:[
+      {h3:'How to Level Up', body:'<strong>Pass or stop at the Bank</strong> to level up. You need <strong>all 4 marks or a Wild Card</strong>.'},
+      {h3:'What are Marks?', body:'Land on ♠♥♦♣ squares to collect marks. You need <strong>all 4 types</strong> to level up. Marks are consumed on use.'},
+      {h3:'Benefits', body:'<strong>Your assets increase.</strong> Higher level = more bonus gold.'},
+    ]},
+    {id:'rb-bankrupt', h2:'💀 Bankrupt', body:'If your cash goes negative and you can\'t pay even after selling stocks and shops, you go <strong>bankrupt</strong> and are eliminated.'},
+    {id:'rb-win', h2:'🏆 Win Condition', body:'The <strong>first player to reach the goal amount AND return to the Bank</strong> wins. Total assets = Cash + Stock Value + Shop Value.'},
+    {id:'rb-tips', h2:'💡 Beginner Tips', subsections:[
+      {h3:'🌱 Early Game', color:'#4ade80', tips:['Buy as many shops as possible','Focus on one area to get the monopoly bonus','Buy your own area\'s stocks early']},
+      {h3:'⚔️ Mid Game', color:'#fbbf24', tips:['Invest in your shops to raise tolls','Buy stocks in areas where opponents land often']},
+      {h3:'🔥 Late Game', color:'#f87171', tips:['Sell stocks to boost your cash when near the goal','Collect marks and don\'t miss level-up chances']},
+    ]},
+  ];
+
+  // 目次
+  const tocItems = sections.map(s=>`<a href="#${s.id}" style="color:#fbbf24;font-size:.82rem;text-decoration:none;">${s.h2}</a>`).join('');
+
+  let html = `
+    <div style="text-align:center;padding:.8rem 0 .6rem;">
+      <div style="font-size:2rem;margin-bottom:.15rem;">📖</div>
+      <div style="font-size:1.35rem;font-weight:700;color:#fbbf24;">いただきSTREET</div>
+      <div style="font-size:1rem;font-weight:700;color:rgba(255,255,255,.8);margin-top:.1rem;">${ja?'ルールブック':'Rulebook'}</div>
+    </div>
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:.8rem 1rem;margin:.4rem 0;">
+      <div style="font-size:.72rem;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.08em;margin-bottom:.4rem;">${ja?'目次':'Contents'}</div>
+      <div style="display:flex;flex-direction:column;gap:.2rem;">${tocItems}</div>
+    </div>`;
+
+  sections.forEach(s => {
+    html += `<div id="${s.id}" style="margin-top:1rem;"><div class="rb-h2">${s.h2}</div>`;
+    if(s.body) html += `<div class="rb-body">${s.body}</div>`;
+    if(s.squares){
+      s.squares.forEach(([icon,name,desc])=>{
+        html += `<div class="rb-sq-row"><span class="rb-sq-icon">${icon}</span><div><div class="rb-sq-name">${name}</div><div class="rb-sq-desc">${desc}</div></div></div>`;
+      });
+    }
+    if(s.subsections){
+      s.subsections.forEach(sub=>{
+        if(sub.note){
+          html += `<div class="rb-note">${sub.note}</div>`;
+        } else if(sub.tips){
+          html += `<div class="rb-h3" style="color:${sub.color||'#fff'}">${sub.h3}</div><div class="rb-body">`;
+          sub.tips.forEach(tip=>{ html += `<div class="rb-tip">• ${tip}</div>`; });
+          html += `</div>`;
+        } else {
+          html += `<div class="rb-h3">${sub.h3}</div><div class="rb-body">${sub.body}</div>`;
+        }
+      });
+    }
+    html += `</div>`;
+  });
+
+  html += `<button class="menu-btn secondary" style="width:100%;margin-top:1.2rem;touch-action:manipulation;" onclick="showScreen('title-screen')">${ja?'← タイトルへ戻る':'← Back to Title'}</button>`;
+  el.innerHTML = html;
+}
+
 function showBgmTheater(){
   _buildBgmTheaterUI();
   showScreen('bgmtheater-screen');
@@ -24792,8 +25160,8 @@ function _buildBgmTheaterUI(){
 
   // カテゴリ別に分けて表示
   const cats = [
-    {id:'system', label:'🎮 システム曲'},
-    {id:'map',    label:'🗺️ マップBGM'},
+    {id:'system', label:t('bgmSystem')},
+    {id:'map',    label:t('bgmMap')},
   ];
 
   cats.forEach(cat => {
@@ -24878,6 +25246,7 @@ function showSetup(spectate){
 // ページ読み込み時にセーブデータ確認してボタンを即表示
 document.addEventListener('DOMContentLoaded',()=>{
   _updateBgmTheaterBtn();
+  _updateLangBtn();
   const btn=document.getElementById('continue-btn');
   if(!btn)return;
   const save=hasSaveData();
@@ -24885,7 +25254,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     const d=new Date(save.savedAt);
     const ds=`${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
     btn.style.display='';
-    btn.textContent=`📂 続きから遊ぶ（ターン${save.turn} / ${ds}）`;
+    btn.textContent=`📂 ${t('continueBtn')}（${t('turn')}${save.turn} / ${ds}）`;
   }
 });
 
@@ -25152,16 +25521,17 @@ function _showCpuGuideDetail(idx){
   const ch=CPU_CHARS[d.key];
   const col=RANK_COLOR[d.rank]||'#aaa';
   const det=document.getElementById('cpuguide-detail');
+  const ja=_lang==='ja';
   const tendHtml=d.tend.map(t=>`<p class="cgd-text">${t}</p>`).join('');
   const tipsHtml=d.tips.map(t=>`<p class="cgd-text">• ${t}</p>`).join('');
   const starStr=(n)=>`<span class="cgd-star-val">${'<span class="on">★</span>'.repeat(n)}${'<span class="off">★</span>'.repeat(5-n)}</span>`;
   const starsHtml=d.stars?`
     <div class="cgd-section">
-      <div class="cgd-section-title">📊 行動傾向</div>
+      <div class="cgd-section-title">📊 ${ja?'行動傾向':'Behavior'}</div>
       <div class="cgd-stars-grid">
-        <div class="cgd-star-row"><span class="cgd-star-label">5倍買い</span>${starStr(d.stars[0])}</div>
-        <div class="cgd-star-row"><span class="cgd-star-label">相乗り</span>${starStr(d.stars[1])}</div>
-        <div class="cgd-star-row"><span class="cgd-star-label">株持ち増資</span>${starStr(d.stars[2])}</div>
+        <div class="cgd-star-row"><span class="cgd-star-label">${ja?'5倍買い':'5x Buy'}</span>${starStr(d.stars[0])}</div>
+        <div class="cgd-star-row"><span class="cgd-star-label">${ja?'相乗り':'Free-ride'}</span>${starStr(d.stars[1])}</div>
+        <div class="cgd-star-row"><span class="cgd-star-label">${ja?'株持ち増資':'Invest'}</span>${starStr(d.stars[2])}</div>
       </div>
     </div>`:'';
   det.innerHTML=`
@@ -25169,18 +25539,18 @@ function _showCpuGuideDetail(idx){
       <div class="cgd-avatar" style="border-color:${col}">${CHAR_SVGS[d.key]||''}</div>
       <div>
         <div class="cgd-name">${ch.name}</div>
-        <div class="cgd-meta">${ch.gender} · ${ch.age}歳</div>
+        <div class="cgd-meta">${ch.gender} · ${ch.age}${ja?'歳':' y.o.'}</div>
         <div class="cgd-rank-badge rank-${d.rank.toLowerCase()}" style="background:${col}22;border:1px solid ${col}66;color:${col}">${RANK_LABEL[d.rank]}</div>
       </div>
     </div>
     <div class="cgd-tagline">「${d.tagline}」</div>
     ${starsHtml}
     <div class="cgd-section">
-      <div class="cgd-section-title">⚙️ 思考傾向</div>
+      <div class="cgd-section-title">⚙️ ${ja?'思考傾向':'Strategy'}</div>
       ${tendHtml}
     </div>
     <div class="cgd-section">
-      <div class="cgd-section-title">🛡️ 対策</div>
+      <div class="cgd-section-title">🛡️ ${ja?'対策':'Counter Tips'}</div>
       ${tipsHtml}
     </div>`;
   det.scrollTop=0;
@@ -25206,7 +25576,7 @@ const RANK_BADGE={'S':'🔴S','A':'🟠A','C':'🔵C','B':'🟡B','C':'🟢C','D
 let _gameRunning=false;  // ゲーム進行フラグ
 let _spectateMode=false; // CPU観戦モードフラグ
 let slotChars=['ryou','kiyoko','ena']; // デフォルト3CPU
-let _playerName='あなた'; // プレイヤー名（画面間で保持）
+let _playerName=t('youLabel'); // プレイヤー名（画面間で保持）
 let _playerAvatar='dog'; // プレイヤーアバター: 'dog' or 'cat'
 let _bankruptLimit=1; // 破産人数設定（1/2/3人）
 
@@ -25237,7 +25607,7 @@ function buildSetupUI(){
     // ヘッダに観戦モード表示
     const banner=document.createElement('div');
     banner.style.cssText='text-align:center;padding:.4rem .8rem;background:#6366f122;border:1px solid #818cf8;border-radius:8px;margin-bottom:.5rem;color:#a5b4fc;font-size:.85rem;';
-    banner.textContent='👁 CPU観戦モード — CPU4人で自動進行';
+    banner.textContent=t('cpuWatchMode');
     c.appendChild(banner);
     for(let slot=0;slot<4;slot++){
       const div=document.createElement('div');
@@ -25273,7 +25643,7 @@ function buildSetupUI(){
     if(_pnameEl){
       _pnameEl.value=_playerName;
       _pnameEl.addEventListener('input',()=>{
-        _playerName=_pnameEl.value||'あなた';
+        _playerName=_pnameEl.value||t('youLabel');
       });
     }
     // アバター選択ボタンの初期状態を反映
@@ -25671,7 +26041,7 @@ function startGame(){
     });
   } else {
     // 通常モード
-    const humanName=_playerName||'あなた';
+    const humanName=_playerName||t('youLabel');
     players=[{name:humanName,isCPU:false,cpuChar:null,color:PCOLS[0]}];
     slotChars.forEach((key,i)=>{
       if(!key)return;
