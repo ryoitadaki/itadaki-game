@@ -2481,7 +2481,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
   </div>
   <!-- 詳細テーブル -->
   <div id="result-detail-wrap" style="display:none;"></div>
-  <button class="menu-btn" style="margin-top:1rem;width:100%;" onclick="_onResultTitleBtn()">タイトルへ戻る</button>
+  <button id="result-title-btn" class="menu-btn" style="margin-top:1rem;width:100%;" onclick="showTitle()">タイトルへ戻る</button>
 </div>
 
 <!-- MODAL -->
@@ -20621,7 +20621,7 @@ function endGame(winnerId){
   document.getElementById('result-graph-wrap').style.display='block';
   showScreen('result-screen');
   // ツアーモード中は「タイトルへ戻る」ボタンを非表示（「次へ進む」ボタンのみで進む）
-  const _resultTitleBtn = document.querySelector('#result-screen > .menu-btn');
+  const _resultTitleBtn = document.getElementById('result-title-btn');
   if(_resultTitleBtn) _resultTitleBtn.style.display = (_tourState && _tourState.active) ? 'none' : '';
   setTimeout(()=>drawResultGraph(), 300);
   // CPUコメントコーナー（少し遅らせて表示）
@@ -20655,7 +20655,7 @@ function endGame(winnerId){
       };
       wrap.appendChild(btn);
       resultEl.appendChild(wrap);
-    }, 4000);
+    }, 2000);
   }
 }
 
@@ -24376,43 +24376,6 @@ function _titleSaveBtn(){
   }else{
     _fallbackCopyURL(url);
   }
-}
-
-function _onResultTitleBtn(){
-  // ツアーモード中なら「次へ進む」ボタンを経由せずにタイトルへ戻る場合も
-  // クリアデータを保存してからタイトルへ
-  const wrap = document.getElementById('tour-next-btn-wrap');
-  if(wrap) wrap.remove();
-  if(_tourState && _tourState.active){
-    // まだonTourMapEndが呼ばれていない → 結果から直接タイトルへ
-    // playerWonを再計算して保存だけ行う
-    const stageIdx = _tourState.mapIdx;
-    const reqRank = TOUR_CLEAR_RANK[stageIdx] || 0;
-    const sorted = [...(G&&G.players||[])].sort((a,b)=>
-      (typeof getPlayerAssets==='function'?getPlayerAssets(b).total:0) -
-      (typeof getPlayerAssets==='function'?getPlayerAssets(a).total:0));
-    let playerRank = -1;
-    sorted.forEach((p,rank)=>{ if(p&&!p.isCPU) playerRank=rank; });
-    const playerWon = playerRank>=0 && playerRank<=reqRank;
-    _tourState.active = false;
-    if(playerWon){
-      if(!_tourState.clearedStages) _tourState.clearedStages=[];
-      if(!_tourState.clearedStages.includes(stageIdx)){
-        _tourState.clearedStages.push(stageIdx);
-      }
-      if(_tourState.mode==='normal' && _tourState.clearedStages.includes(9)){
-        try{ localStorage.setItem('tour_hard_unlocked','1'); }catch(e){}
-        _setUrlParam('thu','1');
-      }
-      if(_tourState.mode==='hard' && _tourState.clearedStages.includes(9)){
-        try{ localStorage.setItem('bgm_theater_unlocked','1'); }catch(e){}
-        _setUrlParam('bgu','1');
-        _updateBgmTheaterBtn();
-      }
-      _saveTourState();
-    }
-  }
-  showTitle();
 }
 
 function showTitle(){
