@@ -2481,7 +2481,8 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
   </div>
   <!-- 詳細テーブル -->
   <div id="result-detail-wrap" style="display:none;"></div>
-  <button id="result-title-btn" class="menu-btn" style="margin-top:1rem;width:100%;" onclick="showTitle()">タイトルへ戻る</button>
+  <button id="tour-next-btn" class="menu-btn" style="margin-top:1rem;width:100%;display:none;" onclick="onTourNextBtn()">⭐ 次へ進む</button>
+  <button id="result-title-btn" class="menu-btn" style="margin-top:.5rem;width:100%;" onclick="showTitle()">タイトルへ戻る</button>
 </div>
 
 <!-- MODAL -->
@@ -20605,31 +20606,33 @@ function endGame(winnerId){
   setTimeout(()=>showSpecialAwards(sorted, winnerId), 1200);
 
   if(_tourState){
-    const _tb = document.getElementById('result-title-btn');
-    if(_tb) _tb.style.display = 'none';
     _tourState.active = true;
     const stageIdx = _tourState.mapIdx || 0;
     const reqRank = TOUR_CLEAR_RANK[stageIdx] || 0;
     let playerRank = -1;
     sorted.forEach((p, rank) => { if(!G.players[p.id].isCPU) playerRank = rank; });
     const playerWon = playerRank >= 0 && playerRank <= reqRank;
-    setTimeout(()=>{
-      const resultEl = document.getElementById('result-screen');
-      if(!resultEl) return;
-      const old2 = document.getElementById('tour-next-btn-wrap');
-      if(old2) old2.remove();
-      const wrap = document.createElement('div');
-      wrap.id = 'tour-next-btn-wrap';
-      wrap.style.cssText = 'padding:.8rem;';
-      const btn = document.createElement('button');
-      btn.className = 'menu-btn';
-      btn.style.cssText = 'width:100%;touch-action:manipulation;';
-      btn.textContent = playerWon ? '⭐ 次へ進む' : '🔄 結果を確認';
-      btn.onclick = () => { wrap.remove(); onTourMapEnd(playerWon, playerRank); };
-      wrap.appendChild(btn);
-      resultEl.appendChild(wrap);
-    }, 2000);
+    // タイトルボタン非表示、次へボタン表示
+    const tb = document.getElementById('result-title-btn');
+    const nb = document.getElementById('tour-next-btn');
+    if(tb) tb.style.display = 'none';
+    if(nb){
+      nb.style.display = 'block';
+      nb.textContent = playerWon ? '⭐ 次へ進む' : '🔄 結果を確認';
+      nb.dataset.won = playerWon ? '1' : '0';
+      nb.dataset.rank = String(playerRank);
+    }
   }
+}
+
+function onTourNextBtn(){
+  const nb = document.getElementById('tour-next-btn');
+  const tb = document.getElementById('result-title-btn');
+  if(nb) nb.style.display = 'none';
+  if(tb) tb.style.display = '';
+  const playerWon = nb && nb.dataset.won === '1';
+  const playerRank = nb ? parseInt(nb.dataset.rank) : -1;
+  onTourMapEnd(playerWon, playerRank);
 }
 
 // ── 特別賞コーナー ──
