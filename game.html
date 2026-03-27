@@ -5017,12 +5017,12 @@ function loadGame() {
       _allTollBoost30ExpireIdx: data._allTollBoost30ExpireIdx??null,
     };
 
-    mapScale = 1; mapOffX = 0; mapOffY = 0;
+    mapScale = 0.85; mapOffX = 0; mapOffY = 0;
     updateAreaStockPrices();
     renderAll();
 
     document.getElementById('goal-display').textContent = data.goalAmount.toLocaleString();
-    document.getElementById('turn-label').textContent = 'ターン' + data.turn;
+    // turn-label は削除済みのため参照しない
 
     // 観戦モードフラグを復元
     _spectateMode = !!(data._spectateMode);
@@ -24805,13 +24805,14 @@ function onTourMapEnd(playerWon, playerRank){
     if(_tourState.mode==='hard' && _tourState.clearedStages.includes(9)){
       try{ localStorage.setItem('bgm_theater_unlocked','1'); }catch(e){}
       _setUrlParam('bgu','1');
+      _saveTourState(); // 必ずセーブしてからモーダルへ
       showModal('🎵 BGMシアター解放！',
         ['おめでとうございます！','ハードモード全10章制覇の証として','タイトル画面のBGMシアターが解放されました！'],
         [{label:'🎵 今すぐ聴く',key:'Enter',action:()=>{ _updateBgmTheaterBtn(); showBgmTheater(); initAudio(); }},
          {label:'後で',key:'Escape',action:()=>{ _updateBgmTheaterBtn(); }}]);
       return; // showTourComplete は呼ばない
     }
-    _saveTourState();
+    _saveTourState(); // 必ずここでセーブ
 
     const allCleared = _tourState.clearedStages.length >= TOUR_NORMAL_MAPS.length;
     if(allCleared){
@@ -24829,14 +24830,18 @@ function showTourStageClear(stageIdx, playerRank){
   const cleared = _tourState.clearedStages.length;
   const total   = TOUR_NORMAL_MAPS.length;
   const rankStr = playerRank===0?t('rank1'):playerRank===1?'🥈 2位':`${playerRank+1}位`;
+  const mode = _tourState.mode;
   showModal(`第${stageIdx+1}章クリア！⭐`,[
     `おめでとうございます！（${rankStr}）`,
     `クリア済：${cleared}/${total}章`,
   ],[
     {label:'ステージ選択へ',key:'Enter',action:()=>{
-      showTourStageSelect(_tourState.mode);
+      showTourStageSelect(mode);
     }},
-    {label:'タイトルへ',key:'Escape',action:()=>showScreen('title-screen')},
+    {label:'タイトルへ',key:'Escape',action:()=>{
+      // _tourStateは保持したままタイトルへ（次回ツアー選択時にclearedStagesを引き継ぐ）
+      showScreen('title-screen');
+    }},
   ]);
 }
 
@@ -24850,7 +24855,7 @@ function showTourComplete(){
       showTourStageSelect(mode);
     }},
     {label:'タイトルへ',key:'Escape',action:()=>{
-      _tourState=null;
+      // _tourStateを保持したままタイトルへ（クリアデータはURLに保存済み）
       showScreen('title-screen');
     }},
   ]);
