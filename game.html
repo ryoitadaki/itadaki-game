@@ -2102,6 +2102,10 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
       <button class="menu-btn title-menu-btn" id="continue-btn" onclick="loadGame()" style="display:none;width:100%;padding:.6rem .8rem !important;font-size:.92rem !important;background:linear-gradient(160deg,#1a5c32 0%,#0d3a1e 60%,#082211 100%) !important;border-color:#22c55e !important;box-shadow:0 4px 0 #0a4a1a,0 6px 18px rgba(0,0,0,.6) !important;">
         📂 続きから遊ぶ
       </button>
+      <!-- ツアー途中再開（ツアーセーブあり時のみ） -->
+      <button class="menu-btn title-menu-btn" id="tour-continue-btn" onclick="loadTourGame()" style="display:none;width:100%;padding:.6rem .8rem !important;font-size:.92rem !important;background:linear-gradient(160deg,#1a3a1a 0%,#0f2a0f 60%,#071a07 100%) !important;border-color:#4ade80 !important;box-shadow:0 4px 0 #166534,0 6px 18px rgba(0,0,0,.6) !important;">
+        🗺️ ツアーを再開する
+      </button>
 
     </div>
   </div>
@@ -2482,6 +2486,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
   <!-- 詳細テーブル -->
   <div id="result-detail-wrap" style="display:none;"></div>
   <button id="result-title-btn" class="menu-btn" style="margin-top:.5rem;width:100%;" onclick="showTitle()">タイトルへ戻る</button>
+  <button id="result-tour-btn" class="menu-btn" style="margin-top:.5rem;width:100%;display:none;" onclick="_onResultTourBtn()">ステージ選択へ</button>
 </div>
 
 <!-- MODAL -->
@@ -3814,12 +3819,14 @@ function buildMapSunsetHarbor(){
   a7_4.nexts=[a7_6.id]; a7_6.nexts=[a8_2.id]; a8_2.nexts=[a8_4.id];
   // row7右: a8_3─wp2_b─mk_dia─a8_4
   a8_3.nexts.push(wp2_b.id); wp2_b.nexts=[mk_dia.id]; mk_dia.nexts=[a8_4.id];
-  // col2縦 row4-5: mk_hrt─a5_1
+  // col2縦 row3-5: lucky─mk_hrt─a5_1
+  lucky.nexts.push(mk_hrt.id); // lucky(col2,row3)→mk_hrt(col2,row4) 縦接続
   mk_hrt.nexts=[a5_1.id];
   // row5横(A5): a5_1─a5_2─a5_3─a5_4─a5_5─a5_6
   a5_1.nexts=[a5_2.id]; a5_2.nexts=[a5_3.id]; a5_3.nexts=[a5_4.id];
   a5_4.nexts=[a5_5.id]; a5_5.nexts=[a5_6.id];
-  // col7縦: a5_6─wp1_a
+  // col7縦: BK─wp1_a─a5_6（銀行(col7,row3)→wp1_a(col7,row4)→a5_6(col7,row5)縦接続）
+  BK.nexts.push(wp1_a.id); // BK(col7,row3)→wp1_a(col7,row4) 縦接続
   a5_6.nexts=[wp1_a.id];
 
   // ── 離れ小島A（wp1_b経由）──
@@ -3874,8 +3881,8 @@ function buildMapCasinoAurorea(){
   const mk_lft=N('mark',      {label:'♥',mark:1,               col:2, row:3});
   const mk_rgt=N('mark',      {label:'♦',mark:2,               col:14,row:3});
   const mk_bot=N('mark',      {label:'♣',mark:3,               col:8, row:6});
-  const cm_l  =N('changemark',{label:'変マーク',mark:2,         col:5, row:3}); // ♦スタート
-  const cm_r  =N('changemark',{label:'変マーク',mark:0,         col:11,row:3}); // ♠スタート
+  const cm_l  =N('changemark',{label:'変マーク',mark:2,         col:5, row:3}); // ♦(2)スタート
+  const cm_r  =N('changemark',{label:'変マーク',mark:1,         col:11,row:3}); // ♥(1)スタート
   const lucky =N('lucky',     {label:'★',                      col:5, row:4});
   const rest_l=N('rest',      {label:'休',                      col:1, row:3});
   const rest_r=N('rest',      {label:'休',                      col:11,row:2});
@@ -3947,15 +3954,19 @@ function buildMapCasinoAurorea(){
   a3_3.nexts.push(a3_4.id); a3_4.nexts=[rest_r.id];
   rest_r.nexts=[cm_r.id]; cm_r.nexts=[wp1_a.id]; wp1_a.nexts=[a5_1.id];
 
-  // row3横: a6_5─rest_l─mk_lft （mk_lftはcol2、cm_lはcol5、間に空きあり→つながらない）
-  a6_5.nexts=[rest_l.id]; rest_l.nexts=[mk_lft.id];
-  // mk_lft(2,3)はcol2縦のみ接続（上下のA2・A4と銀行方向はなし）
-  // BK─cm_r: BKはcol8、cm_rはcol11→間にマスなし（直接隣接でない）
-  // mk_rgt(14,3)─stock(15,3)─a7_1(16,3)
-  mk_rgt.nexts=[stock.id]; stock.nexts=[a7_1.id];
+  // 離れ小島A側: rest_l(1,3)とmk_lft(2,3)は島ループの一部
+  // rest_l: 左(a6_5方向) ↔ 右(mk_lft方向)
+  rest_l.nexts=[a6_5.id, mk_lft.id];
+  // mk_lft: 左(rest_l方向) ↔ 右(wp2_a方向) ← wp2_aへはワープ着地なので進行のみ
+  mk_lft.nexts=[rest_l.id, wp2_a.id];
 
-  // wp1_b(14,4)─mk_rgt(14,3)
-  wp1_b.nexts=[mk_rgt.id]; mk_rgt.nexts.push(wp1_b.id); // 双方向
+  // 離れ小島B側: mk_rgt(14,3)─stock(15,3)─a7_1(16,3) は島ループの一部
+  // mk_rgt: 右(stock方向) ↔ 上(wp1_b方向)
+  mk_rgt.nexts=[stock.id, wp1_b.id];
+  // stock: 左(mk_rgt方向) ↔ 右(a7_1方向)
+  stock.nexts=[mk_rgt.id, a7_1.id];
+  // wp1_b: 上(mk_rgt方向) ↔ 下(a7_5方向)
+  wp1_b.nexts=[mk_rgt.id, a7_5.id];
 
   // row6横: a4_2─a4_3─a4_4─mk_bot─a5_2─a5_3─a5_4
   a4_2.nexts=[a4_3.id]; a4_3.nexts=[a4_4.id]; a4_4.nexts=[mk_bot.id];
@@ -3967,15 +3978,29 @@ function buildMapCasinoAurorea(){
   // col11縦下: a5_1─a5_4（縦）
   a5_1.nexts.push(a5_4.id);
 
-  // 離れ小島A: wp2_a(2,2)─a6_3(2,1)─a6_2─a6_1─a6_4─a6_5
-  wp2_a.nexts=[a6_3.id]; a6_3.nexts=[a6_2.id]; a6_2.nexts=[a6_1.id];
-  a6_1.nexts=[a6_4.id]; a6_4.nexts=[a6_5.id];
+  // 離れ小島A: 環状ループ（時計回り・反時計回り自由）
+  // wp2_a(2,2)─a6_3(2,1)─a6_2(1,1)─a6_1(0,1)─a6_4(0,2)─a6_5(0,3)─rest_l(1,3)─mk_lft(2,3)─wp2_a
+  // ※rest_lとmk_lftは本土接続もあるが島内ループにも含める
+  wp2_a.nexts=[a6_3.id, mk_lft.id]; // 上(a6_3方向)か下(mk_lft方向)
+  a6_3.nexts=[a6_2.id, wp2_a.id];
+  a6_2.nexts=[a6_1.id, a6_3.id];
+  a6_1.nexts=[a6_4.id, a6_2.id];
+  a6_4.nexts=[a6_5.id, a6_1.id];
+  a6_5.nexts=[rest_l.id, a6_4.id];
+  // rest_l, mk_lftは本土接続の箇所で定義済みなので追加のみ
+  // rest_l(1,3): 島側にa6_5, 本土側はmk_lft
+  // mk_lft(2,3): 島側にwp2_a, 本土側はrest_l（本土接続は後で処理）
 
-  // 離れ小島B: wp1_b─mk_rgt(上でつながる)
-  // a7_1(16,3)─a7_2(16,4)→850G→a7_3(16,5)─a7_4(15,5)─a7_5(14,5)
-  a7_1.nexts=[a7_2.id]; a7_2.nexts=[a7_3.id]; a7_3.nexts=[a7_4.id]; a7_4.nexts=[a7_5.id];
+  // 離れ小島B: 環状ループ（時計回り・反時計回り自由）
+  // stock(15,3)─a7_1(16,3)─a7_2(16,4)─a7_3(16,5)─a7_4(15,5)─a7_5(14,5)─wp1_b(14,4)─mk_rgt(14,3)─stock
+  // ※stockとmk_rgtは本土接続もあるが島内ループにも含める
+  a7_1.nexts=[a7_2.id, stock.id];
+  a7_2.nexts=[a7_3.id, a7_1.id];
+  a7_3.nexts=[a7_4.id, a7_2.id];
+  a7_4.nexts=[a7_5.id, a7_3.id];
+  a7_5.nexts=[wp1_b.id, a7_4.id];
 
-  const stopJunctionIds=new Set();
+  const stopJunctionIds=new Set([mk_top.id, mk_bot.id, wp2_a.id, mk_lft.id, rest_l.id, stock.id, mk_rgt.id, wp1_b.id]);
   _ensureBidirectional(nodes);
   linkWarpPairs(nodes);
 
@@ -4160,14 +4185,14 @@ function buildMapRivera(){
       sq.baseToll=Math.max(1,Math.floor(sq.basePrice*0.21)-10);
     }
   });
-  return {nodes, stopJunctionIds};
+  return {nodes, stopJunctionIds, initialCash:2500};
 }
 
 
 // ================================================================
 // 未来都市ラストヘブンマップ
 // 17col×17row、4軒×8 + 6軒×8 = 16エリア80軒
-// 初期資産3500G、1000G店×4、変わるマーク×5
+// 初期資産5000G、1000G店×4、変わるマーク×5
 // ================================================================
 function buildMapLastHeaven(){
   const nodes=[];let nid=0;
@@ -4179,10 +4204,10 @@ function buildMapLastHeaven(){
   const rest_b=N('rest',      {label:'休',                          col:8, row:16});
   const lucky_l=N('lucky',    {label:'★',                          col:0, row:8});
   const lucky_r=N('lucky',    {label:'★',                          col:16,row:8});
-  const ev_tl =N('event',     {label:'チャンス',eventType:'cardget',col:0, row:7});
-  const ev_br =N('event',     {label:'チャンス',eventType:'cardget',col:16,row:9});
-  const stock_tr=N('event',   {label:'株屋',eventType:'stockshop',  col:16,row:7});
-  const stock_bl=N('event',   {label:'株屋',eventType:'stockshop',  col:0, row:9});
+  const mk_tl =N('mark',      {label:'♠',mark:0,                   col:0, row:7});
+  const mk_br =N('mark',      {label:'♣',mark:3,                   col:16,row:9});
+  const mk_tr =N('mark',      {label:'♥',mark:1,                   col:16,row:7});
+  const mk_bl =N('mark',      {label:'♦',mark:2,                   col:0, row:9});
   // 変わるマーク（4種全て異なる初期マーク）
   const cm_t  =N('changemark',{label:'変マーク',mark:0,             col:8, row:7}); // ♠
   const cm_l  =N('changemark',{label:'変マーク',mark:1,             col:7, row:8}); // ♥
@@ -4309,21 +4334,21 @@ function buildMapLastHeaven(){
   a11_1.nexts=[a11_2.id]; a11_2.nexts=[a11_3.id]; a11_3.nexts=[a11_4.id];
   a11_4.nexts=[a12_1.id]; a12_1.nexts=[a12_2.id]; a12_2.nexts=[a12_3.id]; a12_3.nexts=[a12_4.id];
 
-  // col0縦: a9_1─a1_1─...─a1_6─ev_tl─lucky_l─stock_bl─a2_1─...─a2_6─a13_1
+  // col0縦: a9_1─a1_1─...─a1_6─mk_tl─lucky_l─mk_bl─a2_1─...─a2_6─a13_1
   a9_1.nexts.push(a1_1.id);
   a1_1.nexts=[a1_2.id]; a1_2.nexts=[a1_3.id]; a1_3.nexts=[a1_4.id];
   a1_4.nexts=[a1_5.id]; a1_5.nexts=[a1_6.id];
-  a1_6.nexts=[ev_tl.id]; ev_tl.nexts=[lucky_l.id]; lucky_l.nexts=[stock_bl.id];
-  stock_bl.nexts=[a2_1.id];
+  a1_6.nexts=[mk_tl.id]; mk_tl.nexts=[lucky_l.id]; lucky_l.nexts=[mk_bl.id];
+  mk_bl.nexts=[a2_1.id];
   a2_1.nexts=[a2_2.id]; a2_2.nexts=[a2_3.id]; a2_3.nexts=[a2_4.id];
   a2_4.nexts=[a2_5.id]; a2_5.nexts=[a2_6.id]; a2_6.nexts=[a13_1.id];
 
-  // col16縦: a12_4─a5_1─...─a5_6─stock_tr─lucky_r─ev_br─a6_1─...─a6_6─a16_4
+  // col16縦: a12_4─a5_1─...─a5_6─mk_tr─lucky_r─mk_br─a6_1─...─a6_6─a16_4
   a12_4.nexts=[a5_1.id];
   a5_1.nexts=[a5_2.id]; a5_2.nexts=[a5_3.id]; a5_3.nexts=[a5_4.id];
   a5_4.nexts=[a5_5.id]; a5_5.nexts=[a5_6.id];
-  a5_6.nexts=[stock_tr.id]; stock_tr.nexts=[lucky_r.id]; lucky_r.nexts=[ev_br.id];
-  ev_br.nexts=[a6_1.id];
+  a5_6.nexts=[mk_tr.id]; mk_tr.nexts=[lucky_r.id]; lucky_r.nexts=[mk_br.id];
+  mk_br.nexts=[a6_1.id];
   a6_1.nexts=[a6_2.id]; a6_2.nexts=[a6_3.id]; a6_3.nexts=[a6_4.id];
   a6_4.nexts=[a6_5.id]; a6_5.nexts=[a6_6.id]; a6_6.nexts=[a16_4.id];
 
@@ -4366,7 +4391,7 @@ function buildMapLastHeaven(){
       sq.baseToll=Math.max(1,Math.floor(sq.basePrice*0.21)-10);
     }
   });
-  return {nodes, stopJunctionIds, initialCash:3500};
+  return {nodes, stopJunctionIds, initialCash:5000};
 }
 
 function buildMapVolcano(){
@@ -4793,6 +4818,7 @@ function showDiceRoll(player,finalFace,onDone){
 
 // ===== SAVE / LOAD =====
 const SAVE_KEY = 'itadaki_save_v1';
+const TOUR_SAVE_KEY = 'itadaki_tour_save_v1';
 
 function saveGame(silent) {
   if (!G || !G.players || !_gameRunning) {
@@ -4855,7 +4881,9 @@ function saveGame(silent) {
     };
     // 変わるマークマスの現在状態を保存
     data.changeMarks = G.map.filter(n=>n.type==='changemark').map(n=>({id:n.id,mark:n.mark}));
-    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    // ツアー中はツアー用キーに保存、フリーモードは通常キー
+    const _saveKey = (_tourState && _tourState.mapIdx !== undefined) ? TOUR_SAVE_KEY : SAVE_KEY;
+    localStorage.setItem(_saveKey, JSON.stringify(data));
     if(!silent){
       showToast('💾 保存しました！続きから遊ぶボタンで再開できます');
       addLog('💾 ゲームを保存しました', 'important');
@@ -4890,6 +4918,19 @@ function _fallbackCopyURL(url){
   ta.remove();
 }
 
+function hasTourSaveData() {
+  try {
+    const raw = localStorage.getItem(TOUR_SAVE_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    return (d && d._tourState) ? d : null;
+  } catch(e) { return null; }
+}
+
+function deleteTourSaveData() {
+  localStorage.removeItem(TOUR_SAVE_KEY);
+}
+
 function hasSaveData() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
@@ -4903,12 +4944,25 @@ function deleteSaveData() {
   localStorage.removeItem(SAVE_KEY);
 }
 
+function loadTourGame() {
+  const data = hasTourSaveData();
+  if (!data) {
+    showToast('⚠️ ツアーのセーブデータがありません');
+    return;
+  }
+  _loadGameData(data);
+}
+
 function loadGame() {
   const data = hasSaveData();
   if (!data) {
     showToast('⚠️ セーブデータがありません');
     return;
   }
+  _loadGameData(data);
+}
+
+function _loadGameData(data) {
   try {
     _gameRunning = true;
     const _savedMapId = data._mapId || 'shisaku';
@@ -5018,12 +5072,16 @@ function loadGame() {
         maps: TOUR_NORMAL_MAPS,
         results: [], active: true,
       };
-      showToast('DEBUG load: ツアー復元OK mode='+_tourState.mode+' idx='+_tourState.mapIdx);
     } else {
       _tourState = null;
-      showToast('DEBUG load: セーブに_tourState無し data keys='+Object.keys(data).join(','));
     }
     showScreen('game-screen');
+    // 結果画面ボタンをリセット（ツアーセーブからロード時も残らないよう）
+    const _rTourBtn2=document.getElementById('result-tour-btn');
+    if(_rTourBtn2){_rTourBtn2.style.display='none';_rTourBtn2.textContent='ステージ選択へ';}
+    const _rTitleBtn2=document.getElementById('result-title-btn');
+    if(_rTitleBtn2) _rTitleBtn2.style.display='block';
+    _tourResultWon=false; _tourResultRank=-1;
     initAudio();
     stopBGM(); // タイトルBGMを確実に止める
     // 速度ボタンの表示状態を現在の速度に合わせてリセット
@@ -9660,6 +9718,13 @@ function initGame(playerDefs,goalAmount,bankruptLimit){
             fiveBuyCount:0,riderGain:0,restSaved:0,stockDamageDealt:0};
   });
   mapScale=0.85;mapOffX=0;mapOffY=0; // 少し引いた状態でスタート
+  // 結果画面ボタンをリセット（ツアー後に再ゲームしても残らないよう）
+  const _rTourBtn=document.getElementById('result-tour-btn');
+  if(_rTourBtn){_rTourBtn.style.display='none';_rTourBtn.textContent='ステージ選択へ';}
+  const _rTitleBtn=document.getElementById('result-title-btn');
+  if(_rTitleBtn) _rTitleBtn.style.display='block';
+  // ツアー結果グローバルをリセット
+  _tourResultWon=false; _tourResultRank=-1;
   G._pendingStockDown={};
   G._pendingStockBought={};
   G._pendingStockBoughtUp={};
@@ -10504,6 +10569,27 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
   const BFS_DEPTH=60;
   const FOCUS_DIST=6; // 残り6マス先を最重視
 
+  // ── 共通: 敵店に止まる実質リスク確率（スキップ期待値込み）──
+  // 距離dの敵店について「今ターンのサイコロで飛び越えられる確率」を考慮した
+  // 実質的な被弾確率を返す。いかなるモードでも共通して使用する。
+  //   d < remSteps  : 今ターン必ず通過（飛び越え確定）→ ほぼリスクなし
+  //   d === remSteps: 今ターンぴったり止まる → 確実に被弾
+  //   d > remSteps  : 今ターンは止まらないが将来リスクあり
+  //     飛び越えられる出目 = d+1〜6 → スキップ確率 = max(0,6-d)/6
+  //     止まってしまう出目 = 1〜d（ただしd>6は出目範囲外なので別途）
+  //     実質被弾確率 = 1 - スキップ確率（将来ターンも考慮して補正）
+  function calcHitProb(d){
+    if(d < remSteps)  return 0.04;                          // 今ターン通過確定
+    if(d === remSteps) return 1.0;                          // 今ターンぴったり被弾
+    // d > remSteps: 将来ターンのリスク
+    // 飛び越えられる確率: 出目(d+1)〜6が出ればスキップ
+    const skipProb = Math.max(0, 6 - d) / 6;               // d=1→0.83, d=5→0.17, d>=6→0
+    const hitProb  = 1 - skipProb;                          // 飛び越えられない確率
+    // さらに将来ターンの到達確率で減衰（距離が遠いほど不確実）
+    const futureDecay = Math.min(1.0, 1.0 / (d - remSteps + 1));
+    return hitProb * futureDecay;
+  }
+
   // ── 状態把握 ──
   const missingMarkNodes=G.map.filter(nd=>isMarkType(nd)&&!player.marks[nd.mark]);
   const allMarksCollected=missingMarkNodes.length===0;
@@ -10511,7 +10597,9 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
   const bankId=G.map.find(nd=>nd.type==='bank')?.id;
 
   // ── 高額敵店閾値 ──
-  const highTollThresh=Math.max(totalAssets*0.07, 200);
+  // 序盤ほど少額の敵店も相対的に痛いため、係数を下げて閾値を小さくする
+  // totalAssets*0.04 → 序盤(2000G)=80G、中盤(8000G)=320G、後半(20000G)=800G
+  const highTollThresh=Math.max(totalAssets*0.04, 80);
 
   // ── ペナルティ付きBFS（高額敵店をコストとして扱う）──
   function _penalizedBFS(startId, maxCost){
@@ -10580,26 +10668,20 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
   function isLanding(d){return d===remSteps;}
   function canJump(d){return remSteps>d;}
 
-  // ── 大前提: 敵高額店への着地ペナルティ（全モード共通・最優先）──
-  // 残り6マス先を最重視：6マス以内の全ノードで着地可能な敵高額店を強くペナルティ
+  // ── 大前提: 敵高額店ペナルティ（calcHitProb でスキップ期待値込み）──
   function calcEnemyTollPenalty(dist){
     let pen=0;
     for(const[idStr,d] of Object.entries(dist)){
       const nd=getNode(parseInt(idStr));
       if(!nd||nd.type!=='shop'||nd.owner<0||nd.owner===player.id)continue;
       const toll=calcToll(nd);
-      if(toll<100)continue; // 少額は無視
+      if(toll<100)continue;
       const threat=toll>=highTollThresh;
-      if(isLanding(d)){
-        // ぴったり止まる → 最大ペナルティ（6マス内なら特に重視）
-        const mul=d<=FOCUS_DIST?12:6;
-        pen-=Math.min(50000,toll*mul);
-      } else if(canJump(d)){
-        pen-=toll*(threat?1.0:0.3)/(d+1);
-      } else {
-        // 通過必須でも止まるリスクがある
-        pen-=Math.min(10000,toll*(threat?5:2))/(d+1);
-      }
+      const hp=calcHitProb(d);
+      // 実質被弾期待コスト = 通行料 × 被弾確率
+      // 今ターンぴったり止まる場合は乗数を強化（確実に痛い）
+      const mul = isLanding(d) ? (d<=FOCUS_DIST?12:6) : (threat?4:2);
+      pen -= Math.min(50000, toll * hp * mul);
     }
     return pen;
   }
@@ -10616,24 +10698,81 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
 
     // ══════════════════════════════
     // モード①: 目標金額達成 → 銀行へ
-    // ①敵高額店回避（上記で適用済み）
-    // ②銀行
+    // 銀行への純価値 = 勝利価値 - 途中で目標を下回るリスク
     // ══════════════════════════════
     if(atGoal){
-      if(bankId!=null&&dist[bankId]!=null)s+=500000/(dist[bankId]+1);
-      if(bankId!=null&&isLanding(dist[bankId]))s+=200000;
+      if(bankId!=null&&dist[bankId]!=null){
+        // 勝利の価値（固定の大きな値）
+        const WIN_VALUE = 80000;
+
+        // 途中の敵店で目標金額を下回るリスクを計算
+        let fallBelowRisk = 0;
+        for(const[idStr2,d2] of Object.entries(dist)){
+          const nd2=getNode(parseInt(idStr2));
+          if(!nd2||nd2.type!=='shop'||nd2.owner<0||nd2.owner===player.id) continue;
+          const toll2=calcToll(nd2);
+          if(toll2<100) continue;
+          const hp=calcHitProb(d2);
+          if(hp<=0.01) continue;
+          // 支払い後の総資産が目標を下回る度合い
+          const assetsAfter = totalAssets - toll2;
+          const shortfall = G.goalAmount - assetsAfter; // プラスなら目標を下回る
+          if(shortfall > 0){
+            // 致命傷: 勝利を逃す = WIN_VALUE 丸ごと失うリスク
+            // 不足額が大きいほど severity を高める（最大3倍）
+            const severity = Math.min(3.0, 1.0 + shortfall / G.goalAmount);
+            fallBelowRisk += hp * WIN_VALUE * severity;
+          } else {
+            // 支払っても目標は下回らないが余裕が削られる
+            // 余裕の割合に応じた軽いリスク
+            const margin = -shortfall; // 余裕額
+            const marginRatio = margin / G.goalAmount;
+            fallBelowRisk += hp * toll2 * Math.max(0, 1 - marginRatio * 3);
+          }
+        }
+
+        // 純価値 = 勝利価値 - リスク、距離で減衰
+        const netWinValue = WIN_VALUE - fallBelowRisk;
+        s += netWinValue / (dist[bankId] + 1);
+
+        // 今ターンぴったり銀行に着地 = 即勝利確定（リスクがなければ最大ボーナス）
+        if(isLanding(dist[bankId])){
+          s += Math.max(0, WIN_VALUE - fallBelowRisk) * 2.0;
+        }
+      }
       return s;
     }
 
     // ══════════════════════════════
     // モード②: レベルアップ条件を満たしている
-    // ①敵高額店回避（適用済み）
-    // ②銀行 ③空き店 ④自分の店 ⑤その他 ⑥敵店
+    // 銀行スコアを「賞金期待値 - 途中の敵店踏むリスク」で計算
+    // 踏むリスクが賞金を上回る場合は自然に銀行を諦める
     // ══════════════════════════════
     if(canLevelUp){
-      // ②銀行（最高優先）
-      if(bankId!=null&&dist[bankId]!=null)s+=300000/(dist[bankId]+1);
-      if(bankId!=null&&isLanding(dist[bankId]))s+=150000;
+      // ── 賞金期待値ベースの銀行スコア計算 ──
+      if(bankId!=null&&dist[bankId]!=null){
+        const prize = getLvBonus(player.level, player); // 次レベルアップ時の賞金
+
+        // 銀行までの経路上の敵店リスクを計算
+        // 距離dの敵店を今ターン踏む確率: d<=remStepsならぴったり止まる可能性、d<remStepsなら通過
+        // 将来ターン: 距離dに止まる確率を 1/(d+0.5) で近似
+        let routeRisk = 0;
+        for(const[idStr2,d2] of Object.entries(dist)){
+          const nd2=getNode(parseInt(idStr2));
+          if(!nd2||nd2.type!=='shop'||nd2.owner<0||nd2.owner===player.id) continue;
+          const toll2=calcToll(nd2);
+          if(toll2<100) continue;
+          routeRisk += toll2 * calcHitProb(d2);
+        }
+
+        // 純期待値 = 賞金 - リスク
+        // 調整係数12.0: 空き店舗スコア(price×2.5)等との釣り合いを取る
+        const netBankValue = (prize - routeRisk) * 12.0;
+        s += netBankValue / (dist[bankId] + 1);
+
+        // 銀行にぴったり着地できる場合はさらに加点（賞金確定ボーナス）
+        if(isLanding(dist[bankId])) s += Math.max(0, prize - routeRisk) * 1.5;
+      }
 
       for(const[idStr,d] of Object.entries(dist)){
         if(d>BFS_DEPTH)continue;
@@ -10644,22 +10783,22 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
 
         if(nd.type==='shop'){
           if(nd.owner<0){
-            // ③空き店舗（購入できるなら大きくボーナス）
+            // 空き店舗（購入できるなら大きくボーナス）
             const buyable=liq>=nd.price;
             if(land)s+=buyable?nd.price*0.6:nd.price*0.1;
             else s+=buyable?nd.price*0.12*w:nd.price*0.02*w;
           } else if(nd.owner===player.id){
-            // ④自分の店
+            // 自分の店
             if(land)s+=600;
             else s+=80*w;
           } else {
-            // ⑥敵店（追加ペナルティ）
+            // 敵店（追加ペナルティ）
             const toll=calcToll(nd);
             if(land)s-=Math.max(8000,toll*4);
             else s-=toll*1.5*w;
           }
         }
-        if(nd.type==='lucky'){s+=(land?300:80*w);} // ⑤その他
+        if(nd.type==='lucky'){s+=(land?300:80*w);}
         if(nd.type==='bank'&&nd.id!==bankId){s+=(land?400:100*w);}
       }
       return s;
@@ -10672,21 +10811,42 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
     // ══════════════════════════════
 
     // ③未取得マーク（TSP最短経路を重視）
+    // ── 期待値ベースのマーク方向スコア ──
+    // マーク1枚の価値 = 賞金の35%（4枚で賞金 + 道中の店購入機会）
+    const markValue = getLvBonus(player.level, player) * 0.55;
+
+    // 次マークへの期待値: マーク価値 - 途中の敵店リスク
     if(nextTargetMarkId!=null){
-      const penCostToNext=penMap[nextTargetMarkId]??9999;
-      // 6マス先を最重視：ペナルティコストが少ないルートを優先
-      s+=30000/(penCostToNext+1);
-      const straightDist=dist[nextTargetMarkId];
-      if(straightDist!=null&&isLanding(straightDist))s+=15000;
+      // 次マークまでの経路上の敵店リスクをBFSで計算
+      const penMap2 = penMap; // routePenCostsから取得済み
+      let markRouteRisk = 0;
+      for(const[idStr2,d2] of Object.entries(dist)){
+        const nd2=getNode(parseInt(idStr2));
+        if(!nd2||nd2.type!=='shop'||nd2.owner<0||nd2.owner===player.id) continue;
+        const toll2=calcToll(nd2);
+        if(toll2<100) continue;
+        // 次マーク方向のルート上にある敵店のみリスク計算
+        // (penMap2で次マークへのコストが高い=敵店経由ならリスクあり)
+        const distToMark = penMap2[nextTargetMarkId] ?? 9999;
+        const distThroughEnemy = (penMap2[nd2.id]??9999) + 1; // この敵店を経由するコスト
+        const onRoute = distThroughEnemy <= distToMark + 2; // ルート上とみなす許容誤差
+        if(!onRoute) continue;
+        markRouteRisk += toll2 * calcHitProb(d2);
+      }
+      // 純期待値 = マーク価値 - リスク（係数12でスコア空間に合わせる）
+      const netMarkValue = (markValue - markRouteRisk) * 12.0;
+      const markDist = dist[nextTargetMarkId] ?? 9999;
+      s += netMarkValue / (markDist + 1);
     }
-    // TSP後続マークも軽く加算
+
+    // TSP後続マーク（2番目以降）も期待値ベースで軽く加算
     if(tspOrder){
       for(let i=1;i<tspOrder.length;i++){
         const mnd=tspOrder[i];
-        const penC=penMap[mnd.id]??9999;
-        s+=1500/(penC+1+i*3);
-        const dd=dist[mnd.id];
-        if(dd!=null&&isLanding(dd))s+=800;
+        const markDist2 = dist[mnd.id] ?? 9999;
+        // 後続マークほど不確実性が高いので価値を減衰（i番目は50%^i）
+        const decayedValue = markValue * Math.pow(0.5, i);
+        s += decayedValue * 6.0 / (markDist2 + 1 + i*3);
       }
     }
 
@@ -10699,28 +10859,23 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
 
       if(nd.type==='shop'){
         if(nd.owner<0){
-          // ②購入可能な空き店（マーク収集中でも重視）
+          // 購入可能な空き店（マーク収集中でも重視）
           const buyable=liq>=nd.price;
-          if(land)s+=buyable?nd.price*0.5:nd.price*0.08;
-          else s+=buyable?nd.price*0.10*w:nd.price*0.02*w;
+          if(land)s+=buyable?nd.price*2.5:nd.price*0.08;
+          else s+=buyable?nd.price*0.25*w:nd.price*0.02*w;
         } else if(nd.owner===player.id){
-          // ④自分の店
+          // 自分の店
           if(land)s+=400;
           else s+=50*w;
         } else {
-          // ⑥敵店（追加ペナルティ）
+          // 敵店（calcEnemyTollPenaltyと二重カウント防止のため軽めに）
           const toll=calcToll(nd);
-          if(land)s-=Math.max(6000,toll*3.5);
-          else s-=toll*1.2*w;
+          if(land)s-=Math.max(2000,toll*1.5);
+          else s-=toll*0.5*w;
         }
       }
       if(nd.type==='lucky'){s+=(land?200:50*w);}
       if(nd.type==='bank'&&nd.id!==bankId){s+=(land?300:80*w);}
-
-      // ③未取得マークに直接着地できる
-      if(isMarkType(nd)&&!player.marks[nd.mark]&&land){
-        s+=12000; // マーク取得はボーナス（TSPスコアと重複するが強調）
-      }
     }
 
     // 全マーク後の銀行も少し加点
@@ -10733,7 +10888,7 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
   }
 
   // ── 着地ボーナスの事前計算（同等ルート間でのみ使用）──
-  const EQUIV_GAP=3;
+  const EQUIV_GAP=10;
   const routeMarkCosts=routeDists.map(({id})=>{
     if(!nextTargetMarkId||!routePenCosts)return{id,mc:0};
     const penMap=routePenCosts.find(r=>r.id===id)?.cost||{};
@@ -10751,7 +10906,7 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
       if(!nd)continue;
       if(nd.type==='shop'&&nd.owner===player.id)bonus+=6000;
       else if(nd.type==='shop'&&nd.owner===-1){
-        bonus+=liq>=nd.price?nd.price*1.2:nd.price*0.15;
+        bonus+=liq>=nd.price?nd.price*3.0:nd.price*0.15;
       } else if(nd.type==='lucky')bonus+=2500;
       else if(nd.type==='shop'&&nd.owner>=0&&nd.owner!==player.id){
         bonus-=Math.max(5000,calcToll(nd)*3);
@@ -10760,10 +10915,68 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
     landingBonusMap[id]=mc<=bestMarkCost+EQUIV_GAP?bonus:Math.min(0,bonus);
   });
 
+  // ── 次ターン期待値計算 ──
+  // 今回の着地マスから次ターンのサイコロ1〜6で到達できる全マスの
+  // スコア平均を計算し、現在スコアの35%の重みで加算する
+  function calcNextTurnExpected(landingId, landingPrev){
+    const EV_WEIGHT = 0.35;  // 次ターン期待値の重み
+    const EV_DEPTH  = 30;    // 次ターン用BFS深度
+    let totalScore = 0;
+    for(let dice = 1; dice <= 6; dice++){
+      // サイコロdice目で到達できる全マスを列挙
+      const reached = _cpuPredictReachable(landingId, landingPrev, dice);
+      if(!reached.length) continue;
+      // 到達マスの中から着地マス（距離=dice）のスコアを評価
+      const dist2 = _bfsDistances(landingId, EV_DEPTH);
+      let diceScore = 0;
+      reached.forEach(nd => {
+        const d2 = dist2[nd.id] ?? dice;
+        const land2 = (d2 === dice);
+        // 次ターン着地マスの簡易スコア評価
+        // 次ターン用hitProb: remSteps=diceとして calcHitProb 相当を計算
+        if(nd.type === 'shop'){
+          if(nd.owner < 0){
+            const buyable2 = liq >= nd.price;
+            if(land2) diceScore += buyable2 ? nd.price * 2.5 : nd.price * 0.08;
+          } else if(nd.owner === player.id){
+            if(land2) diceScore += 300;
+          } else {
+            const toll2 = calcToll(nd);
+            // 次ターンの被弾確率: d2=dice なら確実被弾、それ以外はスキップ込みで計算
+            const skipProb2 = d2 < dice ? 1.0         // 通過確定=スキップ確定
+                            : d2 === dice ? 0.0        // ぴったり止まる=スキップ不可
+                            : Math.max(0, 6 - d2) / 6; // 将来: スキップ確率
+            const hp2 = 1 - skipProb2;
+            diceScore -= toll2 * hp2 * (land2 ? 3 : 1);
+          }
+        }
+        if(nd.type === 'lucky' && land2) diceScore += 150;
+        if(nd.type === 'bank' && land2) diceScore += 500;
+        // 次ターンのマーク経路評価（atGoal/canLevelUpでない場合のみ）
+        if(!atGoal && !canLevelUp && nextTargetMarkId != null && routePenCosts){
+          const penMap2 = _penalizedBFS(landingId, 200);
+          diceScore += 5000 / ((penMap2[nextTargetMarkId] ?? 9999) + 1);
+        }
+      });
+      totalScore += diceScore / reached.length;
+    }
+    return (totalScore / 6) * EV_WEIGHT;
+  }
+
   let _landingBonus=0;
   const scores=routeDists.map(({id,dist})=>{
     _landingBonus=landingBonusMap[id]??0;
-    return{id,s:scoreRoute(id,dist)};
+    const baseScore = scoreRoute(id,dist);
+    // 今回の着地マスを特定して次ターン期待値を計算
+    let evScore = 0;
+    for(const[idStr,d] of Object.entries(dist)){
+      if(d !== remSteps) continue;
+      const landingNode = getNode(parseInt(idStr));
+      if(!landingNode) continue;
+      evScore += calcNextTurnExpected(landingNode.id, id);
+      break; // 着地マスは1つ（分岐後は確定）
+    }
+    return{id, s: baseScore + evScore};
   });
   scores.sort((a,b)=>b.s-a.s);
   const best=scores[0];
@@ -10814,9 +11027,14 @@ function passThroughBank(player, onDone){
           }
         }
       }
+      // 自分が既に所有している店への着地予測（増資余り倍率補正用）
+      const _myOwnedLandSq = (_bankRem>0)
+        ? (_cpuPredictReachable(_bankFromId,_bankPrev,_bankRem)||[])
+            .find(n=>n.type==='shop'&&n.owner===player.id)
+        : null;
       cpuBuyStock(player,()=>{ player._bankStockBoughtThisTurn=true; player._sabotageAreas=[]; updateMapBGM(); if(onDone)onDone(); },
         player._sabotageAreas||[],
-        {shopSq:_shopSq, fiveSq:_fiveSq});
+        {shopSq:_shopSq, fiveSq:_fiveSq, myOwnedLandSq:_myOwnedLandSq});
     }
   }
 
@@ -12954,19 +13172,33 @@ function landEvent(player,sq){
     if(!empties73.length){showEventNotif('🏪','お店買い取りチャンス','買える店が残っていなかった…','#fbbf24',()=>endAction(),!player.isCPU);return;}
     function _doBuy73(target){
       SFX.buy&&SFX.buy();
-      if(player.cash>=target.price){player.cash-=target.price;target.owner=player.id;updateAreaStockPrices();
-        addLog(`🏪 ${player.name}「${target.label}」購入 ${target.price.toLocaleString()}G`,'shop');renderStatus();endAction();}
-      else{payOrBankrupt(player,target.price,()=>{target.owner=player.id;updateAreaStockPrices();renderStatus();endAction();});}
+      if(player.isCPU){
+        // CPU: 流動資産以内の店のみ選択済みなので現金で直接払う
+        target.owner=player.id; updateAreaStockPrices(false);
+        addLog(`🏪 ${player.name}「${target.label}」購入 ${target.price.toLocaleString()}G`,'shop');
+        showCpuAction(player,`「${target.label}」を購入！`,'🏪');
+        player.cash-=target.price;
+        renderStatus(); endAction();
+      } else {
+        // 人間: 先に所有権確定→現金不足時はshowPaymentModal
+        target.owner=player.id; updateAreaStockPrices(false);
+        addLog(`🏪 ${player.name}「${target.label}」購入 ${target.price.toLocaleString()}G`,'shop');
+        renderStatus();
+        if(player.cash>=target.price){ player.cash-=target.price; renderStatus(); endAction(); }
+        else{ _queueDisp((_next)=>{ _next(); showPaymentModal(player,target.price,()=>{ endAction(); }); }); }
+      }
     }
     if(player.isCPU){
-      const best73=empties73.reduce((a,b)=>a.price>=b.price?a:b);
-      if(getLiquid(player)<best73.price){showEventNotif('🏪','お店買い取りチャンス','今回はパス','#fbbf24',()=>endAction(),false);return;}
+      const liq73=getLiquid(player);
+      // CPUは流動資産以内の店のみ選択
+      const buyable73=empties73.filter(sq=>sq.price<=liq73);
+      if(!buyable73.length){showEventNotif('🏪','お店買い取りチャンス','今回はパス','#fbbf24',()=>endAction(),false);return;}
       showEventNotif('🏪','お店買い取りチャンス',`${player.name} 店を選択中…`,'#fbbf24',()=>{
         _showEventShopSelectUI(player,{
           title:'🏪 お店買い取りチャンス',subtitle:'空き店舗を通常価格で購入できます',
           btnLabel:'購入',cpuBtnLabel:'✅ 購入決定！',
           valueLabel:'購入価格',valueFn:sq=>sq.price.toLocaleString()+'G',
-          shopFilter:sq=>sq.owner<0,
+          shopFilter:sq=>sq.owner<0&&sq.price<=liq73,
           cpuPickFn:shops=>shops.reduce((a,b)=>a.price>=b.price?a:b),
         },sq=>_doBuy73(sq),()=>endAction());
       },false);
@@ -13014,18 +13246,33 @@ function landEvent(player,sq){
     function _doBuy75(target){
       const cost75=target.price*2;
       SFX.buy&&SFX.buy();
-      player.cash-=cost75;target.owner=player.id;updateAreaStockPrices();
-      addLog(`🏪 ${player.name}「${target.label}」2倍(${cost75.toLocaleString()}G)で購入`,'shop');renderStatus();endAction();
+      if(player.isCPU){
+        // CPU: 流動資産以内の店のみ選択済みなので現金で直接払う
+        target.owner=player.id; updateAreaStockPrices(false);
+        addLog(`🏪 ${player.name}「${target.label}」2倍(${cost75.toLocaleString()}G)で購入`,'shop');
+        showCpuAction(player,`「${target.label}」を2倍で購入！`,'🏪');
+        player.cash-=cost75;
+        renderStatus(); endAction();
+      } else {
+        // 人間: 先に所有権確定→現金不足時はshowPaymentModal
+        target.owner=player.id; updateAreaStockPrices(false);
+        addLog(`🏪 ${player.name}「${target.label}」2倍(${cost75.toLocaleString()}G)で購入`,'shop');
+        renderStatus();
+        if(player.cash>=cost75){ player.cash-=cost75; renderStatus(); endAction(); }
+        else{ _queueDisp((_next)=>{ _next(); showPaymentModal(player,cost75,()=>{ endAction(); }); }); }
+      }
     }
     if(player.isCPU){
-      const best75=empties75.reduce((a,b)=>a.price>=b.price?a:b);const cost75=best75.price*2;
-      if(getLiquid(player)<cost75){showEventNotif('🏪','2倍買い取りチャンス','今回はパス','#fbbf24',()=>endAction(),false);return;}
+      const liq75=getLiquid(player);
+      // CPUは流動資産以内の店のみ選択（2倍価格が流動資産以内）
+      const buyable75=empties75.filter(sq=>sq.price*2<=liq75);
+      if(!buyable75.length){showEventNotif('🏪','2倍買い取りチャンス','今回はパス','#fbbf24',()=>endAction(),false);return;}
       showEventNotif('🏪','2倍買い取りチャンス',`${player.name} 店を選択中…`,'#fbbf24',()=>{
         _showEventShopSelectUI(player,{
           title:'🏪 2倍でお店買い取りチャンス',subtitle:'空き店舗を通常価格の2倍で購入できます（任意）',
           btnLabel:'2倍購入',cpuBtnLabel:'✅ 購入決定！',
           valueLabel:'購入価格',valueFn:sq=>(sq.price*2).toLocaleString()+'G',
-          shopFilter:sq=>sq.owner<0&&getLiquid(player)>=sq.price*2,
+          shopFilter:sq=>sq.owner<0&&sq.price*2<=liq75,
           cpuPickFn:shops=>shops.reduce((a,b)=>a.price>=b.price?a:b),
         },sq=>_doBuy75(sq),()=>endAction());
       },false);
@@ -13033,7 +13280,7 @@ function landEvent(player,sq){
       _showEventShopSelectUI(player,{
         title:'🏪 2倍でお店買い取りチャンス',subtitle:'空き店舗を通常価格の2倍で購入できます（任意）',
         btnLabel:'2倍購入',valueLabel:'購入価格',valueFn:sq=>(sq.price*2).toLocaleString()+'G',
-        shopFilter:sq=>sq.owner<0&&getLiquid(player)>=sq.price*2,
+        shopFilter:sq=>sq.owner<0,
       },sq=>_doBuy75(sq),()=>endAction());
     }
     return;
@@ -17594,7 +17841,7 @@ function meiSmartStockSwap(player, callback){
   }
 
   const bankDist=stepsToBank(player.pos,player._prevPos,10);
-  if(bankDist>8){if(callback)callback();return;}
+  if(bankDist>6){if(callback)callback();return;}
 
   // ── Sランク専用: 35枚残しテクニック判定 ──
   // 条件: Sランク かつ 総資産2位以下
@@ -17923,7 +18170,6 @@ function cpuTurn(player){
                 addLog(`🎯 ${player.name}(S) A${a}株を妨害売り×${n}(+${(n*sp).toLocaleString()}G)`,'pay');
               }
               player._sabotageAreas=sabotageAreas; // 銀行着地時の株購入除外用
-              showCpuAction(player,`${targetNames}への10枚売り！`,'🎯');
               renderStatus();
               // 妨害売り完了後に次フェーズ（株入れ替え・防御増資・サイコロ）へ
               if(ch&&ch.rank==='S'){
@@ -18761,7 +19007,9 @@ function _startForcedAuctionBody(seller, sq, callback){
 
   function checkAllPassed(){
     const allPassed=bidders.every(p=>passed.has(p.id));
-    if(allPassed) finalize();
+    // CPUのみ参加の場合は全員パスしてもタイマーが切れるまで画面を維持
+    const humanInBidders=bidders.some(p=>!p.isCPU);
+    if(allPassed && (humanInBidders || timeLeft<=0)) finalize();
   }
 
   function scheduleCpuBids(){
@@ -18978,7 +19226,9 @@ function _startAuctionBody(seller, sq, done, overrideStartPrice=null){
   // 全員パスチェック
   function checkAllPassed(){
     const allPassed=bidders.every(p=>passed.has(p.id));
-    if(allPassed) finalize();
+    // CPUのみ参加の場合は全員パスしてもタイマーが切れるまで画面を維持
+    const humanInBidders=bidders.some(p=>!p.isCPU);
+    if(allPassed && (humanInBidders || timeLeft<=0)) finalize();
   }
 
   // ============ CPU入札ロジック ============
@@ -19431,7 +19681,7 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
   // ── 事前予測情報（銀行通過時に渡される） ──
   // shopSq: このターン買う予定の空き店舗（購入後の増資余りをシミュレート）
   // fiveSq: このターン5倍買い予定の敵店（5倍買い後の増資余りをシミュレート）
-  const {shopSq=null, fiveSq=null}=options;
+  const {shopSq=null, fiveSq=null, myOwnedLandSq=null}=options;
 
   // ── 増資余りシミュレーション関数（ループ外で定義） ──
   // 空き店舗購入予定・5倍買い予定を考慮した仮想的な増資余りを返す
@@ -19477,8 +19727,12 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     const myShops=myShopsSim; // 以降 myShops は仮想値
     const myHeld=player.stocks[a]||0;
 
-    const myRem=_simMyRem(a);
+    let myRem=_simMyRem(a);
     const enemyRem=_simEnemyRem(a);
+    // 銀行後に自分の既所有店に着地予定なら全エリアの myRem を 1.5倍補正
+    if(myOwnedLandSq){
+      myRem = myRem * 1.5;
+    }
 
     // ランク別制限
     if(ch?.name!=='メイ'&&ch?.name!=='本気きよこ'&&ch?.name!=='覚醒ひろし'&&ch?.name!=='さくら'&&ch?.name!=='はゆう'&&ch?.name!=='そうま'&&ch?.name!=='ワイズ'&&ch?.name!=='ネネコ'&&ch?.name!=='エナ'&&ch?.name!=='クリスティー'&&ch?.name!=='きよこ'){
@@ -19906,13 +20160,13 @@ function cpuInvest(player,done){
     const minShares=getMinShares(cnt,sq.area);
     // 自分の保有枚数が閾値未満ならスキップ
     if(myHeld<minShares)return null;
-    // ── Sランク専用: 3軒以上エリアで敵株が自分の1.9倍以上なら増資除外 ──
+    // ── Sランク専用: 3軒以上エリアで敵株が自分の1.6倍以上なら増資除外 ──
     if(rank==='S'&&cnt>=3){
       const _maxEnemyHeld=Math.max(0,...G.players
         .filter(op=>!op.bankrupt&&op.id!==player.id)
         .map(op=>op.stocks[sq.area]||0));
-      if(_maxEnemyHeld>=myHeld*1.9){
-        return null; // 敵が自分の1.9倍以上持っている → 増資対象外
+      if(_maxEnemyHeld>=myHeld*1.6){
+        return null; // 敵が自分の1.6倍以上持っている → 増資対象外
       }
     }
     return{sq,rem,cnt,myHeld};
@@ -20615,23 +20869,54 @@ function endGame(winnerId){
   document.getElementById('result-detail-wrap').innerHTML=detHtml;
 
   document.getElementById('result-graph-wrap').style.display='block';
+
+  // ツアーモード中なら結果画面表示前にクリア判定を確定させる
+  let _tourPlayerWon = false;
+  let _tourHumanRank = -1;
+  if(_tourState && _tourState.mapIdx !== undefined){
+    _tourState.active = true; // 確実にtrueに
+    // 人間プレイヤーの順位を取得（0始まり）
+    _tourHumanRank = sorted.findIndex(p => !p.isCPU);
+    // クリア条件: TOUR_CLEAR_RANK[mapIdx] === 0 なら1位必須、1なら2位以上OK
+    const reqRank = TOUR_CLEAR_RANK[_tourState.mapIdx] ?? 0;
+    _tourPlayerWon = _tourHumanRank !== -1 && _tourHumanRank <= reqRank;
+    // クリア成功なら結果画面表示前に clearedStages を確定記録
+    if(_tourPlayerWon){
+      if(!_tourState.clearedStages) _tourState.clearedStages = [];
+      if(!_tourState.clearedStages.includes(_tourState.mapIdx)){
+        _tourState.clearedStages.push(_tourState.mapIdx);
+      }
+      // ノーマル10章クリアでハード解放フラグを保存
+      if(_tourState.mode==='normal' && _tourState.clearedStages.includes(9)){
+        try{ localStorage.setItem('tour_hard_unlocked','1'); }catch(e){}
+      }
+      // ハード10章クリアでBGMシアター解放フラグを保存（結果画面表示前に確定）
+      if(_tourState.mode==='hard' && _tourState.clearedStages.includes(9)){
+        try{ localStorage.setItem('bgm_theater_unlocked','1'); }catch(e){}
+      }
+      _saveTourState(); // 結果画面表示前にセーブ確定
+    }
+    // タイトルへ戻るボタンを非表示、ステージ選択ボタンを表示
+    const _tb = document.getElementById('result-title-btn');
+    if(_tb) _tb.style.display = 'none';
+    const _stb = document.getElementById('result-tour-btn');
+    if(_stb){
+      _stb.style.display = 'block';
+      _stb.textContent = _tourPlayerWon ? '⭐ 次へ進む' : '💀 リザルトを確認';
+    }
+  }
+
   showScreen('result-screen');
 
   setTimeout(()=>drawResultGraph(), 300);
   setTimeout(()=>showResultComments(sorted, winnerId), 800);
   setTimeout(()=>showSpecialAwards(sorted, winnerId), 1200);
 
-  // ツアーモード中なら結果を処理（activeフラグに依存しない）
+  // ツアーモード中: 判定・記録は上で完了済み。モーダルはボタン押下時に表示。
+  // _tourPlayerWon / _tourHumanRank をグローバルに保持してボタン側から参照する
   if(_tourState && _tourState.mapIdx !== undefined){
-    _tourState.active = true; // 確実にtrueに
-    const playerWon = sorted[0] && !G.players[sorted[0].id].isCPU;
-    // タイトルへ戻るボタンを非表示
-    const _tb = document.getElementById('result-title-btn');
-    if(_tb) _tb.style.display = 'none';
-    setTimeout(()=>onTourMapEnd(playerWon), 2000);
-  } else {
-    // デバッグ: _tourStateの状態をトースト表示（確認後削除）
-    showToast('DEBUG: _tourState=' + JSON.stringify(_tourState));
+    _tourResultWon = _tourPlayerWon;
+    _tourResultRank = _tourHumanRank;
   }
 }
 
@@ -22674,23 +22959,47 @@ function renderMap(){
           const oc=G.players[nd.owner]?.color||'#888';
           // 壁上部にカラー帯（屋根の下の壁エリア内）
           const bandH=Math.floor(bh*0.22);
+          // 休業判定（オーナーのresting または 全店休日フラグ）
+          const _isResting = !!(G.players[nd.owner]?.resting || G._allRest);
           ctx.save();
           rrect(ctx,bx+2,wallTop,bw-4,bandH,{tl:2,tr:2,bl:0,br:0});
-          ctx.fillStyle=oc+'dd'; ctx.fill();
+          ctx.fillStyle=(_isResting ? 'rgba(100,80,160,0.85)' : oc+'dd'); ctx.fill();
           // 帯の上に名前
           ctx.fillStyle='#fff';
           ctx.font=`bold ${S2*.155}px "M PLUS Rounded 1c",sans-serif`;
           ctx.textAlign='center'; ctx.textBaseline='middle';
           ctx.fillText(G.players[nd.owner]?.name||'?',cx,wallTop+bandH/2);
           ctx.restore();
-          // 料金：白縁取り強化で壁色に関わらず確実に読めるように
-          const tollStr2=calcToll(nd).toLocaleString()+'G';
-          ctx.font=`bold ${S2*.20}px "M PLUS Rounded 1c",sans-serif`;
-          ctx.textAlign='center'; ctx.textBaseline='top';
-          ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=3; ctx.lineJoin='round';
-          ctx.strokeText(tollStr2,cx,wallTop+bandH+2);
-          ctx.fillStyle='#cc0000';
-          ctx.fillText(tollStr2,cx,wallTop+bandH+2);
+          if(_isResting){
+            // 休業中オーバーレイ（薄い紫の幕）
+            ctx.save();
+            rrect(ctx,bx+2,wallTop+bandH,bw-4,bh-(wallTop-by)-bandH-2,{tl:0,tr:0,bl:4,br:4});
+            ctx.fillStyle='rgba(80,40,120,0.30)'; ctx.fill();
+            ctx.restore();
+            // 😴 休業マーク（大きく中央）
+            ctx.save();
+            ctx.font=`${S2*.38}px serif`;
+            ctx.textAlign='center'; ctx.textBaseline='top';
+            ctx.globalAlpha=0.92;
+            ctx.fillText('😴',cx,wallTop+bandH+1);
+            ctx.globalAlpha=1;
+            // 「休業中」テキスト（小さく下）
+            ctx.font=`bold ${S2*.135}px "M PLUS Rounded 1c",sans-serif`;
+            ctx.fillStyle='#c8a0ff';
+            ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=2; ctx.lineJoin='round';
+            ctx.strokeText('休業中',cx,wallTop+bandH+S2*.38+3);
+            ctx.fillText('休業中',cx,wallTop+bandH+S2*.38+3);
+            ctx.restore();
+          } else {
+            // 料金：白縁取り強化で壁色に関わらず確実に読めるように
+            const tollStr2=calcToll(nd).toLocaleString()+'G';
+            ctx.font=`bold ${S2*.20}px "M PLUS Rounded 1c",sans-serif`;
+            ctx.textAlign='center'; ctx.textBaseline='top';
+            ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=3; ctx.lineJoin='round';
+            ctx.strokeText(tollStr2,cx,wallTop+bandH+2);
+            ctx.fillStyle='#cc0000';
+            ctx.fillText(tollStr2,cx,wallTop+bandH+2);
+          }
           // 増資余り表示なし（非表示）
         }
       } else if(nd.type==='mark'||nd.type==='changemark'){
@@ -24360,7 +24669,7 @@ function showTitle(){
   showScreen('title-screen');
   initAudio();playBGM('title');
   _updateBgmTheaterBtn();
-  // セーブデータがあれば「続きから遊ぶ」を表示
+  // フリーモードのセーブデータがあれば「続きから遊ぶ」を表示
   const btn=document.getElementById('continue-btn');
   if(btn){
     const save=hasSaveData();
@@ -24371,6 +24680,20 @@ function showTitle(){
       btn.textContent=`📂 ${t('continueBtn')}（${t('turn')}${save.turn} / ${ds}）`;
     } else {
       btn.style.display='none';
+    }
+  }
+  // ツアーのセーブデータがあれば「ツアーを再開する」を表示
+  const tBtn=document.getElementById('tour-continue-btn');
+  if(tBtn){
+    const tourSave=hasTourSaveData();
+    if(tourSave && tourSave._tourState){
+      const ts=tourSave._tourState;
+      const mode=ts.mode==='hard'?'🔥ハード':'🌿ノーマル';
+      const cleared=(ts.clearedStages||[]).length;
+      tBtn.style.display='';
+      tBtn.textContent=`🗺️ ツアーを再開（${mode} ${cleared}/10章クリア済）`;
+    } else {
+      tBtn.style.display='none';
     }
   }
 }
@@ -24391,7 +24714,7 @@ const TOUR_NORMAL_CONFIG = [
   {mapId:'sunsetharbor',goal:22000, cpus:['wise','hayuu','ryou']},
   {mapId:'casinoourorea',goal:22000,cpus:['sako','ena','haruka']},
   {mapId:'rivera',      goal:25000, cpus:['mei','wise','hiroshi']},
-  {mapId:'lastheaven',  goal:30000, cpus:['neneko','ryou','sakura']},
+  {mapId:'lastheaven',  goal:50000, cpus:['neneko','ryou','sakura']},
 ];
 
 // クリア条件: 0=1位, 1=2位以上 (stageIdx 0-9)
@@ -24408,7 +24731,7 @@ const TOUR_HARD_CONFIG = [
   {mapId:'sunsetharbor', goal:22000, cpus:['s_wise','s_hayuu','takken_ryou']},
   {mapId:'casinoourorea',goal:22000, cpus:['sako','s_ena','s_haruka']},
   {mapId:'rivera',       goal:25000, cpus:['mei','s_wise','kakuseihiroshi']},
-  {mapId:'lastheaven',   goal:30000, cpus:['neneko','takken_ryou','s_sakura']},
+  {mapId:'lastheaven',   goal:50000, cpus:['neneko','takken_ryou','s_sakura']},
 ];
 
 // プレイヤー選択キャラ（犬・猫）
@@ -24463,7 +24786,24 @@ function _getCpuCharaInfo(key){
 
 // ツアー進行状態
 let _tourState = null;
+let _tourResultWon  = false; // 結果画面でのクリア判定結果
+let _tourResultRank = -1;    // 結果画面での人間プレイヤー順位
 
+
+// 結果発表画面の「ステージ選択へ」ボタン処理
+function _onResultTourBtn(){
+  // ボタンをリセット（次回フリーモード時に残らないよう）
+  const _stb = document.getElementById('result-tour-btn');
+  if(_stb) _stb.style.display = 'none';
+  const _tb = document.getElementById('result-title-btn');
+  if(_tb) _tb.style.display = 'block';
+  // ボタン押下時にクリア/失敗モーダルを表示（結果を十分見てから）
+  if(_tourState && _tourState.mapIdx !== undefined){
+    onTourMapEnd(_tourResultWon, _tourResultRank);
+  } else {
+    showScreen('tour-screen');
+  }
+}
 function showTourMode(){
   _updateTourProgressUI();
   _showTourUrlShare();
@@ -24770,36 +25110,27 @@ function onTourMapEnd(playerWon, playerRank){
   if(!_tourState || !_tourState.active) return;
   const stageIdx = _tourState.mapIdx;
   _tourState.active = false;
+  // ※ clearedStages への記録・_saveTourState は endGame() 内で完了済み
 
   if(playerWon){
-    if(!_tourState.clearedStages) _tourState.clearedStages = [];
-    if(!_tourState.clearedStages.includes(stageIdx)){
-      _tourState.clearedStages.push(stageIdx);
-    }
-    // ノーマル10章クリアでハード1章解放フラグを保存
-    if(_tourState.mode==='normal' && _tourState.clearedStages.includes(9)){
-      try{ localStorage.setItem('tour_hard_unlocked','1'); }catch(e){}
-    }
     // ハード10章クリアでBGMシアター解放
     if(_tourState.mode==='hard' && _tourState.clearedStages.includes(9)){
       try{ localStorage.setItem('bgm_theater_unlocked','1'); }catch(e){}
-      _saveTourState(); // 必ずセーブしてからモーダルへ
       showModal('🎵 BGMシアター解放！',
         ['おめでとうございます！','ハードモード全10章制覇の証として','タイトル画面のBGMシアターが解放されました！'],
         [{label:'🎵 今すぐ聴く',key:'Enter',action:()=>{ _updateBgmTheaterBtn(); showBgmTheater(); initAudio(); }},
          {label:'後で',key:'Escape',action:()=>{ _updateBgmTheaterBtn(); }}]);
       return; // showTourComplete は呼ばない
     }
-    _saveTourState(); // 必ずここでセーブ
 
     const allCleared = _tourState.clearedStages.length >= TOUR_NORMAL_MAPS.length;
     if(allCleared){
-      setTimeout(()=>showTourComplete(), 500);
+      showTourComplete();
     } else {
-      setTimeout(()=>showTourStageClear(stageIdx, playerRank), 500);
+      showTourStageClear(stageIdx, playerRank);
     }
   } else {
-    setTimeout(()=>showTourGameOver(stageIdx, playerRank), 500);
+    showTourGameOver(stageIdx, playerRank);
   }
 }
 
@@ -25490,6 +25821,20 @@ const CPU_GUIDE_DATA = [
   },
 ];
 
+// ── Sランクキャラ解放チェック ──
+function _isSRankUnlocked(){
+  try{ return localStorage.getItem('bgm_theater_unlocked')==='1'; }catch(e){ return false; }
+}
+// Sランクキャラかどうか判定（s_プレフィックス or 元からSランクの固定キャラ）
+const S_RANK_HIDDEN_KEYS = new Set([
+  'mei','honkikiyoko','kakuseihiroshi','sako','neneko','takken_ryou',
+  's_souma','s_christie','s_ena','s_orika','s_hayuu','s_sakura',
+  's_wise','s_haruka','s_hikari',
+]);
+function _isSRankHidden(key){
+  return S_RANK_HIDDEN_KEYS.has(key) && !_isSRankUnlocked();
+}
+
 const RANK_COLOR={'S':'#ff6b6b','A':'#ff9944','B':'#ffcc44','C':'#88ccff','D':'#aaaaaa'};
 const RANK_LABEL={'S':'🔴 Sランク','A':'🟠 Aランク','B':'🟡 Bランク','C':'🔵 Cランク','D':'⚪ Dランク'};
 
@@ -25506,15 +25851,25 @@ function _buildCpuGuideList(){
   CPU_GUIDE_DATA.forEach((d,i)=>{
     const ch=CPU_CHARS[d.key];
     const col=RANK_COLOR[d.rank]||'#aaa';
+    const locked=_isSRankHidden(d.key);
     const el=document.createElement('div');
     el.className='cgl-item'+(i===0?' active':'');
     el.dataset.idx=i;
-    el.innerHTML=`
-      <div class="cgl-icon" style="border-color:${col}">${CHAR_SVGS[d.key]||''}</div>
-      <div>
-        <div class="cgl-name">${ch.name}</div>
-        <div class="cgl-rank" style="color:${col}">${d.rank}ランク</div>
-      </div>`;
+    if(locked){
+      el.innerHTML=`
+        <div class="cgl-icon" style="border-color:#444;filter:grayscale(1);opacity:.5">🔒</div>
+        <div>
+          <div class="cgl-name" style="color:#666">？？？</div>
+          <div class="cgl-rank" style="color:#555">${d.rank}ランク</div>
+        </div>`;
+    } else {
+      el.innerHTML=`
+        <div class="cgl-icon" style="border-color:${col}">${CHAR_SVGS[d.key]||''}</div>
+        <div>
+          <div class="cgl-name">${ch.name}</div>
+          <div class="cgl-rank" style="color:${col}">${d.rank}ランク</div>
+        </div>`;
+    }
     el.onclick=()=>{
       list.querySelectorAll('.cgl-item').forEach(e=>e.classList.remove('active'));
       el.classList.add('active');
@@ -25530,6 +25885,22 @@ function _showCpuGuideDetail(idx){
   const col=RANK_COLOR[d.rank]||'#aaa';
   const det=document.getElementById('cpuguide-detail');
   const ja=_lang==='ja';
+  // Sランク未解放なら専用ロック表示
+  if(_isSRankHidden(d.key)){
+    det.innerHTML=`
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem;gap:1rem;text-align:center;">
+        <div style="font-size:3rem;filter:grayscale(1);opacity:.5">🔒</div>
+        <div style="font-size:1.1rem;font-weight:700;color:#888">？？？</div>
+        <div style="font-size:.75rem;color:#666;line-height:1.6">
+          ハードモード全10章をクリアすると<br>このキャラクターの情報が解放されます
+        </div>
+        <div style="font-size:.7rem;padding:.4rem .8rem;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;color:#f87171;">
+          🔥 ハードモード10章クリアで解放
+        </div>
+      </div>`;
+    det.scrollTop=0;
+    return;
+  }
   const tendHtml=d.tend.map(t=>`<p class="cgd-text">${t}</p>`).join('');
   const tipsHtml=d.tips.map(t=>`<p class="cgd-text">• ${t}</p>`).join('');
   const starStr=(n)=>`<span class="cgd-star-val">${'<span class="on">★</span>'.repeat(n)}${'<span class="off">★</span>'.repeat(5-n)}</span>`;
@@ -25610,7 +25981,7 @@ function buildSetupUI(){
 
   if(_spectateMode){
     // CPU観戦モード: 人間行なし、CPU席4つ、デフォルト全員セット
-    if(slotChars.length<4) slotChars=['mei','ryou','hiroshi','sakura'];
+    if(slotChars.length<4) slotChars=['orika','ryou','hiroshi','sakura'];
     slotChars=slotChars.slice(0,4);
     // ヘッダに観戦モード表示
     const banner=document.createElement('div');
@@ -25681,8 +26052,15 @@ function renderSlot(slot){
         ${CHAR_ORDER.map(k=>{
           const cc=CPU_CHARS[k];
           const alreadyUsed=slotChars.some((s,si)=>s===k&&si!==slot);
-          const isSrank=k.startsWith('s_');
-          return alreadyUsed?'':`<button class="char-pick-btn" onclick="pickChar(${slot},'${k}')" style="border-color:${isSrank?'#ef4444':col};${isSrank?'background:rgba(239,68,68,.08);':''}">
+          if(alreadyUsed) return '';
+          if(_isSRankHidden(k)){
+            return `<button class="char-pick-btn" disabled title="ハードモード全10章クリアで解放" style="border-color:#555;background:rgba(80,80,80,.15);opacity:.5;cursor:not-allowed;">
+              <span class="cpb-icon" style="filter:grayscale(1)">🔒</span>
+              <span class="cpb-name" style="color:#777;">？？？</span>
+            </button>`;
+          }
+          const isSrank=S_RANK_HIDDEN_KEYS.has(k);
+          return `<button class="char-pick-btn" onclick="pickChar(${slot},'${k}')" style="border-color:${isSrank?'#ef4444':col};${isSrank?'background:rgba(239,68,68,.08);':''}">
             <span class="cpb-icon">${CHAR_SVGS[k]||RANK_BADGE[cc.rank]}</span>
             <span class="cpb-name" style="${isSrank?'color:#ef4444;font-weight:900;':''}">${cc.name}</span>
           </button>`;
@@ -25708,7 +26086,12 @@ function renderSlot(slot){
       <div style="display:flex;gap:.3rem;margin-top:.4rem;flex-wrap:wrap">
         ${CHAR_ORDER.filter(k=>k!==key&&!slotChars.some((s,si)=>s===k&&si!==slot)).map(k=>{
           const cc=CPU_CHARS[k];
-          const isSr=k.startsWith('s_');
+          if(_isSRankHidden(k)){
+            return `<button class="char-switch-btn" disabled title="ハードモード全10章クリアで解放" style="color:#555;border-color:#444;opacity:.45;cursor:not-allowed;">
+              🔒？？？
+            </button>`;
+          }
+          const isSr=S_RANK_HIDDEN_KEYS.has(k);
           return `<button class="char-switch-btn" onclick="pickChar(${slot},'${k}')" style="${isSr?'color:#ef4444;border-color:#ef4444;':''}">
             ${RANK_BADGE[cc.rank]}${cc.name}
           </button>`;
@@ -25721,7 +26104,8 @@ function renderSlot(slot){
 function randomizeCpuSlots(){
   const total=_spectateMode?4:3;
   // 使用可能なキーをシャッフルして被りなしで選ぶ
-  const pool=[...CHAR_ORDER];
+  // 未解放のSランクは除外
+  const pool=[...CHAR_ORDER].filter(k=>!_isSRankHidden(k));
   // Fisher-Yatesシャッフル
   for(let i=pool.length-1;i>0;i--){
     const j=Math.floor(Math.random()*(i+1));
@@ -25984,8 +26368,8 @@ const MAP_DEFS = [
     id: 'lastheaven',
     name: '未来都市ラストヘブン',
     icon: '🏙️',
-    desc: '16エリア80軒・17×17の巨大未来都市マップ。十字軸を銀行が支配し、4つの変わるマークと1000G店×4が散在。外周の高級タワー群を制し、中枢を掌握した者が勝利を掴む！初期資産3500G。',
-    tag: '16エリア・1000G×4・変わるマーク×4・初期3500G',
+    desc: '16エリア80軒・17×17の巨大未来都市マップ。十字軸を銀行が支配し、4つの変わるマークと1000G店×4が散在。外周の高級タワー群を制し、中枢を掌握した者が勝利を掴む！初期資産5000G。',
+    tag: '16エリア・1000G×4・変わるマーク×4・初期5000G',
   },
 ];
 
