@@ -11635,10 +11635,10 @@ function landShop(player,sq){
             `現金: ${player.cash.toLocaleString()}G / 流動資産: ${liq.toLocaleString()}G`,
             `⚠️ この店を買うには店や株を売ることになります。よろしいですか？`,
           ],[
-            {label:'はい、購入する',key:'Enter',primary:true,action:()=>{
+            {label:'✅ 購入する',key:'Enter',primary:true,action:()=>{
               buyShopThenPay(player,sq,()=>endAction());
             }},
-            {label:'いいえ、やめる',key:'Backspace',action:()=>{
+            {label:'❌ やめる',key:'Backspace',action:()=>{
               // 現金がマイナスの場合は解消を求める
               if(player.cash<0){
                 const _owed=Math.abs(player.cash);player.cash=0;
@@ -11653,11 +11653,11 @@ function landShop(player,sq){
             `現金: ${player.cash.toLocaleString()}G / 流動資産: ${liq.toLocaleString()}G`,
             ...(cashOk?[]:['⚠️ 現金不足 - 株を売って支払います']),
           ],[
-            {label:`購入する (${sq.price.toLocaleString()}G)`,key:'Enter',action:()=>{
+            {label:`✅ 購入する (${sq.price.toLocaleString()}G)`,key:'Enter',primary:true,action:()=>{
               buyShopThenPay(player,sq,()=>endAction());
             }},
-            {label:'スキップ',key:'Backspace',action:()=>endAction()},
-          ]);
+            {label:'❌ スキップ',key:'Backspace',action:()=>endAction()},
+          ],{rowButtons:true});
         }
       }else{addLog(`💸 ${player.name} 総資産不足で購入不可`,'');endAction();}
     }
@@ -20025,20 +20025,21 @@ function showDestSelectUI(player, steps, onDestChosen){
       '「'+ndLabel+'」に進む？',
       msgs,
       [
-        {label:'はい', key:'Enter', action:()=>{
+        {label:'✅ はい', key:'Enter', primary:true, action:()=>{
           _cleanDestMode();
           mapFocusTarget=player;
           renderMap();
           onDestChosen(destId);
         }},
-        {label:'いいえ', key:'Backspace', action:()=>{
+        {label:'❌ いいえ', key:'Backspace', action:()=>{
           overlay&&overlay.classList.remove('dest-confirm-mode');
           // カメラを選択マスへ戻してリストに戻る
           if(nd){ mapFocusTarget=nd; mapFocusMode=true; _camSnap=true; renderMap(); }
           _renderList(null);
           _setupDestKeys();
         }},
-      ]
+      ],
+      {rowButtons:true}
     );
   }
 
