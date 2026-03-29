@@ -203,6 +203,10 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
   display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);
   z-index:200;align-items:flex-end;justify-content:center;
 }
+#modal-overlay.dest-confirm-mode{
+  background:rgba(0,0,0,.35); /* 終着点確認時はマップが見えるよう薄く */
+  align-items:flex-end;
+}
 @media(min-width:500px){#modal-overlay{align-items:center;}}
 #modal-overlay.active{display:flex;}
 .modal{
@@ -1493,6 +1497,92 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
 .mm-list-mark{font-size:.6rem;color:#c084fc;font-weight:700;flex-shrink:0;}
 .mm-list-key{font-size:.55rem;color:var(--gray);margin-left:auto;flex-shrink:0;}
 
+/* ===== 終着点確認バー（マップ上・暗転なし） ===== */
+#dest-confirm-bar{
+  display:none;
+  position:absolute;
+  left:50%;transform:translateX(-50%);
+  bottom:12px; /* JS で top/bottom を動的に切り替える */
+  z-index:150;
+  background:rgba(10,14,28,.92);
+  border:1.5px solid rgba(80,200,255,.6);
+  border-radius:14px;
+  padding:.45rem .8rem;
+  box-shadow:0 4px 24px rgba(0,0,0,.7),0 0 12px rgba(80,200,255,.3);
+  backdrop-filter:blur(6px);
+  min-width:220px;max-width:90vw;
+  text-align:center;
+  pointer-events:auto;
+}
+#dest-confirm-bar.active{display:block;}
+.dcb-title{
+  font-size:.85rem;font-weight:800;color:#fff;
+  margin-bottom:.25rem;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+}
+.dcb-tags{
+  display:flex;gap:.3rem;justify-content:center;flex-wrap:wrap;
+  margin-bottom:.4rem;min-height:.8rem;
+}
+.dcb-btns{display:flex;gap:.5rem;justify-content:center;}
+.dcb-btn{
+  font-family:'M PLUS Rounded 1c',sans-serif;
+  font-weight:800;font-size:.82rem;
+  border-radius:9px;padding:.3rem .9rem;
+  cursor:pointer;border:1.5px solid;
+  transition:all .12s;
+}
+.dcb-btn.yes{
+  background:rgba(80,200,255,.18);
+  border-color:rgba(80,200,255,.7);color:#80dfff;
+}
+.dcb-btn.yes:hover{background:rgba(80,200,255,.35);border-color:#80dfff;}
+.dcb-btn.no{
+  background:rgba(255,255,255,.07);
+  border-color:rgba(255,255,255,.25);color:var(--gray);
+}
+.dcb-btn.no:hover{background:rgba(255,255,255,.14);border-color:var(--white);}
+
+/* ===== 終着点選択UI ===== */
+#dest-select-panel{
+  display:none;flex-direction:column;gap:.35rem;
+  padding:.5rem .5rem .3rem;
+}
+#dest-select-panel.active{display:flex;}
+.dest-header{
+  font-size:.75rem;font-weight:800;color:var(--gold);
+  text-align:center;letter-spacing:.04em;
+}
+.dest-list{
+  display:flex;flex-direction:column;gap:4px;
+  max-height:160px;overflow-y:auto;scrollbar-width:none;
+}
+.dest-item{
+  display:flex;align-items:center;gap:.45rem;
+  background:rgba(80,200,255,.07);
+  border:1.5px solid rgba(80,200,255,.25);
+  border-radius:9px;padding:.3rem .55rem;
+  cursor:pointer;font-family:inherit;color:var(--white);
+  transition:all .12s;text-align:left;
+}
+.dest-item:hover,.dest-item:active{
+  background:rgba(80,200,255,.18);border-color:rgba(80,200,255,.8);
+}
+.dest-item.selected{
+  background:rgba(80,200,255,.22);border-color:#50c8ff;
+  box-shadow:0 0 8px rgba(80,200,255,.5);
+}
+.dest-item-icon{font-size:1rem;min-width:1.4em;text-align:center;}
+.dest-item-name{font-size:.72rem;font-weight:800;flex:1;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dest-item-info{display:flex;gap:.3rem;align-items:center;flex-shrink:0;}
+.dest-tag{font-size:.58rem;font-weight:700;padding:.1rem .3rem;
+  border-radius:4px;white-space:nowrap;}
+.dest-tag.bank{background:rgba(240,180,40,.2);color:#fbbf24;}
+.dest-tag.mark{background:rgba(192,132,255,.2);color:#c084fc;}
+.dest-tag.toll{background:rgba(255,100,100,.2);color:#f87171;}
+.dest-key{font-size:.55rem;color:var(--gray);margin-left:.2rem;}
+
 /* ===== モーダル ===== */
 .modal{
   background:linear-gradient(145deg,#1c2338,#141828) !important;
@@ -2202,6 +2292,15 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
     <div id="sq-info-overlay"></div>
     <canvas id="route-arrow-canvas"></canvas>
     <div id="route-select-panel"></div>
+    <!-- 終着点確認バー（暗転なし・マップ上に重ねる） -->
+    <div id="dest-confirm-bar">
+      <div class="dcb-title" id="dcb-title">「???」に進む？</div>
+      <div class="dcb-tags" id="dcb-tags"></div>
+      <div class="dcb-btns">
+        <button class="dcb-btn yes" id="dcb-yes">はい [Enter]</button>
+        <button class="dcb-btn no" id="dcb-no">いいえ [B]</button>
+      </div>
+    </div>
     <div id="log-panel">
       <div id="log-toggle" onclick="toggleLog()">
         <span>📋 ゲームログ</span>
@@ -9604,6 +9703,7 @@ let bsOpen=true;
 let _hoveredNodeId=null;  // ホバー中のマスID
 let _selectedNodeId=null; // タップ選択中のマスID
 let _hlNextIds=new Set(); // ハイライト中の次ノードIDs（getMapTransformからも参照）
+let _moveDestIds=new Set(); // 移動先候補マスID（案2: 終着点選択モード）
 
 // ── グローバル表示キュー ──
 // 全演出をこのキューで直列化して重なりを防ぐ
@@ -10715,7 +10815,9 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
         // 勝利の価値（固定の大きな値）
         const WIN_VALUE = 80000;
 
-        // 途中の敵店で目標金額を下回るリスクを計算
+        // 途中の敵店で目標金額を下回るリスクを計算（銀行へのルート上の敵店のみ）
+        const bankPenMap=_penalizedBFS(id,500);
+        const distToBank=bankPenMap[bankId]??9999;
         let fallBelowRisk = 0;
         for(const[idStr2,d2] of Object.entries(dist)){
           const nd2=getNode(parseInt(idStr2));
@@ -10724,6 +10826,9 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
           if(toll2<100) continue;
           const hp=calcHitProb(d2);
           if(hp<=0.01) continue;
+          // 銀行へのルート上にない敵店はリスク計算から除外
+          const distThroughEnemy=(bankPenMap[nd2.id]??9999)+1;
+          if(distThroughEnemy>distToBank+2) continue;
           // 支払い後の総資産が目標を下回る度合い
           const assetsAfter = totalAssets - toll2;
           const shortfall = G.goalAmount - assetsAfter; // プラスなら目標を下回る
@@ -10763,15 +10868,18 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
       if(bankId!=null&&dist[bankId]!=null){
         const prize = getLvBonus(player.level, player); // 次レベルアップ時の賞金
 
-        // 銀行までの経路上の敵店リスクを計算
-        // 距離dの敵店を今ターン踏む確率: d<=remStepsならぴったり止まる可能性、d<remStepsなら通過
-        // 将来ターン: 距離dに止まる確率を 1/(d+0.5) で近似
+        // 銀行へのルート上の敵店リスクのみ計算
+        const bankPenMapLv=_penalizedBFS(id,500);
+        const distToBankLv=bankPenMapLv[bankId]??9999;
         let routeRisk = 0;
         for(const[idStr2,d2] of Object.entries(dist)){
           const nd2=getNode(parseInt(idStr2));
           if(!nd2||nd2.type!=='shop'||nd2.owner<0||nd2.owner===player.id) continue;
           const toll2=calcToll(nd2);
           if(toll2<100) continue;
+          // 銀行へのルート上にない敵店はリスク計算から除外
+          const distThroughEnemyLv=(bankPenMapLv[nd2.id]??9999)+1;
+          if(distThroughEnemyLv>distToBankLv+2) continue;
           routeRisk += toll2 * calcHitProb(d2);
         }
 
@@ -11137,7 +11245,7 @@ function landBank(player){
 function getLvBonus(lv,player){
   // 基本賞金: 未来都市ラストヘブンは 1500 + 500×レベル数、それ以外は 400 + 150×レベル数
   const isLastHeaven=G&&G._mapId==='lastheaven';
-  const base=isLastHeaven ? 1500+(500*lv) : 400+(150*lv);
+  const base=isLastHeaven ? 1500+(250*lv) : 400+(150*lv);
   // 所有店価格合計の10%
   let shopTotal=0;
   if(player&&G&&G.map){
@@ -11818,7 +11926,8 @@ function payToll(player,sq,callback){
         const myCount=getPlayerAreaCount(player.id,sq.area);
         const areaShops=getAreaShops(sq.area);
         const areaExpand=myCount>=2;
-        const monopolyBreak=areaShops.every(s=>s.owner===sq.owner); // 敵が全軒独占
+        const monopolyBreak=areaShops.every(s=>s.owner===sq.owner) // 敵が全軒独占
+          || (areaShops.length>=5 && getPlayerAreaCount(sq.owner,sq.area)>=4); // 5軒以上エリアは4軒以上で独占とみなす
         // 敵がエリア全体の(total-1)軒所持 → 独占阻止（3軒以上の任意エリア対応）
         const areaTotal=areaShops.length;
         const enemyCount=getPlayerAreaCount(sq.owner,sq.area);
@@ -12024,7 +12133,8 @@ function payToll(player,sq,callback){
         // liqは先払い前の資産で判定
         const liq=playerAssetsPrePay.cash+playerAssetsPrePay.stockAsset;
         const areaExpand=myCount>=2;
-        const monopolyBreak=areaShops.every(s=>s.owner===sq.owner); // 敵が全軒独占
+        const monopolyBreak=areaShops.every(s=>s.owner===sq.owner) // 敵が全軒独占
+          || (areaShops.length>=5 && getPlayerAreaCount(sq.owner,sq.area)>=4); // 5軒以上エリアは4軒以上で独占とみなす
         // 敵があと1軒で独占（5軒・6軒エリアにも対応）
         const areaTotal=areaShops.length;
         const enemyCount=getPlayerAreaCount(sq.owner,sq.area);
@@ -18107,8 +18217,8 @@ function _cpuVoluntaryAuction(player, callback){
     });
   }
 
-  // 到達可能マスの中に「払うと流動資産が0未満になる敵の店」があるか
-  const dangerous=reachable.filter(nd=>{
+  // 危険な店の判定関数
+  function isDangerous(nd){
     if(nd.type!=='shop')return false;
     if(nd.owner<0||nd.owner===player.id)return false;
     const owner=G.players[nd.owner];
@@ -18116,9 +18226,52 @@ function _cpuVoluntaryAuction(player, callback){
     if(owner.resting)return false;
     const toll=calcToll(nd);
     return toll>0&&liq-toll<0;
-  });
+  }
 
+  const dangerous=reachable.filter(isDangerous);
   if(!dangerous.length){callback();return;}
+
+  // ── ルート回避チェック ──
+  // 移動経路上のどこかに分岐があり、その分岐選択で
+  // 危険な店を完全に回避できるルートが存在するか調べる。
+  // サイコロ1〜6の各出目について「途中の分岐を最善に選んだとき
+  // 危険な店に一切到達しない経路が存在するか」をDFSで確認する。
+  function _hasSafePathForDice(startId, prevId, stepsLeft){
+    // stepsLeft=0 → この地点が着地点。危険でなければ安全。
+    const nd=getNode(startId);
+    if(!nd) return true;
+    if(isDangerous(nd)) return false;
+    if(stepsLeft===0) return true;
+    // 次の候補（来た方向は除外）
+    const rawNx=(nd.nexts||[]);
+    const fwd=rawNx.length>1 ? rawNx.filter(id=>id!==prevId) : rawNx;
+    const nexts=fwd.length>0 ? fwd : rawNx;
+    if(nexts.length===0) return true; // 行き止まり＝ここで停止
+    // 銀行通過: 1歩消費して先へ（再帰）
+    if(nd.type==='bank' && startId!==player.pos){
+      return nexts.some(nid=>_hasSafePathForDice(nid, startId, stepsLeft-1));
+    }
+    // 分岐あり → どれか1方向で安全なら回避可能
+    // 分岐なし → その方向のみ
+    return nexts.some(nid=>_hasSafePathForDice(nid, startId, stepsLeft-1));
+  }
+
+  // サイコロ1〜6のどれか1つでも安全な経路が存在すれば競売しない
+  // （全出目で必ず危険な店を踏む場合のみ競売を発動する）
+  const hasSafeRoute=(()=>{
+    const startNd=getNode(player.pos);
+    if(!startNd) return false;
+    const rawNx=(startNd.nexts||[]);
+    const firstNexts=rawNx.length>1 ? rawNx.filter(id=>id!==player._prevPos) : rawNx;
+    const nexts=firstNexts.length>0 ? firstNexts : rawNx;
+    if(nexts.length===0) return false;
+    for(let dice=1;dice<=6;dice++){
+      // 最初の1歩を各方向に試み、その先で安全な経路があるか確認
+      if(nexts.some(nid=>_hasSafePathForDice(nid, player.pos, dice-1))) return true;
+    }
+    return false;
+  })();
+  if(hasSafeRoute){callback();return;}
 
   // 競売に出す店を選ぶ：エリア内所持軒数が少ない & 店価格が安い順
   const scored=myShops.map(sq=>{
@@ -18284,9 +18437,20 @@ function doRoll(){
   SFX.dice&&SFX.dice();
   showDiceRoll(player, steps, ()=>{
     SFX.diceStop&&SFX.diceStop(steps);
-    movePlayer(player, steps, ()=>{
-      landedOnSquare(player, getNode(player.pos));
-    });
+    if(!player.isCPU){
+      // 人間プレイヤー: 終着点選択UIを表示
+      showDestSelectUI(player, steps, (destId)=>{
+        // 選択した終着点へ自動移動
+        _autoMoveToDestination(player, destId, steps, ()=>{
+          document.getElementById('bottom-sheet')?.classList.remove('dir-compact');
+          landedOnSquare(player, getNode(player.pos));
+        });
+      });
+    } else {
+      movePlayer(player, steps, ()=>{
+        landedOnSquare(player, getNode(player.pos));
+      });
+    }
   });
 }
 
@@ -18325,6 +18489,11 @@ function endAction(){
 }
 function _endActionProceed(){
   if(!_gameRunning)return;
+  // 終着点選択モードを確実にクリア
+  _moveDestIds = new Set();
+  G._moveDestSelectCb = null;
+  document.getElementById('bottom-sheet')?.classList.remove('dir-compact');
+  document.getElementById('modal-overlay')?.classList.remove('dest-confirm-mode');
   const proceed=()=>{
     renderAll();updateAreaStockPrices();
     G.history.push({
@@ -19704,7 +19873,8 @@ function _decideFiveBuy(player, sq, rateBoost=1.0){
   const myCount=getPlayerAreaCount(player.id,sq.area);
   const areaShops=getAreaShops(sq.area);
   const areaExpand=myCount>=2;
-  const monopolyBreak=areaShops.every(s=>s.owner===sq.owner); // 敵が全軒独占
+  const monopolyBreak=areaShops.every(s=>s.owner===sq.owner) // 敵が全軒独占
+    || (areaShops.length>=5 && getPlayerAreaCount(sq.owner,sq.area)>=4); // 5軒以上エリアは4軒以上で独占とみなす
   const areaTotal=areaShops.length;
   const enemyCount=getPlayerAreaCount(sq.owner,sq.area);
   const enemy3Count=enemyCount===3;
@@ -19734,11 +19904,359 @@ function _decideFiveBuy(player, sq, rateBoost=1.0){
   return liq>=fivePrice*reqMul;
 }
 
+// ===== 終着点選択UI（人間プレイヤー用・案2） =====
+function showDestSelectUI(player, steps, onDestChosen){
+  // サイコロ全出目の終着点を列挙
+  const dests = _enumMoveDestinations(player, steps);
+
+  // 重複排除（同じマスIDが複数経路で出る場合は最初のものを使用）
+  const seen = new Set();
+  const unique = dests.filter(d=>{ if(seen.has(d.id)) return false; seen.add(d.id); return true; });
+
+  // _moveDestIds を設定してマップをハイライト
+  _moveDestIds = new Set(unique.map(d=>d.id));
+
+  // カメラを最初の候補マスへ寄せる（複数あれば先頭）
+  if(unique.length>0){
+    const firstNd = getNode(unique[0].id);
+    if(firstNd){
+      mapFocusTarget = firstNd;
+      mapFocusMode = true;
+      _camSnap = true;
+    }
+  }
+  renderMap();
+
+  // action-wrap にリストUIを構築
+  const el = document.getElementById('action-wrap');
+  const bst = document.getElementById('bs-title');
+  if(bst) bst.textContent = '▪ どこに進む？ — ' + steps + '歩';
+
+  function _getDestIcon(d){
+    const nd = getNode(d.id);
+    if(!nd) return '❓';
+    if(nd.type==='bank') return '🏦';
+    if(nd.type==='shop'){
+      if(nd.owner<0) return '🏪';
+      if(nd.owner===player.id) return '🏠';
+      return '⚠️';
+    }
+    if(nd.type==='mark'||nd.type==='changemark') return ['♠','♥','◆','♣'][nd.mark]||'⭐';
+    if(nd.type==='lucky') return '⭐';
+    if(nd.type==='rest') return '😴';
+    if(nd.type==='event') return '🎴';
+    if(nd.type==='junction') return '🔀';
+    return '📍';
+  }
+
+  function _getDestName(d){
+    const nd = getNode(d.id);
+    if(!nd) return '不明';
+    return nd.label || nd.type;
+  }
+
+  function _renderList(selectedId){
+    const items = unique.map((d,i)=>{
+      const icon = _getDestIcon(d);
+      const name = _getDestName(d);
+      const nd = getNode(d.id);
+      const tags = [];
+      if(d.passesBank) tags.push('<span class="dest-tag bank">🏦通過</span>');
+      if(d.missingMarks.length>0) tags.push('<span class="dest-tag mark">✨'+d.missingMarks.join('')+'</span>');
+      if(d.marksAhead&&d.marksAhead.length>0) tags.push('<span class="dest-tag mark" style="opacity:.7">次の分岐点までに→'+d.marksAhead.join('')+'</span>');
+      if(nd&&nd.type==='shop'&&nd.owner>=0&&nd.owner!==player.id){
+        const toll=calcToll(nd);
+        if(toll>0) tags.push('<span class="dest-tag toll">-'+toll.toLocaleString()+'G</span>');
+      }
+      const isSel = d.id===selectedId;
+      return '<button class="dest-item'+(isSel?' selected':'')+'" data-destid="'+d.id+'" data-idx="'+i+'">'
+        +'<span class="dest-item-icon">'+icon+'</span>'
+        +'<span class="dest-item-name">'+name+'</span>'
+        +'<span class="dest-item-info">'+tags.join('')+'</span>'
+        +'<span class="dest-key">['+(i+1)+']</span>'
+        +'</button>';
+    }).join('');
+
+    el.innerHTML = '<div id="dest-select-panel" class="active">'
+      +'<div class="dest-header">🎲 '+steps+'歩 — 行き先を選んでください</div>'
+      +'<div class="dest-list">'+items+'</div>'
+      +'</div>';
+
+    // ボタンイベント
+    el.querySelectorAll('.dest-item').forEach(btn=>{
+      btn.onclick=()=>{
+        const destId = parseInt(btn.dataset.destid);
+        _onDestSelected(destId);
+      };
+    });
+  }
+
+  // 終着点選択モードのクリーンアップ
+  function _cleanDestMode(){
+    if(_destKeyHandler){ document.removeEventListener('keydown',_destKeyHandler); _destKeyHandler=null; }
+    G._moveDestSelectCb = null;
+    _moveDestIds = new Set();
+    document.getElementById('bottom-sheet')?.classList.remove('dir-compact');
+    // モーダルの薄暗転クラスも除去
+    document.getElementById('modal-overlay')?.classList.remove('dest-confirm-mode');
+  }
+
+  function _showDestConfirm(destId){
+    const nd = getNode(destId);
+    const destInfo = unique.find(d=>d.id===destId);
+    const ndLabel = nd ? (nd.label||nd.type) : '???';
+
+    // モーダルを薄暗転モードに
+    const overlay=document.getElementById('modal-overlay');
+    if(overlay) overlay.classList.add('dest-confirm-mode');
+
+    const msgs = [];
+    if(destInfo&&destInfo.passesBank) msgs.push('🏦 銀行を通過します');
+    if(destInfo&&destInfo.missingMarks.length>0) msgs.push('✨ 経路上の未取得マーク: '+destInfo.missingMarks.join(''));
+    if(destInfo&&destInfo.marksAhead&&destInfo.marksAhead.length>0) msgs.push('🔜 次の分岐点までに→'+destInfo.marksAhead.join(''));
+    if(nd&&nd.type==='shop'&&nd.owner>=0&&nd.owner!==player.id){
+      const toll=calcToll(nd);
+      if(toll>0) msgs.push('⚠️ 買い物料: '+toll.toLocaleString()+'G');
+    }
+    if(msgs.length===0) msgs.push('このマスに止まりますか？');
+
+    showModal(
+      '「'+ndLabel+'」に進む？',
+      msgs,
+      [
+        {label:'はい', key:'Enter', action:()=>{
+          _cleanDestMode();
+          mapFocusTarget=player;
+          renderMap();
+          onDestChosen(destId);
+        }},
+        {label:'いいえ', key:'Backspace', action:()=>{
+          overlay&&overlay.classList.remove('dest-confirm-mode');
+          // カメラを選択マスへ戻してリストに戻る
+          if(nd){ mapFocusTarget=nd; mapFocusMode=true; _camSnap=true; renderMap(); }
+          _renderList(null);
+          _setupDestKeys();
+        }},
+      ]
+    );
+  }
+
+  function _onDestSelected(destId){
+    const nd=getNode(destId);
+
+    // キー操作を一時停止（確認バー表示中は上書き）
+    if(_destKeyHandler){ document.removeEventListener('keydown',_destKeyHandler); _destKeyHandler=null; }
+
+    // 選択マスにカメラを即スナップ
+    if(nd){ mapFocusTarget=nd; mapFocusMode=true; _camSnap=true; renderMap(); }
+
+    // リストを再描画して選択状態を反映
+    _renderList(destId);
+
+    // 確認モーダルを表示（カメラスナップ後に少し待つ）
+    setTimeout(()=>{ _showDestConfirm(destId); }, 200);
+  }
+
+  // マップタップ用コールバックをグローバルに登録
+  G._moveDestSelectCb = (destId)=>{ _onDestSelected(destId); };
+
+  // キーボード操作
+  let _destKeyHandler = null;
+  function _setupDestKeys(){
+    _destKeyHandler = e=>{
+      for(let i=0;i<unique.length;i++){
+        if(e.key===String(i+1)){ e.preventDefault(); _onDestSelected(unique[i].id); return; }
+      }
+    };
+    document.addEventListener('keydown', _destKeyHandler);
+  }
+  // 初期リスト表示時のキー操作を登録
+  _setupDestKeys();
+
+  document.getElementById('bottom-sheet')?.classList.add('dir-compact');
+  _renderList(null);
+}
+
+// ===== 終着点決定後の自動移動（経路を自動で辿る）=====
+function _autoMoveToDestination(player, destId, steps, callback){
+  // 現在地からdestIdまでの経路を求める（BFSで最短経路）
+  function _findPath(fromId, prevId, toId, maxSteps){
+    // BFSで経路探索（逆走防止付き）
+    const queue=[{id:fromId, prev:prevId, path:[fromId]}];
+    const visited=new Set([fromId+'_'+prevId]);
+    while(queue.length){
+      const {id,prev,path}=queue.shift();
+      if(id===toId && path.length-1===maxSteps) return path;
+      if(path.length-1>=maxSteps) continue;
+      const nd=getNode(id);
+      if(!nd) continue;
+      const rawNx=nd.nexts||[];
+      let nexts=rawNx.length>1?rawNx.filter(nid=>nid!==prev):rawNx;
+      if(nexts.length===0) nexts=rawNx;
+      // 銀行は通過（歩数消費）
+      for(const nid of nexts){
+        const key=nid+'_'+id;
+        if(!visited.has(key)){
+          visited.add(key);
+          queue.push({id:nid, prev:id, path:[...path,nid]});
+        }
+      }
+    }
+    return null;
+  }
+
+  const path = _findPath(player.pos, player._prevPos, destId, steps);
+  if(!path || path.length<2){
+    // 経路が見つからなければ通常のmovePlayerにフォールバック
+    movePlayer(player, steps, callback);
+    return;
+  }
+
+  // path[0]=現在地, path[1..steps]=移動先
+  // スナップショット（いいえ時の巻き戻し用・移動中には使わない）
+  const startPos = player.pos;
+  const initialPrev = player._prevPos;
+
+  // ステップごとに移動
+  let stepIdx = 1; // path[0]は現在地なのでpath[1]から
+
+  function _doStep(){
+    if(stepIdx >= path.length){
+      // 全歩数消費
+      if(path.length>1) player._prevPos = path[path.length-2];
+      player._canReverse = false;
+      callback();
+      return;
+    }
+    const nextId = path[stepIdx];
+    const prevId2 = path[stepIdx-1];
+    player._prevPos = prevId2;
+    _camSnap = true; player.pos = nextId; renderMap();
+    focusOnPlayer(player);
+
+    // 銀行通過チェック
+    const nd = getNode(nextId);
+    if(nd && nd.type==='bank' && nextId!==startPos && stepIdx < path.length-1){
+      addLog(`🏦 ${player.name} 銀行に到着（通過）`,'event');
+      setTimeout(()=>{
+        _bankMoveRem = path.length - 1 - stepIdx;
+        passThroughBank(player, ()=>{
+          addLog(`🏦 ${player.name} 銀行を出発（残り${_bankMoveRem}歩）`,'');
+          stepIdx++;
+          setTimeout(_doStep, 500);
+        });
+      }, 600);
+      return;
+    }
+
+    // マーク通過チェック
+    if(isMarkType(nd) && stepIdx < path.length-1){
+      collectMark(player, nd.mark, true, nd);
+    }
+
+    stepIdx++;
+    setTimeout(_doStep, 200);
+  }
+
+  _doStep();
+}
+
 // ============================================================
 // ===== 到達可能マス列挙 =====
 // CPU銀行通過時に steps 歩で到達できる全マスを返す。
 // shopSq候補・fiveSq候補を独立して選ぶために全マスを返す設計。
 // ============================================================
+// ===== 人間プレイヤー用: サイコロdice歩での全終着点を列挙 =====
+// 各終着点について「経路上に銀行通過があるか」「未取得マークがあるか」も返す
+function _enumMoveDestinations(player, dice){
+  const results=[]; // {id, passesBank, missingMarks:[], path:[]}
+
+  function _filterNx(nexts, prev){
+    if(prev==null||nexts.length<=1) return nexts;
+    const f=nexts.filter(id=>id!==prev);
+    return f.length>0?f:nexts;
+  }
+
+  function dfs(curId, prevId, stepsLeft, passesBank, missingMarks, path){
+    const nd=getNode(curId);
+    if(!nd) return;
+
+    // 銀行通過チェック（出発点以外）
+    let bankNow=passesBank;
+    if(nd.type==='bank' && curId!==player.pos && stepsLeft>0){
+      bankNow=true;
+      // 銀行では歩数を消費して先へ進む（着地はしない）
+      const nexts=_filterNx(nd.nexts||[], prevId);
+      nexts.forEach(nid=>dfs(nid, curId, stepsLeft-1, bankNow, [...missingMarks], [...path,curId]));
+      return;
+    }
+
+    // マーク通過チェック
+    const marks=[...missingMarks];
+    if(isMarkType(nd) && !player.marks[nd.mark]){
+      const mn=['♠','♥','◆','♣'];
+      if(!marks.includes(mn[nd.mark])) marks.push(mn[nd.mark]);
+    }
+
+    if(stepsLeft===0){
+      // 着地点 - 重複チェックして追加
+      if(!results.some(r=>r.id===curId)){
+        results.push({id:curId, passesBank:bankNow, missingMarks:marks, path:[...path,curId]});
+      }
+      return;
+    }
+
+    const nexts=_filterNx(nd.nexts||[], prevId);
+    if(nexts.length===0){
+      // 行き止まり→ここで停止
+      if(!results.some(r=>r.id===curId)){
+        results.push({id:curId, passesBank:bankNow, missingMarks:marks, path:[...path,curId]});
+      }
+      return;
+    }
+    nexts.forEach(nid=>dfs(nid, curId, stepsLeft-1, bankNow, marks, [...path,curId]));
+  }
+
+  const startNd=getNode(player.pos);
+  if(!startNd) return results;
+  const firstNexts=_filterNx(startNd.nexts||[], player._prevPos);
+  firstNexts.forEach(nid=>dfs(nid, player.pos, dice-1, false, [], [player.pos]));
+
+  // 各着地点の「先（次の分岐点まで）」にある未取得マークを収集
+  const mn=['♠','♥','◆','♣'];
+  results.forEach(r=>{
+    const ahead=[];
+    // 着地点から1本道が続く間だけ探索（分岐に差し掛かったら止まる）
+    // 銀行マスでも止まる
+    let curId=r.id;
+    let prevId=r.path.length>=2 ? r.path[r.path.length-2] : null;
+    const vis=new Set([curId]);
+    // 分岐・銀行・行き止まり・ループに当たるまで1本道を無制限に探索
+    for(;;){
+      const nd=getNode(curId);
+      if(!nd) break;
+      const nexts=_filterNx(nd.nexts||[], prevId);
+      if(nexts.length===0) break;           // 行き止まり
+      if(nexts.length>1) break;             // 分岐点→ここで止まる
+      const nid=nexts[0];
+      if(vis.has(nid)) break;               // ループ防止
+      vis.add(nid);
+      const nnd=getNode(nid);
+      if(!nnd) break;
+      if(nnd.type==='bank') break;          // 銀行で止まる
+      if(isMarkType(nnd)&&!player.marks[nnd.mark]){
+        const sym=mn[nnd.mark];
+        if(!r.missingMarks.includes(sym)&&!ahead.includes(sym)) ahead.push(sym);
+      }
+      prevId=curId;
+      curId=nid;
+    }
+    r.marksAhead=ahead;
+  });
+
+  return results;
+}
+
 function _cpuPredictReachable(fromId, prevId, steps){
   function _filterNx(nexts, prev){
     if(prev==null||nexts.length<=1)return nexts;
@@ -21601,7 +22119,8 @@ function getMapTransform(W,H){
   if(mapFocusMode){
     const fp=mapFocusTarget||cp();
     if(fp){
-      const nd=G.map.find(n=>n.id===fp.pos);
+      // fp がマップノード（.type あり）なら直接使い、プレイヤーなら現在地を探す
+      const nd=(fp.type!=null) ? fp : G.map.find(n=>n.id===fp.pos);
       if(nd){
         const ip=isoPos(nd);
         // フォーカス中心（プレイヤーのマスの中央）
@@ -21686,7 +22205,7 @@ function renderMap(){
   } else if(mapFocusMode && G.players && G.players.length){
     const fp = mapFocusTarget||cp();
     if(fp){
-      const nd=G.map.find(n=>n.id===fp.pos);
+      const nd=(fp.type!=null) ? fp : G.map.find(n=>n.id===fp.pos);
       if(nd){
         const{x:nx,y:ny}=nodePos(nd);
         const tx=nx*ISO_X + SQ*ISO_X*0.5;
@@ -23397,6 +23916,29 @@ function renderMap(){
           ctx.fillText(lbl[nd.type]||'',cx,ty+TH-11);
         }
       }
+      // ── 移動先候補ハイライト（案2: 終着点選択モード）──
+      const isMoveDest = _moveDestIds.size > 0 && _moveDestIds.has(nd.id);
+      if(isMoveDest){
+        const t3=(Date.now()%800)/800;
+        const pulse3=0.55+0.45*Math.sin(t3*Math.PI*2);
+        ctx.save();
+        rrect(ctx,tx-2,ty-2,TW+4,TH+4,10);
+        ctx.fillStyle=`rgba(80,200,255,${(0.18*pulse3).toFixed(2)})`;
+        ctx.fill();
+        ctx.strokeStyle=`rgba(80,200,255,${(0.7+0.3*pulse3).toFixed(2)})`;
+        ctx.lineWidth=2.5;
+        ctx.shadowColor='rgba(80,200,255,0.9)';
+        ctx.shadowBlur=12+pulse3*10;
+        rrect(ctx,tx-2,ty-2,TW+4,TH+4,10);
+        ctx.stroke();
+        // 「🔵」マーカーをマス右上に表示
+        ctx.shadowBlur=0;
+        ctx.font=`${S2*.32}px serif`;
+        ctx.textAlign='right'; ctx.textBaseline='top';
+        ctx.fillText('🔵',tx+TW-1,ty+1);
+        ctx.restore();
+      }
+
       // ── ハイライトオーバーレイ ──
       const isHlSelected = nd.id === _selectedNodeId;
       const isHlHovered  = nd.id === _hoveredNodeId && !isHlSelected;
@@ -24391,6 +24933,17 @@ document.addEventListener('click',e=>{
         _selectedNodeId=nd.id;
         renderMap();
         showSqInfo(nd,e.clientX,e.clientY);
+        return;
+      }
+      // 終着点選択モード中はハイライト候補マスのみ反応
+      if(_moveDestIds.size>0){
+        if(_moveDestIds.has(nd.id)){
+          // グローバルに登録された_onDestSelectedコールバックを呼ぶ
+          if(typeof G._moveDestSelectCb==='function'){
+            G._moveDestSelectCb(nd.id);
+          }
+        }
+        // 候補外マスはタップを無視（sqInfo表示しない）
         return;
       }
       // 同じマスをもう一度タップで選択解除
