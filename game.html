@@ -20226,28 +20226,41 @@ function _enumMoveDestinations(player, dice){
 
   // 各着地点の「先（次の分岐点まで）」にある未取得マークを収集
   const mn=['♠','♥','◆','♣'];
-  // 各候補に「最初の1歩の方向」を付与
+  // 各候補に「分岐点から見た方向」を付与
+  // path を順にたどり、最初の分岐点（進行方向が2つ以上）を探して
+  // そこ→次のマスの方向を矢印にする。分岐が見つからない場合は先頭の方向を使う。
+  function _calcArrow(fromNd, toNd){
+    if(!fromNd||!toNd) return '▶';
+    const dc=toNd.col-fromNd.col, dr=toNd.row-fromNd.row;
+    if(dc!==0&&dr!==0){
+      if(dc>0&&dr<0) return '↗';
+      if(dc>0&&dr>0) return '↘';
+      if(dc<0&&dr<0) return '↖';
+      if(dc<0&&dr>0) return '↙';
+    }
+    if(Math.abs(dc)>=Math.abs(dr)) return dc>0?'→':'←';
+    return dr>0?'↓':'↑';
+  }
+
   results.forEach(r=>{
-    if(r.path.length>=2){
-      const from=getNode(r.path[0]);
-      const to=getNode(r.path[1]);
-      if(from&&to){
-        const dc=to.col-from.col, dr=to.row-from.row;
-        let arrow='▶';
-        if(dc!==0&&dr!==0){
-          if(dc>0&&dr<0) arrow='↗';
-          else if(dc>0&&dr>0) arrow='↘';
-          else if(dc<0&&dr<0) arrow='↖';
-          else if(dc<0&&dr>0) arrow='↙';
-        } else if(Math.abs(dc)>=Math.abs(dr)){
-          arrow=dc>0?'→':'←';
-        } else {
-          arrow=dr>0?'↓':'↑';
-        }
-        r.arrow=arrow;
+    if(r.path.length<2){ r.arrow='▶'; return; }
+    let arrow=null;
+    // path を順にたどって最初の分岐点を探す
+    for(let i=0;i<r.path.length-1;i++){
+      const nd=getNode(r.path[i]);
+      if(!nd) break;
+      const prevId2=i>0?r.path[i-1]:null;
+      const rawNx=nd.nexts||[];
+      const fwd=rawNx.length>1?rawNx.filter(id=>id!==prevId2):rawNx;
+      if(fwd.length>=2){
+        // ここが分岐点 → r.path[i]→r.path[i+1] の方向を使う
+        arrow=_calcArrow(getNode(r.path[i]), getNode(r.path[i+1]));
+        break;
       }
     }
-    if(!r.arrow) r.arrow='▶';
+    // 分岐が見つからなければ先頭の方向にフォールバック
+    if(!arrow) arrow=_calcArrow(getNode(r.path[0]), getNode(r.path[1]));
+    r.arrow=arrow;
   });
 
   results.forEach(r=>{
