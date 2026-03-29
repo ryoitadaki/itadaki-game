@@ -20232,21 +20232,21 @@ function _enumMoveDestinations(player, dice){
       const to=getNode(r.path[1]);
       if(from&&to){
         const dc=to.col-from.col, dr=to.row-from.row;
-        let arrow='➡️';
+        let arrow='▶';
         if(dc!==0&&dr!==0){
-          if(dc>0&&dr<0) arrow='↗️';
-          else if(dc>0&&dr>0) arrow='↘️';
-          else if(dc<0&&dr<0) arrow='↖️';
-          else if(dc<0&&dr>0) arrow='↙️';
+          if(dc>0&&dr<0) arrow='↗';
+          else if(dc>0&&dr>0) arrow='↘';
+          else if(dc<0&&dr<0) arrow='↖';
+          else if(dc<0&&dr>0) arrow='↙';
         } else if(Math.abs(dc)>=Math.abs(dr)){
-          arrow=dc>0?'➡️':'⬅️';
+          arrow=dc>0?'→':'←';
         } else {
-          arrow=dr>0?'⬇️':'⬆️';
+          arrow=dr>0?'↓':'↑';
         }
         r.arrow=arrow;
       }
     }
-    if(!r.arrow) r.arrow='▶️';
+    if(!r.arrow) r.arrow='▶';
   });
 
   results.forEach(r=>{
