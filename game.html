@@ -19972,6 +19972,7 @@ function showDestSelectUI(player, steps, onDestChosen){
       return '<button class="dest-item'+(isSel?' selected':'')+'" data-destid="'+d.id+'" data-idx="'+i+'">'
         +'<span class="dest-item-icon">'+icon+'</span>'
         +'<span class="dest-item-name">'+name+'</span>'
+        +'<span style="font-size:.9rem;color:var(--gold);margin-left:.2rem;flex-shrink:0;">'+d.arrow+'</span>'
         +'<span class="dest-item-info">'+tags.join('')+'</span>'
         +'<span class="dest-key">['+(i+1)+']</span>'
         +'</button>';
@@ -20224,6 +20225,30 @@ function _enumMoveDestinations(player, dice){
 
   // 各着地点の「先（次の分岐点まで）」にある未取得マークを収集
   const mn=['♠','♥','◆','♣'];
+  // 各候補に「最初の1歩の方向」を付与
+  results.forEach(r=>{
+    if(r.path.length>=2){
+      const from=getNode(r.path[0]);
+      const to=getNode(r.path[1]);
+      if(from&&to){
+        const dc=to.col-from.col, dr=to.row-from.row;
+        let arrow='▶';
+        if(dc!==0&&dr!==0){
+          if(dc>0&&dr<0) arrow='↗';
+          else if(dc>0&&dr>0) arrow='↘';
+          else if(dc<0&&dr<0) arrow='↖';
+          else if(dc<0&&dr>0) arrow='↙';
+        } else if(Math.abs(dc)>=Math.abs(dr)){
+          arrow=dc>0?'→':'←';
+        } else {
+          arrow=dr>0?'↓':'↑';
+        }
+        r.arrow=arrow;
+      }
+    }
+    if(!r.arrow) r.arrow='▶';
+  });
+
   results.forEach(r=>{
     const ahead=[];
     // 着地点から1本道が続く間だけ探索（分岐に差し掛かったら止まる）
