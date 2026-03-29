@@ -19736,8 +19736,8 @@ function _calcCpuAuctionLimit(p, sq, seller){
 
   // ── 競売後残高チェック ────────────────────────────────
   // 落札後に手元に残しておくべき最低ライン
-  // 目標金額の5% または 500G のどちらか大きい方
-  const minReserve=Math.max(500, Math.floor(G.goalAmount*0.05)||500);
+  // 目標金額の0.1% または 300G のどちらか大きい方
+  const minReserve=Math.max(300, Math.floor(G.goalAmount*0.001)||300);
 
   // 流動資産の65%を上限とし、かつ落札後にminReserveを残せる範囲に制限
   const liqCap=liq*0.65;
