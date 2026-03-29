@@ -10922,6 +10922,10 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
         }
         if(nd.type==='lucky'){s+=(land?300:80*w);}
         if(nd.type==='bank'&&nd.id!==bankId){s+=(land?400:100*w);}
+        // 取得済みマークには加点しない
+        if(isMarkType(nd)){
+          if(!player.marks[nd.mark]) s+=(land?300:60*w);
+        }
       }
       return s;
     }
@@ -10998,6 +11002,11 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
       }
       if(nd.type==='lucky'){s+=(land?200:50*w);}
       if(nd.type==='bank'&&nd.id!==bankId){s+=(land?300:80*w);}
+      // 取得済みマークには加点しない（未取得のみ小さな加点）
+      if(isMarkType(nd)){
+        if(!player.marks[nd.mark]) s+=(land?300:60*w); // 未取得マーク
+        // 取得済みマーク: 何も加点しない（0点のまま）
+      }
     }
 
     // 全マーク後の銀行も少し加点
@@ -11011,8 +11020,13 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
 
   // ── 着地ボーナスの事前計算（同等ルート間でのみ使用）──
   const EQUIV_GAP=10;
+  // nextTargetMarkId が既に取得済みの場合は mc=0 として距離評価を無効化
+  const _nextMarkAcquired = nextTargetMarkId!=null && (()=>{
+    const nd=getNode(nextTargetMarkId);
+    return nd && isMarkType(nd) && player.marks[nd.mark];
+  })();
   const routeMarkCosts=routeDists.map(({id})=>{
-    if(!nextTargetMarkId||!routePenCosts)return{id,mc:0};
+    if(!nextTargetMarkId||!routePenCosts||_nextMarkAcquired)return{id,mc:0};
     const penMap=routePenCosts.find(r=>r.id===id)?.cost||{};
     return{id,mc:penMap[nextTargetMarkId]??9999};
   });
@@ -11074,10 +11088,16 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
         }
         if(nd.type === 'lucky' && land2) diceScore += 150;
         if(nd.type === 'bank' && land2) diceScore += 500;
-        // 次ターンのマーク経路評価（atGoal/canLevelUpでない場合のみ）
+        // 取得済みマークには加点しない（未取得のみ加点）
+        if(isMarkType(nd) && land2 && !player.marks[nd.mark]) diceScore += 200;
+        // 次ターンのマーク経路評価（atGoal/canLevelUpでない場合のみ・未取得マークのみ）
         if(!atGoal && !canLevelUp && nextTargetMarkId != null && routePenCosts){
-          const penMap2 = _penalizedBFS(landingId, 200);
-          diceScore += 5000 / ((penMap2[nextTargetMarkId] ?? 9999) + 1);
+          // nextTargetMarkId が既に取得済みになっていないか確認
+          const targetMarkNd = getNode(nextTargetMarkId);
+          if(targetMarkNd && isMarkType(targetMarkNd) && !player.marks[targetMarkNd.mark]){
+            const penMap2 = _penalizedBFS(landingId, 200);
+            diceScore += 5000 / ((penMap2[nextTargetMarkId] ?? 9999) + 1);
+          }
         }
       });
       totalScore += diceScore / reached.length;
