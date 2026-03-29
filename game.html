@@ -10826,6 +10826,13 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
     const penMap=routePenCosts?.find(r=>r.id===id)?.cost||{};
     let s=0;
 
+    // ── 優先度倍率（目標未達成時のみ）──
+    // 倍率 = min(5, sqrt(目標金額 / 総資産))
+    // 資産が少ないほど倍率が上がり、マーク・銀行への引力が強くなる
+    const _priorityMul = (!atGoal && totalAssets > 0)
+      ? Math.min(5.0, Math.sqrt(G.goalAmount / totalAssets))
+      : 1.0;
+
     // 大前提: 敵高額店ペナルティ（全モード共通）
     s+=calcEnemyTollPenalty(dist);
 
@@ -10908,11 +10915,12 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
 
         // 純期待値 = 賞金 - リスク
         // 調整係数12.0: 空き店舗スコア(price×2.5)等との釣り合いを取る
-        const netBankValue = (prize - routeRisk) * 12.0;
+        // 優先度倍率: 目標未達時は資産不足ほど銀行への引力を強化
+        const netBankValue = (prize - routeRisk) * 12.0 * _priorityMul;
         s += netBankValue / (dist[bankId] + 1);
 
         // 銀行にぴったり着地できる場合はさらに加点（賞金確定ボーナス）
-        if(isLanding(dist[bankId])) s += Math.max(0, prize - routeRisk) * 1.5;
+        if(isLanding(dist[bankId])) s += Math.max(0, prize - routeRisk) * 1.5 * _priorityMul;
       }
 
       for(const[idStr,d] of Object.entries(dist)){
@@ -10979,7 +10987,8 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
         markRouteRisk += toll2 * calcHitProb(d2);
       }
       // 純期待値 = マーク価値 - リスク（係数12でスコア空間に合わせる）
-      const netMarkValue = (markValue - markRouteRisk) * 12.0;
+      // 優先度倍率: 目標未達時は資産不足ほどマークへの引力を強化
+      const netMarkValue = (markValue - markRouteRisk) * 12.0 * _priorityMul;
       const markDist = dist[nextTargetMarkId] ?? 9999;
       s += netMarkValue / (markDist + 1);
     }
@@ -10991,7 +11000,7 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
         const markDist2 = dist[mnd.id] ?? 9999;
         // 後続マークほど不確実性が高いので価値を減衰（i番目は50%^i）
         const decayedValue = markValue * Math.pow(0.5, i);
-        s += decayedValue * 6.0 / (markDist2 + 1 + i*3);
+        s += decayedValue * 6.0 * _priorityMul / (markDist2 + 1 + i*3);
       }
     }
 
@@ -19727,8 +19736,8 @@ function _calcCpuAuctionLimit(p, sq, seller){
 
   // ── 競売後残高チェック ────────────────────────────────
   // 落札後に手元に残しておくべき最低ライン
-  // 目標金額の0.1% または 300G のどちらか大きい方
-  const minReserve=Math.max(300, Math.floor(G.goalAmount*0.001)||300);
+  // 目標金額の5% または 500G のどちらか大きい方
+  const minReserve=Math.max(500, Math.floor(G.goalAmount*0.05)||500);
 
   // 流動資産の65%を上限とし、かつ落札後にminReserveを残せる範囲に制限
   const liqCap=liq*0.65;
