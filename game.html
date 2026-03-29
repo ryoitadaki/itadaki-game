@@ -10648,22 +10648,28 @@ function showRouteSelectModal(player,nextIds,remSteps,onChoose){
 }
 
 // BFSでstartIdからの全ノードへの最短距離マップを返す（最大maxDepthマスまで）
-function _bfsDistances(startId, maxDepth){
+function _bfsDistances(startId, maxDepth, prevId=null){
+  // prevId を渡すと最初の1歩で逆走しない（分岐ルート別の正確な距離計算用）
   const dist={};
-  const q=[{id:startId,d:0}];
+  const q=[{id:startId,prev:prevId,d:0}];
   dist[startId]=0;
   while(q.length){
-    const{id,d}=q.shift();
+    const{id,prev,d}=q.shift();
     if(d>=maxDepth)continue;
     const nd=getNode(id);
     if(!nd)continue;
-    // nexts（通常の隣接）+ warpTo（ワープ先）の両方を辿る
-    const neighbors=[...(nd.nexts||[])];
+    // nexts（通常の隣接）+ warpTo（ワープ先）
+    let neighbors=[...(nd.nexts||[])];
     if(nd.warpTo!=null && !neighbors.includes(nd.warpTo)) neighbors.push(nd.warpTo);
+    // 最初の1歩（d===0）のみ逆走を防ぐ（以降は通常BFS）
+    if(d===0 && prev!=null && neighbors.length>1){
+      const fwd=neighbors.filter(nid=>nid!==prev);
+      if(fwd.length>0) neighbors=fwd;
+    }
     for(const nid of neighbors){
       if(dist[nid]==null){
         dist[nid]=d+1;
-        q.push({id:nid,d:d+1});
+        q.push({id:nid,prev:id,d:d+1});
       }
     }
   }
@@ -10768,7 +10774,8 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
   }
 
   // ── 各ルートのBFS距離を事前計算 ──
-  const routeDists=nextIds.map(id=>({id,dist:_bfsDistances(id,BFS_DEPTH)}));
+  // 各分岐方向のBFS距離を計算。prevId=player.posを渡して来た方向への逆走を防ぐ
+  const routeDists=nextIds.map(id=>({id,dist:_bfsDistances(id,BFS_DEPTH,player.pos)}));
 
   // ── マーク収集中のみTSP・ペナルティコスト計算 ──
   let tspOrder=null,nextTargetMarkId=null,routePenCosts=null;
@@ -10788,14 +10795,26 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
     for(const[idStr,d] of Object.entries(dist)){
       const nd=getNode(parseInt(idStr));
       if(!nd||nd.type!=='shop'||nd.owner<0||nd.owner===player.id)continue;
+      const owner=G.players[nd.owner];
+      if(!owner||owner.bankrupt||owner.resting)continue;
       const toll=calcToll(nd);
       if(toll<100)continue;
-      const threat=toll>=highTollThresh;
       const hp=calcHitProb(d);
+      if(hp<=0.001)continue;
+
+      // 破産確定（流動資産が0未満になる）店には絶対拒否ペナルティ
+      const wouldBankrupt = liq - toll < 0;
+      if(wouldBankrupt){
+        // 被弾確率に応じた絶対拒否ペナルティ（非常に大きな値）
+        // ぴったり止まる場合は完全拒否
+        pen -= hp * 500000;
+        continue;
+      }
+
+      const threat=toll>=highTollThresh;
       // 実質被弾期待コスト = 通行料 × 被弾確率
-      // 今ターンぴったり止まる場合は乗数を強化（確実に痛い）
       const mul = isLanding(d) ? (d<=FOCUS_DIST?12:6) : (threat?4:2);
-      pen -= Math.min(50000, toll * hp * mul);
+      pen -= Math.min(100000, toll * hp * mul);
     }
     return pen;
   }
