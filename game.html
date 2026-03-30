@@ -10827,10 +10827,10 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
     let s=0;
 
     // ── 優先度倍率（目標未達成時のみ）──
-    // 倍率 = min(5, (目標金額 / 総資産)^0.5)
+    // 倍率 = min(10, (目標金額 / 総資産)^0.75)
     // 資産が少ないほど倍率が上がり、マーク・銀行への引力が強くなる
     const _priorityMul = (!atGoal && totalAssets > 0)
-      ? Math.min(5, Math.pow(G.goalAmount / totalAssets,0.5) * (1 + 3 * Math.pow(1 - totalAssets / G.goalAmount, 3))
+      ? Math.min(10, Math.pow(G.goalAmount / totalAssets,0.75) * (1 + 3 * Math.pow(1 - totalAssets / G.goalAmount, 3))
         )
       : 1.0;
 
