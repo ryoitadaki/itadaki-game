@@ -12246,7 +12246,7 @@ function _cpuRaiseCashWithAnim(player,needed,callback){
     const sp=G.areas[a].stockPrice;if(!sp)continue;
     const myRem=getAreaShops(a).filter(s=>s.owner===player.id).reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
     const enemyRem=getAreaShops(a).filter(s=>s.owner>=0&&s.owner!==player.id).reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
-    areaScores.push({a,held,sp,profitScore:myRem+enemyRem});
+    areaScores.push({a,held,sp,profitScore:myRem*3+enemyRem});
   }
   areaScores.sort((x,y)=>x.profitScore-y.profitScore);
 
