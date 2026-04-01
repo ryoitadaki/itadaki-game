@@ -20858,9 +20858,17 @@ function cpuInvest(player,done){
         if(cnt===1) return _ownsTop?90:(_liqCI>=5000?0:(_liqCI>=1000?60:90));
         if(cnt===2) return _ownsTop?140:90;
       }
+      if(_nm==='エナ'){
+        if(cnt===1) return _ownsTop?50:(_liqCI>=2000?0:50);
+        if(cnt===2) return _ownsTop?50:(_liqCI>=2000?0:50);
+      }
       if(_nm==='クリスティー'){
-        if(cnt===1) return 50;
-        if(cnt===2) return _ownsTop?60:50;
+        if(cnt===1) return _ownsTop?50:(_liqCI>=2000?0:50);
+        if(cnt===2) return _ownsTop?50:(_liqCI>=2000?0:50);
+      }
+      if(_nm==='そうま'){
+        if(cnt===1) return _ownsTop?40:(_liqCI>=2000?0:40);
+        if(cnt===2) return _ownsTop?40:(_liqCI>=2000?0:40);
       }
       if(_nm==='サコ'){
         if(cnt===1) return _ownsTop?99:(_liqCI>=1000?0:99);
