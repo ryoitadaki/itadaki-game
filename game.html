@@ -2310,8 +2310,6 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
     </div>
     <div id="map-controls">
       <div class="map-ctrl-btn" onclick="toggleFocusMode()" id="focus-btn" title="全体/追跡">👁</div>
-      <div class="map-ctrl-btn" onclick="zoomMap(1.2)" title="拡大">＋</div>
-      <div class="map-ctrl-btn" onclick="zoomMap(0.8)" title="縮小">－</div>
       <div class="map-ctrl-btn" onclick="resetMapView()" title="リセット">⌖</div>
       <div class="map-ctrl-btn" onclick="toggleMute()" id="mute-btn" title="音楽ON/OFF">🔊</div>
     </div>
@@ -4510,17 +4508,17 @@ function buildMapVolcano(){
   const a2_2  =N('shop',  {label:'マグマバー',     area:2,basePrice:180, col:5, row:0});
   const a2_3  =N('shop',  {label:'灼熱ラウンジ',   area:2,basePrice:260, col:6, row:0});
   const a2_4  =N('shop',  {label:'炎の展望台',     area:2,basePrice:340, col:7, row:0});
-  const ev_top=N('event', {label:'イベント',eventType:'cardget',         col:8, row:0});
+  const ev_top=N('mark',  {label:'♥', mark:1,                            col:8, row:0}); // 上辺右端（♥マーク）
 
   // ── 右辺 (col:9) ──
   const a3_1  =N('shop',  {label:'岩窟宿',         area:3,basePrice:100, col:9, row:0}); // 右上角
   const a3_2  =N('shop',  {label:'鉱石市',         area:3,basePrice:160, col:9, row:1});
   const a3_3  =N('shop',  {label:'熔岩洞カフェ',   area:3,basePrice:230, col:9, row:2});
   const a3_4  =N('shop',  {label:'火砕流テラス',   area:3,basePrice:310, col:9, row:3});
-  const mk_hrt=N('mark',  {label:'♥', mark:1,                            col:9, row:4}); // 右辺中
+  const mk_hrt=N('event', {label:'イベント',eventType:'cardget',         col:9, row:4}); // 右辺中（イベント）
   const a5_1  =N('shop',  {label:'炭鉱食堂',       area:5,basePrice: 90, col:9, row:5});
   const a5_2  =N('shop',  {label:'焦げ石茶屋',     area:5,basePrice:140, col:9, row:6});
-  const ev_bot=N('event', {label:'イベント',eventType:'cardget',         col:9, row:7});
+  const ev_bot=N('mark',  {label:'♣', mark:3,                            col:9, row:7}); // 右辺中（♣マーク）
   const a5_3  =N('shop',  {label:'溶岩泉宿',       area:5,basePrice:200, col:9, row:8});
   const a5_4  =N('shop',  {label:'噴火口ホテル',   area:5,basePrice:270, col:9, row:9}); // 右下角
 
@@ -4529,7 +4527,7 @@ function buildMapVolcano(){
   const a6_2  =N('shop',  {label:'火山砂土産店',   area:6,basePrice:130, col:7, row:9});
   const a6_3  =N('shop',  {label:'溶岩アート館',   area:6,basePrice:190, col:6, row:9});
   const a6_4  =N('shop',  {label:'灼熱ギャラリー', area:6,basePrice:250, col:5, row:9});
-  const mk_clb=N('mark',  {label:'♣', mark:3,                            col:4, row:9}); // 下辺中
+  const mk_clb=N('event', {label:'イベント',eventType:'cardget',         col:4, row:9}); // 下辺中（イベント）
   const a7_1  =N('shop',  {label:'マグマ温泉',     area:7,basePrice: 80, col:3, row:9});
   const a7_2  =N('shop',  {label:'火山岩風呂',     area:7,basePrice:130, col:2, row:9});
   const a7_3  =N('shop',  {label:'岩盤浴',         area:7,basePrice:190, col:1, row:9});
@@ -9847,6 +9845,8 @@ function initGame(playerDefs,goalAmount,bankruptLimit){
   renderAll();
   addLog('🎮 ゲーム開始！順番: '+plist.map(p=>p.name).join('→'),'important');
   plist.forEach(p=>{if(p.isCPU)p._firstTurn=true;}); // ①初回ターンフラグ
+  // 序盤分散: 各プレイヤーに固有のルート優先オフセットを割り当て
+  plist.forEach((p,i)=>{ p._routePreference=i; });
   // SVGアイコンを事前ロード（駒描画用）
   plist.forEach(p=>{ if(p.cpuChar) _getSvgImg(p.cpuChar); else _getSvgImg(null); });
   addLog('💰 初期現金: 2,000G（全員）','');
@@ -10188,6 +10188,8 @@ function movePlayer(player,steps,callback){
     }
 
     function showManualMoveUI(){
+      // 移動UI表示中はdir-compactを常に維持
+      document.getElementById('bottom-sheet')?.classList.add('dir-compact');
       _camSnap=true;player.pos=curId;renderMap();
       focusOnPlayer(player);
 
@@ -10300,9 +10302,53 @@ function movePlayer(player,steps,callback){
         }).join('')+'</div>';
       }
 
-      el.innerHTML='<div class="mm-pad">'+cells.join('')+'</div>'+listHtml;
+      // やり直しボタン（1歩以上進んでいる場合のみ、パッドの上・左寄せに表示）
+      const hasMovedOnce = curId !== startPos;
+      const retryBtnHtml = hasMovedOnce
+        ? '<button id="mm-retry" style="'
+          +'font-family:inherit;font-weight:800;font-size:.72rem;'
+          +'background:rgba(255,100,100,.15);border:1.5px solid rgba(255,100,100,.5);'
+          +'border-radius:8px;color:#fca5a5;cursor:pointer;'
+          +'padding:.25rem .7rem;margin-bottom:.2rem;display:block;'
+          +'">↩ やり直す（出目: '+steps+'）</button>'
+        : '';
+
+      el.innerHTML=retryBtnHtml+'<div class="mm-pad">'+cells.join('')+'</div>'+listHtml;
       // bottom-sheetをコンパクトにしてマップを広く見せる
       document.getElementById('bottom-sheet')?.classList.add('dir-compact');
+
+      // やり直しボタンのイベント
+      if(hasMovedOnce){
+        document.getElementById('mm-retry').onclick=()=>{
+          document.getElementById('mm-retry').disabled=true;
+          document.getElementById('mm-retry').style.opacity='.4';
+          // キーハンドラだけ外す
+          if(_manualKeyHandler){document.removeEventListener('keydown',_manualKeyHandler);_manualKeyHandler=null;}
+          // dir-compactを確実に維持したまま復元
+          document.getElementById('bottom-sheet')?.classList.add('dir-compact');
+          // スナップショットで完全に元の状態に戻す
+          for(let a=1;a<=16;a++) player.stocks[a]=_stockSnapshot[a];
+          player.cash=_cashSnapshot;
+          G._pendingStockBought=Object.assign({},_pendingBoughtSnapshot);
+          G._pendingStockBoughtUp=Object.assign({},_pendingBoughtUpSnapshot);
+          player._bankStockBoughtThisTurn=_bankStockSnapshot;
+          player.marks=[..._marksSnapshot];
+          player.level=_levelSnapshot;
+          G.map.forEach(nd=>{if(nd.type==='changemark'&&_changeMarkSnapshot[nd.id]!=null)nd.mark=_changeMarkSnapshot[nd.id];});
+          renderStatus();
+          curId=startPos;
+          prevId=initialPrev;
+          stepsLeft=steps;
+          visited.length=0;
+          visited.push(startPos);
+          _camSnap=true;player.pos=startPos;
+          renderMap();focusOnPlayer(player);
+          showToast('↩ やり直し（出目: '+steps+'）');
+          // dir-compactを再度念押し（showManualMoveUI内でaddされるが念のため）
+          document.getElementById('bottom-sheet')?.classList.add('dir-compact');
+          showManualMoveUI();
+        };
+      }
 
       // イベント
       el.querySelectorAll('.mm-dir-btn,.mm-list-btn').forEach(btn=>{
@@ -10322,14 +10368,15 @@ function movePlayer(player,steps,callback){
         const arrow=keyMap[e.key];
         if(arrow){e.preventDefault();const m=dirs.find(d=>d.arrow===arrow);if(m){_cleanManualKeys();moveToNext(m.nid);}}
         if(e.key>='1'&&e.key<=String(dirs.length)){e.preventDefault();const idx=parseInt(e.key)-1;if(dirs[idx]){_cleanManualKeys();moveToNext(dirs[idx].nid);}}
+        if(e.key==='Backspace'&&curId!==startPos){e.preventDefault();document.getElementById('mm-retry')?.click();}
       };
       document.addEventListener('keydown',_manualKeyHandler);
     }
 
     let _manualKeyHandler=null;
     function _cleanManualKeys(){
-  // 方向選択終了→bottom-sheetを通常サイズに戻す
-  document.getElementById('bottom-sheet')?.classList.remove('dir-compact');
+      // 方向選択終了→bottom-sheetを通常サイズに戻す
+      document.getElementById('bottom-sheet')?.classList.remove('dir-compact');
       if(_manualKeyHandler){document.removeEventListener('keydown',_manualKeyHandler);_manualKeyHandler=null;}
     }
 
@@ -11134,6 +11181,11 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
     return (totalScore / 6) * EV_WEIGHT;
   }
 
+  // ── 序盤分散: ゲーム開始時に割り当てた固有オフセットで方向をずらす ──
+  const _curRound = Math.floor((G.turn-1)/Math.max(1,G.players.length));
+  const _earlyGame = _curRound <= 2;
+  const _routePref = (player._routePreference||0);
+
   let _landingBonus=0;
   const scores=routeDists.map(({id,dist})=>{
     _landingBonus=landingBonusMap[id]??0;
@@ -11149,15 +11201,37 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
     }
     return{id, s: baseScore + evScore};
   });
-  scores.sort((a,b)=>b.s-a.s);
-  const best=scores[0];
-  const second=scores[1];
+  // ── 100%回避フィルタ: ぴったり止まる先が総資産10%以上の敵店なら除外 ──
+  // 回避できる別ルートがある場合のみ適用（全ルートが該当する場合は除外しない）
+  const avoidThresh=totalAssets*0.10;
+  const isDeadlyLanding=(routeId)=>{
+    const dist=routeDists.find(r=>r.id===routeId)?.dist||{};
+    for(const[idStr,d] of Object.entries(dist)){
+      if(d!==remSteps)continue; // ぴったり止まるマスのみ
+      const nd=getNode(parseInt(idStr));
+      if(!nd||nd.type!=='shop'||nd.owner<0||nd.owner===player.id)continue;
+      const owner=G.players[nd.owner];
+      if(!owner||owner.bankrupt||owner.resting)continue;
+      if(calcToll(nd)>=avoidThresh)return true;
+    }
+    return false;
+  };
+  const safeScores=scores.filter(r=>!isDeadlyLanding(r.id));
+  const finalScores=safeScores.length>0?safeScores:scores; // 全滅時は元のscoresを使う
+  finalScores.sort((a,b)=>b.s-a.s);
+  const best=finalScores[0];
+  const second=finalScores[1];
 
   const markNames=['♠','♥','◆','♣'];
   const missingNames=missingMarkNodes.map(nd=>markNames[nd.mark]).join('');
   const tspStr=tspOrder?`TSP順:${tspOrder.map(n=>markNames[n.mark]).join('→')}`:'';  const modeStr=atGoal?'目標達成→銀行':(canLevelUp?'LvUP可能→銀行':(`未取得:${missingNames||'なし'} ${tspStr}`));
   if(second){
-    addLog(`🤖 ${player.name} ルート選択 (${Math.round(best.s)}vs${Math.round(second.s)}) [${modeStr}]`,'event');
+    const _avoided=scores.length>finalScores.length?'⚠️回避':''
+    addLog(`🤖 ${player.name} ルート選択 (${Math.round(best.s)}vs${Math.round(second.s)}) [${modeStr}]${_avoided}`,'event');
+  }
+  // 序盤分散: _routePrefオフセットで無条件に方向をずらす
+  if(_earlyGame && nextIds.length > 1){
+    return nextIds[_routePref % nextIds.length];
   }
   return best.id;
 }
@@ -11284,11 +11358,19 @@ function landBank(player){
     }
   }
 
-  if(_hasFullMarks(player)){
+  if(_hasFullMarks(player) && getPlayerAssets(player).total < G.goalAmount){
     _consumeAnyCards(player); // どこでもカード消費
     // ファンファーレ＆メッセージ表示が完全に終わってから判定へ
     doLevelUp(player, _afterLevelUp);
   } else {
+    // 目標金額達成済みの場合はレベルアップ演出・賞金をスキップ
+    if(_hasFullMarks(player)){
+      _consumeAnyCards(player);
+      player.level++;
+      player.marks=[false,false,false,false];
+      addLog(`🏆 ${player.name} 目標達成済みのためレベルアップ演出・賞金スキップ`,'');
+      renderStatus();
+    }
     _afterLevelUp();
   }
 }
@@ -12250,10 +12332,11 @@ function _cpuRaiseCashWithAnim(player,needed,callback){
   }
   areaScores.sort((x,y)=>x.profitScore-y.profitScore);
 
-  // まず全株を必要なだけ売り切る（A/Sランクは不要株条件を満たすエリアは5枚残す）
+  // まず全株を必要なだけ売り切る（A/Sランクは不要株条件を満たすエリアは5枚残す、Sランクは35枚残し判定も行う）
   const ch_rc=getCpuChar(player);
   const rank_rc=ch_rc?ch_rc.rank:'B';
   const isHighRank=(rank_rc==='S'||rank_rc==='A');
+  const isSrank_rc=(rank_rc==='S');
   // 不要株判定（meiSmartStockSwapと同じ条件）
   function isUnnecessaryStock(aNum){
     if(!isHighRank)return false;
@@ -12262,20 +12345,47 @@ function _cpuRaiseCashWithAnim(player,needed,callback){
     if(maxTotalInvest<=0)return false;
     const currentRem=shops_u.reduce((s,sq)=>s+getRemainingInvest(sq),0);
     const myShopsInArea=shops_u.filter(s=>s.owner===player.id).length;
-    // 2軒所有かつ4軒構成エリアのみ緩和閾値(0.32)を適用
-    // 5軒・6軒エリアでは2軒所有でも通常閾値(0.10)を使う
     const threshold=(myShopsInArea===2&&shops_u.length===4)?0.32:0.10;
     return currentRem/maxTotalInvest<=threshold;
+  }
+  // Sランク: 35枚残し対象エリアを事前計算（meiSmartStockSwapと同じロジック）
+  const hold35Areas_rc=new Set();
+  if(isSrank_rc){
+    const sorted_rc=[...G.players].filter(p=>!p.bankrupt)
+      .sort((a,b)=>getPlayerAssets(b).total-getPlayerAssets(a).total);
+    const myRank_rc=sorted_rc.findIndex(p=>p.id===player.id);
+    const upperTargets_rc=myRank_rc>0
+      ?sorted_rc.slice(0,myRank_rc).filter(p=>p.id!==player.id):[];
+    if(upperTargets_rc.length>0){
+      for(let a=1;a<=16;a++){
+        const myHeld_rc=player.stocks[a]||0;
+        if(myHeld_rc<=35)continue;
+        const sp_rc=G.areas[a].stockPrice;
+        if(!sp_rc)continue;
+        const sellN_rc=myHeld_rc-35;
+        const estSP_rc=sellN_rc>=10?Math.max(1,Math.floor(sp_rc*0.93)):sp_rc;
+        for(const tgt of upperTargets_rc){
+          const tgtHeld=tgt.stocks[a]||0;
+          if(tgtHeld<=0)continue;
+          const tgtStockVal=tgtHeld*estSP_rc;
+          const nearGoal=getPlayerAssets(tgt).total>=G.goalAmount*0.9;
+          if(tgtStockVal>4000||(nearGoal&&tgtStockVal>=1000)){
+            hold35Areas_rc.add(a);break;
+          }
+        }
+      }
+    }
   }
   const sellPlan=[];
   let simCash=player.cash;
   for(const{a,held,sp} of areaScores){
     if(simCash>=needed)break;
     const needN=Math.ceil((needed-simCash)/sp);
-    // A/Sランクで不要株条件を満たすエリアは5枚残す、それ以外は9枚以上なら最低9枚
-    const minKeep=isUnnecessaryStock(a)?5:0;
+    // 不要株かどうか判定
+    const isUnnec=isUnnecessaryStock(a);
+    // Sランクは35枚残し対象なら35枚、それ以外の不要株なら5枚、不要株でなければ0枚残す
+    const minKeep=isUnnec?(isSrank_rc&&hold35Areas_rc.has(a)?35:5):0;
     const maxSell=Math.max(0,held-minKeep);
-    // 今ターン銀行で買ったばかりの株は必要最低枚数のみ売る（9枚強制なし）
     const boughtThisTurn=(G._pendingStockBought||{})[a]||0;
     const forceMin9=held>=9&&minKeep===0&&boughtThisTurn===0;
     const n=Math.min(maxSell,Math.max(forceMin9?9:1,needN));
@@ -13290,8 +13400,21 @@ function landEvent(player,sq){
     if(!held69.length){showEventNotif('📉','株20%高く売れる！','株を持っていません','#4da6ff',()=>endAction(),!player.isCPU);return;}
     function _doSell69(area){
       const cnt=player.stocks[area]||0;if(!cnt){endAction();return;}
-      const total69=cnt*Math.floor(G.areas[area].stockPrice*1.20);
+      const sp69=G.areas[area].stockPrice;
+      const total69=cnt*Math.floor(sp69*1.20);
       player.stocks[area]=0;player.cash+=total69;
+      // 10枚以上売却時は株価下落（通常売却と同じ処理）
+      pendingStockDown(area,cnt);
+      if(cnt>=10){
+        const estNewSP=Math.max(1,sp69-Math.floor(sp69*cnt/100));
+        const priceDrop=sp69-estNewSP;
+        if(priceDrop>0){
+          G.players.forEach(victim=>{
+            if(victim.id===player.id||victim.bankrupt)return;
+            _recordStockDamage(victim,area,priceDrop);
+          });
+        }
+      }
       addLog(`📉 ${player.name} A${area}株×${cnt}枚を20%高く売却！+${total69.toLocaleString()}G`,'event');
     _flashOverlay('#4da6ff',_td(300),0.35);
       renderStatus();endAction();
@@ -13346,21 +13469,11 @@ function landEvent(player,sq){
     if(!empties73.length){showEventNotif('🏪','お店買い取りチャンス','買える店が残っていなかった…','#fbbf24',()=>endAction(),!player.isCPU);return;}
     function _doBuy73(target){
       SFX.buy&&SFX.buy();
-      if(player.isCPU){
-        // CPU: 流動資産以内の店のみ選択済みなので現金で直接払う
-        target.owner=player.id; updateAreaStockPrices(false);
-        addLog(`🏪 ${player.name}「${target.label}」購入 ${target.price.toLocaleString()}G`,'shop');
-        showCpuAction(player,`「${target.label}」を購入！`,'🏪');
-        player.cash-=target.price;
-        renderStatus(); endAction();
-      } else {
-        // 人間: 先に所有権確定→現金不足時はshowPaymentModal
-        target.owner=player.id; updateAreaStockPrices(false);
-        addLog(`🏪 ${player.name}「${target.label}」購入 ${target.price.toLocaleString()}G`,'shop');
-        renderStatus();
-        if(player.cash>=target.price){ player.cash-=target.price; renderStatus(); endAction(); }
-        else{ _queueDisp((_next)=>{ _next(); showPaymentModal(player,target.price,()=>{ endAction(); }); }); }
-      }
+      target.owner=player.id; updateAreaStockPrices(false);
+      addLog(`🏪 ${player.name}「${target.label}」購入 ${target.price.toLocaleString()}G`,'shop');
+      if(player.isCPU) showCpuAction(player,`「${target.label}」を購入！`,'🏪');
+      renderStatus();
+      payOrBankrupt(player,target.price,()=>{ renderStatus(); endAction(); });
     }
     if(player.isCPU){
       const liq73=getLiquid(player);
@@ -13420,21 +13533,11 @@ function landEvent(player,sq){
     function _doBuy75(target){
       const cost75=target.price*2;
       SFX.buy&&SFX.buy();
-      if(player.isCPU){
-        // CPU: 流動資産以内の店のみ選択済みなので現金で直接払う
-        target.owner=player.id; updateAreaStockPrices(false);
-        addLog(`🏪 ${player.name}「${target.label}」2倍(${cost75.toLocaleString()}G)で購入`,'shop');
-        showCpuAction(player,`「${target.label}」を2倍で購入！`,'🏪');
-        player.cash-=cost75;
-        renderStatus(); endAction();
-      } else {
-        // 人間: 先に所有権確定→現金不足時はshowPaymentModal
-        target.owner=player.id; updateAreaStockPrices(false);
-        addLog(`🏪 ${player.name}「${target.label}」2倍(${cost75.toLocaleString()}G)で購入`,'shop');
-        renderStatus();
-        if(player.cash>=cost75){ player.cash-=cost75; renderStatus(); endAction(); }
-        else{ _queueDisp((_next)=>{ _next(); showPaymentModal(player,cost75,()=>{ endAction(); }); }); }
-      }
+      target.owner=player.id; updateAreaStockPrices(false);
+      addLog(`🏪 ${player.name}「${target.label}」2倍(${cost75.toLocaleString()}G)で購入`,'shop');
+      if(player.isCPU) showCpuAction(player,`「${target.label}」を2倍で購入！`,'🏪');
+      renderStatus();
+      payOrBankrupt(player,cost75,()=>{ renderStatus(); endAction(); });
     }
     if(player.isCPU){
       const liq75=getLiquid(player);
@@ -13459,6 +13562,15 @@ function landEvent(player,sq){
     }
     return;
   }}
+  // ── イベントナンバー76：宝箱！500Gゲット！
+  {  if(sq.eventType==='treasure500'){
+    player.cash+=500;
+    addLog(`💎 ${player.name} 宝箱！銀行から500G獲得！`,'event');
+    SFX.bonus&&SFX.bonus();renderStatus();
+    _flashOverlay('#ffd000',_td(300),0.35);
+    showEventNotif('💎','宝箱！500Gゲット！','銀行から500Gをもらえる！','#ffd000',()=>endAction(),!player.isCPU);
+    return;
+  }}
   {  if(sq.eventType==='buychanceplus200'){
     const empties78=G.map.filter(n=>n.type==='shop'&&n.owner<0);
     _flashOverlay('#fbbf24',_td(300),0.35);
@@ -13466,21 +13578,11 @@ function landEvent(player,sq){
     function _doBuy78(target){
       const cost78=target.price+200;
       SFX.buy&&SFX.buy();
-      if(player.isCPU){
-        // CPU: 流動資産以内の店のみ選択済みなので現金で直接払う
-        target.owner=player.id; updateAreaStockPrices(false);
-        addLog(`🏪 ${player.name}「${target.label}」+200G(${cost78.toLocaleString()}G)で購入`,'shop');
-        showCpuAction(player,`「${target.label}」を+200Gで購入！`,'🏪');
-        player.cash-=cost78;
-        renderStatus(); endAction();
-      } else {
-        // 人間: 先に所有権確定→現金不足時はshowPaymentModal
-        target.owner=player.id; updateAreaStockPrices(false);
-        addLog(`🏪 ${player.name}「${target.label}」+200G(${cost78.toLocaleString()}G)で購入`,'shop');
-        renderStatus();
-        if(player.cash>=cost78){ player.cash-=cost78; renderStatus(); endAction(); }
-        else{ _queueDisp((_next)=>{ _next(); showPaymentModal(player,cost78,()=>{ endAction(); }); }); }
-      }
+      target.owner=player.id; updateAreaStockPrices(false);
+      addLog(`🏪 ${player.name}「${target.label}」+200G(${cost78.toLocaleString()}G)で購入`,'shop');
+      if(player.isCPU) showCpuAction(player,`「${target.label}」を+200Gで購入！`,'🏪');
+      renderStatus();
+      payOrBankrupt(player,cost78,()=>{ renderStatus(); endAction(); });
     }
     if(player.isCPU){
       const liq78=getLiquid(player);
@@ -14120,6 +14222,18 @@ function landEvent(player,sq){
       const bonus35=Math.floor(sp*1.35);
       const total35=cnt*bonus35;
       player.stocks[area]=0; player.cash+=total35;
+      // 10枚以上売却時は株価下落（通常売却と同じ処理）
+      pendingStockDown(area,cnt);
+      if(cnt>=10){
+        const estNewSP=Math.max(1,sp-Math.floor(sp*cnt/100));
+        const priceDrop=sp-estNewSP;
+        if(priceDrop>0){
+          G.players.forEach(victim=>{
+            if(victim.id===player.id||victim.bankrupt)return;
+            _recordStockDamage(victim,area,priceDrop);
+          });
+        }
+      }
       addLog(`📉 ${player.name} A${area}株×${cnt}枚を35%高く売却！+${total35.toLocaleString()}G`,'event');
     _flashOverlay('#4da6ff',_td(300),0.35);
       renderStatus();endAction();
@@ -14660,24 +14774,21 @@ function landEvent(player,sq){
       });
     }
     if(player.isCPU){
-      const best20=myShops20.reduce((a,b)=>a.price>=b.price?a:b);
-      showEventNotif('📈','店価格20%UP！',`${player.name}「${best20.label}」を選択`,'#51cf66',()=>_doShopUp20(best20),false);
+      showEventNotif('📈','店価格20%UP！',`${player.name} 店を選択中…`,'#51cf66',()=>{
+        _showEventShopSelectUI(player,{
+          title:'📈 好きなお店の価格が20%UP',subtitle:'自分の持ち店から1軒選んで価格を20%アップ',
+          btnLabel:'20%UP',cpuBtnLabel:'✅ 20%UP決定！',
+          valueLabel:'20%UP後',valueFn:sq=>Math.floor(sq.price*1.2).toLocaleString()+'G',
+          shopFilter:sq=>sq.owner===player.id,
+          cpuPickFn:shops=>shops.reduce((a,b)=>a.price>=b.price?a:b),
+        },sq=>_doShopUp20(sq),()=>endAction());
+      },false);
     } else {
-      const mc=document.getElementById('modal-content');
-      mc.innerHTML=`<div class="modal-drag"></div>
-        <h2>📈 好きなお店の価格が20%UP</h2>
-        <div style="display:flex;flex-direction:column;gap:.4rem;max-height:55vh;overflow-y:auto;">
-          ${myShops20.map((s,i)=>`<button class="action-btn" data-idx="${i}"
-            style="text-align:left;padding:.55rem .7rem">
-            <span style="font-weight:800">${s.label}</span>（A${s.area}）
-            <span style="color:var(--gold);margin-left:.4rem">${s.price.toLocaleString()}G → ${Math.floor(s.price*1.2).toLocaleString()}G</span>
-          </button>`).join('')}
-        </div>`;
-      document.getElementById('modal-overlay').classList.add('active');
-      G._modalButtons=null; G._numModal=null;
-      mc.querySelectorAll('[data-idx]').forEach(btn=>{
-        btn.onclick=()=>{closeModal();_doShopUp20(myShops20[parseInt(btn.dataset.idx)]);};
-      });
+      _showEventShopSelectUI(player,{
+        title:'📈 好きなお店の価格が20%UP',subtitle:'自分の持ち店から1軒選んで価格を20%アップ（敵の店は参考表示）',
+        btnLabel:'20%UP',valueLabel:'20%UP後',valueFn:sq=>Math.floor(sq.price*1.2).toLocaleString()+'G',
+        shopFilter:sq=>sq.owner===player.id,
+      },sq=>_doShopUp20(sq),()=>endAction());
     }
     return;
   }}
@@ -14745,24 +14856,21 @@ function landEvent(player,sq){
       });
     }
     if(player.isCPU){
-      const best23=myShops23.reduce((a,b)=>a.price>=b.price?a:b);
-      showEventNotif('📈','店価格50%UP！',`${player.name}「${best23.label}」を選択`,'#ffd000',()=>_doShopUp50(best23),false);
+      showEventNotif('📈','店価格50%UP！',`${player.name} 店を選択中…`,'#ffd000',()=>{
+        _showEventShopSelectUI(player,{
+          title:'📈 好きなお店の価格が50%UP',subtitle:'自分の持ち店から1軒選んで価格を50%アップ',
+          btnLabel:'50%UP',cpuBtnLabel:'✅ 50%UP決定！',
+          valueLabel:'50%UP後',valueFn:sq=>Math.floor(sq.price*1.5).toLocaleString()+'G',
+          shopFilter:sq=>sq.owner===player.id,
+          cpuPickFn:shops=>shops.reduce((a,b)=>a.price>=b.price?a:b),
+        },sq=>_doShopUp50(sq),()=>endAction());
+      },false);
     } else {
-      const mc=document.getElementById('modal-content');
-      mc.innerHTML=`<div class="modal-drag"></div>
-        <h2>📈 好きなお店の価格が50%UP</h2>
-        <div style="display:flex;flex-direction:column;gap:.4rem;max-height:55vh;overflow-y:auto;">
-          ${myShops23.map((s,i)=>`<button class="action-btn" data-idx="${i}"
-            style="text-align:left;padding:.55rem .7rem">
-            <span style="font-weight:800">${s.label}</span>（A${s.area}）
-            <span style="color:var(--gold);margin-left:.4rem">${s.price.toLocaleString()}G → ${Math.floor(s.price*1.5).toLocaleString()}G</span>
-          </button>`).join('')}
-        </div>`;
-      document.getElementById('modal-overlay').classList.add('active');
-      G._modalButtons=null; G._numModal=null;
-      mc.querySelectorAll('[data-idx]').forEach(btn=>{
-        btn.onclick=()=>{closeModal();_doShopUp50(myShops23[parseInt(btn.dataset.idx)]);};
-      });
+      _showEventShopSelectUI(player,{
+        title:'📈 好きなお店の価格が50%UP',subtitle:'自分の持ち店から1軒選んで価格を50%アップ（敵の店は参考表示）',
+        btnLabel:'50%UP',valueLabel:'50%UP後',valueFn:sq=>Math.floor(sq.price*1.5).toLocaleString()+'G',
+        shopFilter:sq=>sq.owner===player.id,
+      },sq=>_doShopUp50(sq),()=>endAction());
     }
     return;
   }}
@@ -15726,7 +15834,6 @@ function showPaymentModal(player,amount,callback){
     ],[
       {label:'📉 株を売る',action:()=>showSellStockModal(player,checkAndPay,amount)},
       {label:'🏪 店を売る',action:()=>showSellShopForDebt(player,checkAndPay)},
-      ...(getPlayerAssets(player).total<amount?[{label:'💀 破産する',danger:true,action:()=>bankrupt(player)}]:[]),
     ]);
   }
   checkAndPay();
@@ -16587,13 +16694,31 @@ function cpuRaiseCash(player,needed,callback){
   // 儲けの見込みが少ない順（profitScoreが低い順）にソート
   areaScores.sort((x,y)=>x.profitScore-y.profitScore);
 
-  // まず全株を必要なだけ売り切る（最低枚数制限なし）
+  // A/Sランクは不要株条件を満たすエリアは5枚残す
+  const ch_rc2=getCpuChar(player);
+  const rank_rc2=ch_rc2?ch_rc2.rank:'B';
+  const isHighRank2=(rank_rc2==='S'||rank_rc2==='A');
+  function isUnnecessaryStock2(aNum){
+    if(!isHighRank2)return false;
+    const shops_u=G.map.filter(s=>s.type==='shop'&&s.area===aNum);
+    const maxTotalInvest=shops_u.reduce((s,sq)=>s+getMaxExtraInvest(sq),0);
+    if(maxTotalInvest<=0)return false;
+    const currentRem=shops_u.reduce((s,sq)=>s+getRemainingInvest(sq),0);
+    const myShopsInArea=shops_u.filter(s=>s.owner===player.id).length;
+    const threshold=(myShopsInArea===2&&shops_u.length===4)?0.32:0.10;
+    return currentRem/maxTotalInvest<=threshold;
+  }
+  // まず全株を必要なだけ売り切る（A/Sランクは不要株条件を満たすエリアは5枚残す）
   const sellPlan=[];
   let simCash=player.cash;
   for(const{a,held,sp} of areaScores){
     if(simCash>=needed)break;
     const needN=Math.ceil((needed-simCash)/sp);
-    const n=Math.min(held,Math.max(held>=9?9:1,needN)); // 9枚以上保有なら最低9枚
+    const minKeep2=isUnnecessaryStock2(a)?5:0;
+    const maxSell2=Math.max(0,held-minKeep2);
+    const boughtThisTurn2=(G._pendingStockBought||{})[a]||0;
+    const forceMin9=(held>=9&&minKeep2===0&&boughtThisTurn2===0);
+    const n=Math.min(maxSell2,Math.max(forceMin9?9:1,needN));
     if(n<=0)continue;
     sellPlan.push({a,n,sp});
     simCash+=n*sp;
@@ -18506,20 +18631,9 @@ function doRoll(){
   SFX.dice&&SFX.dice();
   showDiceRoll(player, steps, ()=>{
     SFX.diceStop&&SFX.diceStop(steps);
-    if(!player.isCPU){
-      // 人間プレイヤー: 終着点選択UIを表示
-      showDestSelectUI(player, steps, (destId)=>{
-        // 選択した終着点へ自動移動
-        _autoMoveToDestination(player, destId, steps, ()=>{
-          document.getElementById('bottom-sheet')?.classList.remove('dir-compact');
-          landedOnSquare(player, getNode(player.pos));
-        });
-      });
-    } else {
-      movePlayer(player, steps, ()=>{
-        landedOnSquare(player, getNode(player.pos));
-      });
-    }
+    movePlayer(player, steps, ()=>{
+      landedOnSquare(player, getNode(player.pos));
+    });
   });
 }
 
@@ -18558,11 +18672,7 @@ function endAction(){
 }
 function _endActionProceed(){
   if(!_gameRunning)return;
-  // 終着点選択モードを確実にクリア
-  _moveDestIds = new Set();
-  G._moveDestSelectCb = null;
   document.getElementById('bottom-sheet')?.classList.remove('dir-compact');
-  document.getElementById('modal-overlay')?.classList.remove('dest-confirm-mode');
   const proceed=()=>{
     renderAll();updateAreaStockPrices();
     G.history.push({
@@ -18587,6 +18697,22 @@ function _endActionProceed(){
         } else {
           showEventNotif('💸','現金不足の解消',`${_debt.toLocaleString()}Gの支払いが残っています。株や店を売って解消してください。`,'#ff6060',()=>{
             showPaymentModal(_cur,_debt,()=>{renderStatus();setTimeout(()=>nextTurn(),400);});
+          },true);
+        }
+        return;
+      }
+      // 現金がマイナスなら必ず解消させてからnextTurnへ
+      if(_cur&&!_cur.bankrupt&&_cur.cash<0){
+        const _shortage=Math.abs(_cur.cash);
+        addLog(`💸 ${_cur.name} 現金不足（${_cur.cash.toLocaleString()}G）を解消します`,'pay');
+        if(_cur.isCPU){
+          cpuRaiseCash(_cur,_shortage,()=>{
+            if(_cur.cash<0) bankrupt(_cur);
+            renderStatus();setTimeout(()=>nextTurn(),400);
+          });
+        } else {
+          showEventNotif('💸','現金不足の解消',`現金が${_cur.cash.toLocaleString()}Gです。株や店を売って補ってください。`,'#ff6060',()=>{
+            showPaymentModal(_cur,_shortage,()=>{renderStatus();setTimeout(()=>nextTurn(),400);});
           },true);
         }
         return;
@@ -20738,14 +20864,39 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
   candidates.sort((x,y)=>y.score-x.score);
 
   if(!candidates.length){
-    // 現金不足で1枚も買えない場合はログを出してスキップ
-    const _minSP2=Math.min(...Array.from({length:9},(_,i)=>i+1)
-      .filter(a=>isTradeableArea(a)).map(a=>G.areas[a].stockPrice));
+    // 現金不足で1枚も買えない場合はスキップ
+    const _minSP2=Math.min(...Array.from({length:16},(_,i)=>i+1)
+      .filter(a=>isTradeableArea(a)).map(a=>G.areas[a].stockPrice).filter(v=>isFinite(v)));
     if(!isFinite(_minSP2)||player.cash<_minSP2){
       addLog(`💸 ${player.name} 株購入スキップ（現金不足）`,'');
       if(!player.isCPU)showToast('💸 株を買えるお金がなかった…');
+      callback();return;
     }
-    callback();return;
+    // 増資余りスコアで候補なし → 10枚購入後の株価上昇で自分の株資産増加が最大のエリアを選ぶ
+    const _fallbackCands=[];
+    for(let _fa=1;_fa<=16;_fa++){
+      if(!isTradeableArea(_fa))continue;
+      const _fsp=G.areas[_fa].stockPrice;
+      if(!_fsp||liq<_fsp)continue;
+      const _fHeld=player.stocks[_fa]||0;
+      const _fMaxBuy=Math.min(99,Math.floor(liq/_fsp));
+      if(_fMaxBuy<1)continue;
+      // 10枚購入後の株価上昇をシミュレート（10枚以上買うと株価UP処理が走る前提）
+      const _fBuyN=Math.min(_fMaxBuy,10);
+      // 株価UPは pendingStockBoughtUp → _applyStockBoughtUp で処理される
+      // 簡易推定: 10枚購入で B *= 1.05 相当の上昇 → stockPrice も同率上昇
+      const _fNewSP=Math.floor(_fsp*(_fBuyN>=10?1.05:1.0));
+      const _fAssetGain=(_fHeld+_fBuyN)*_fNewSP - _fHeld*_fsp;
+      _fallbackCands.push({a:_fa,sp:_fsp,maxBuy:_fMaxBuy,assetGain:_fAssetGain});
+    }
+    if(!_fallbackCands.length){callback();return;}
+    _fallbackCands.sort((x,y)=>y.assetGain-x.assetGain);
+    const _fb=_fallbackCands[0];
+    addLog(`📊 ${player.name} フォールバック株購入: A${_fb.a}エリア`,'');
+    cpuSay(player,'buyStock');
+    _showStockBuyHTML(player,callback);
+    showCpuThinking(player,[{a:_fb.a,sp:_fb.sp,score:1,maxBuy:_fb.maxBuy}],callback);
+    return;
   }
 
   // 最もスコアの高い1エリアのみ購入
@@ -22339,7 +22490,7 @@ function renderMap(){
         const tx=nx*ISO_X + SQ*ISO_X*0.5;
         const ty=ny*ISO_Y + SQ*ISO_Y*0.5;
         const fitScale=Math.min((W-24)/baseW,(H-24)/baseH);
-        const zoomMul=Math.max(2.6, Math.min(6.0, 1.8/fitScale));
+        const zoomMul=Math.max(1.8, Math.min(4.5, 1.3/fitScale));
         tScale = Math.max(0.5, fitScale*zoomMul);
         tOX = W/2 - tx*tScale;
         tOY = H*0.42 - ty*tScale;
@@ -22349,8 +22500,16 @@ function renderMap(){
   if(tScale==null){
     const fit=Math.min((W-20)/baseW,(H-20)/baseH)*0.92;
     tScale = Math.max(0.25, fit*mapScale);
-    tOX = W/2 - baseW/2*tScale + mapOffX;
-    tOY = H/2 - baseH/2*tScale + mapOffY;
+    // mapOffX/Yをクランプ：マップが画面から完全に外れないよう制限
+    const margin=40;
+    const mapPxW=baseW*tScale;
+    const mapPxH=baseH*tScale;
+    const centerX=W/2-baseW/2*tScale;
+    const centerY=H/2-baseH/2*tScale;
+    mapOffX=Math.max(-(mapPxW-margin)-centerX, Math.min((W-margin)-centerX, mapOffX));
+    mapOffY=Math.max(-(mapPxH-margin)-centerY, Math.min((H-margin)-centerY, mapOffY));
+    tOX = centerX + mapOffX;
+    tOY = centerY + mapOffY;
   }
 
   // ── Lerp でカメラを追跡（スナップ時は即座に移動）──
@@ -24987,14 +25146,32 @@ function focusOnPlayer(player){
   let _didDrag=false; // タッチで実際にドラッグしたか
   const DRAG_THRESHOLD=8; // この距離以上動いたらドラッグとみなす（px）
 
-  function pointerStart(x,y){drag=true;_didDrag=false;sx=x;sy=y;ox=mapOffX;oy=mapOffY;}
+  function pointerStart(x,y){
+    drag=true;_didDrag=false;sx=x;sy=y;
+    if(mapFocusMode){
+      // フォーカスモード中にドラッグ開始したとき、現在の_camScaleをmapScaleへ逆算同期
+      // これによりドラッグ開始直後のズームアウトを防ぐ
+      const cont=document.getElementById('map-area');
+      const W=cont?cont.clientWidth:window.innerWidth;
+      const H=cont?cont.clientHeight:320;
+      const maxCol=G&&G.map?Math.max(...G.map.map(n=>n.col||0)):0;
+      const maxRow=G&&G.map?Math.max(...G.map.map(n=>n.row||0)):0;
+      const ISO_X2=0.92,ISO_Y2=0.58,TILE_DEPTH2=6;
+      const baseW2=(maxCol+1)*SQ*ISO_X2;
+      const baseH2=(maxRow+1)*SQ*ISO_Y2+TILE_DEPTH2+10;
+      const fit=Math.min((W-20)/baseW2,(H-20)/baseH2)*0.92;
+      mapScale=fit>0?_camScale/fit:mapScale;
+      mapOffX=_camOX-(W/2-baseW2/2*_camScale);
+      mapOffY=_camOY-(H/2-baseH2/2*_camScale);
+      mapFocusMode=false;updateFocusBtn();
+    }
+    ox=mapOffX;oy=mapOffY;
+  }
   function pointerMove(x,y){
     if(!drag)return;
     const dx=x-sx, dy=y-sy;
-    // 閾値未満は無視（タップ誤判定を防ぐ）
     if(!_didDrag && Math.hypot(dx,dy)<DRAG_THRESHOLD) return;
     _didDrag=true;
-    if(mapFocusMode){mapFocusMode=false;updateFocusBtn();}
     mapOffX=ox+dx;mapOffY=oy+dy;renderMap();
   }
   function pointerEnd(){drag=false;_didDrag=false;}
@@ -25005,17 +25182,13 @@ function focusOnPlayer(player){
 
   document.addEventListener('touchstart',e=>{
     if(e.target!==canvas())return;
-    if(e.touches.length===2){pinch=true;pinchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
-    else{pointerStart(e.touches[0].clientX,e.touches[0].clientY);}
+    // ピンチ無効化：1本指のみ対応
+    if(e.touches.length===1)pointerStart(e.touches[0].clientX,e.touches[0].clientY);
   },{passive:true});
   document.addEventListener('touchmove',e=>{
-    if(e.touches.length===2&&pinch){
-      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-      zoomMap(d/pinchDist);pinchDist=d;return;
-    }
     if(e.touches.length===1)pointerMove(e.touches[0].clientX,e.touches[0].clientY);
   },{passive:true});
-  document.addEventListener('touchend',e=>{pinch=false;pointerEnd();},{passive:true});
+  document.addEventListener('touchend',e=>{pointerEnd();},{passive:true});
 })();
 
 // ── Canvas ホバー: ハイライト更新 ──
