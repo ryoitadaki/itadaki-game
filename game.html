@@ -5117,7 +5117,7 @@ function _loadGameData(data) {
       _cashDebt: pd._cashDebt||0,
       _eventLandCount: pd._eventLandCount||0,
       _stockDamageTaken: {},
-      stat: Object.assign({tollPaid:0,tollReceived:0,tollPaidCount:0,tollReceivedCount:0,fiveBuyCount:0,riderGain:0,restSaved:0,stockDamageDealt:0}, pd.stat || {}),
+      stat: Object.assign({tollPaid:0,tollReceived:0,tollPaidCount:0,tollReceivedCount:0,fiveBuyCount:0,riderGain:0,restSaved:0,stockDamageDealt:0,stockProfit:0}, pd.stat || {}),
     }));
 
     // エリア状態復元
@@ -9827,7 +9827,7 @@ function initGame(playerDefs,goalAmount,bankruptLimit){
   };
   plist.forEach(p=>{
     p.stat={tollPaid:0,tollReceived:0,tollPaidCount:0,tollReceivedCount:0,
-            fiveBuyCount:0,riderGain:0,restSaved:0,stockDamageDealt:0};
+            fiveBuyCount:0,riderGain:0,restSaved:0,stockDamageDealt:0,stockProfit:0};
   });
   mapScale=0.85;mapOffX=0;mapOffY=0; // 少し引いた状態でスタート
   // 結果画面ボタンをリセット（ツアー後に再ゲームしても残らないよう）
@@ -9873,15 +9873,18 @@ function updateAreaStockPrices(notifyChanges){
       const dir=diff>0?'📈↑':'📉↓';
       const col=diff>0?'shop':'pay';
       addLog(`${dir} A${a}株価 ${oldPrice.toLocaleString()}G→${newPrice.toLocaleString()}G (${diff>0?'+':''}${diff}G / ${diff>0?'+':''}${pct}%)`,col);
-      // 儲けた人を計算
+      // 儲けた人を計算 & stockProfit記録
       const gainers=[];
-      if(diff>0&&G.players){
+      if(G.players){
         G.players.forEach(p=>{
           const held=p.stocks[a]||0;
           if(held>0){
-            const gain=held*diff;
-            gainers.push({name:p.name,color:p.color,gain});
-            addLog(`  💰 ${p.name} A${a}株${held}枚 資産+${gain.toLocaleString()}G`,'shop');
+            const delta=held*diff; // diff>0:儲け, diff<0:損失
+            if(diff>0){
+              gainers.push({name:p.name,color:p.color,gain:delta});
+              addLog(`  💰 ${p.name} A${a}株${held}枚 資産+${delta.toLocaleString()}G`,'shop');
+            }
+            if(p.stat) p.stat.stockProfit=(p.stat.stockProfit||0)+delta;
           }
         });
       }
@@ -11920,21 +11923,19 @@ function buyShopThenPay(player,sq,done){
   updateAreaStockPrices(false);
   addLog(`🏪 ${player.name}「${sq.label}」購入 (${sq.price.toLocaleString()}G)`,'shop');
   SFX.buy&&SFX.buy();
+  renderStatus();
   if(player.cash>=sq.price){
-    // 現金で払える → 先に現金を引いてからrenderStatusで反映
+    // 現金で払える
     player.cash-=sq.price;
     renderStatus();
     _checkMonopolyBlocked(player,sq);
     checkMonopolySFXAll(player,sq.area);
     done();
   } else {
-    // 現金不足 → 先に払える分だけ引いてrenderStatusで反映、残りは株売却UI
-    const canPay=player.cash;
-    player.cash=0;
-    renderStatus();
+    // 現金不足 → キュー完了後に株売却UIを表示（株価変動カード等と重なり防止）
     _queueDisp((_next)=>{
       _next();
-      showPaymentModal(player,sq.price-canPay,()=>{
+      showPaymentModal(player,sq.price,()=>{
         _checkMonopolyBlocked(player,sq);
         checkMonopolySFXAll(player,sq.area);
         done();
@@ -15740,10 +15741,6 @@ function showInvestModal(player,sq,done){
     sq.extraInvest+=amount; sq.price+=amount;
     const tollAfter=calcToll(sq);
     addLog(`📈 ${player.name}「${sq.label}」+${amount.toLocaleString()}G増資 (料:${tollBefore.toLocaleString()}→${tollAfter.toLocaleString()}G)`,'shop');
-    // 現金不足ケース: 払える分を先引きしてrenderStatusへ反映
-    const prePayable=Math.min(player.cash,amount);
-    player.cash-=prePayable;
-    const preRemaining=amount-prePayable;
     renderStatus();
     let _investDone=false;
     const finish=()=>{ if(_investDone)return; _investDone=true; done(); };
@@ -15753,20 +15750,22 @@ function showInvestModal(player,sq,done){
       // 現金不足モーダルを出すため、キューの末尾に処理を積む
       _queueDisp((_next)=>{
         _next(); // キューを進める
-        if(preRemaining<=0){
-          // 現金で全額支払い済み
+        if(player.cash>=amount){
+          player.cash-=amount;
           finish();
         } else if(player.isCPU){
           // CPUの現金不足 → CPU用株売却処理
-          _cpuRaiseCashWithAnim(player,preRemaining,()=>{
-            if(player.cash>=preRemaining){player.cash-=preRemaining;}
+          const remaining=amount-player.cash;
+          player.cash=0;
+          _cpuRaiseCashWithAnim(player,remaining,()=>{
+            if(player.cash>=remaining){player.cash-=remaining;}
             else bankrupt(player);
             renderStatus();
             cpuSay(player,'investDone');
             finish();
           });
         } else {
-          showPaymentModal(player,preRemaining,finish);
+          showPaymentModal(player,amount,finish);
         }
       });
     });
@@ -18741,6 +18740,11 @@ function _endActionProceed(){
         if(diff===0) return;
         const pct=Math.round(Math.abs(diff)/Math.max(1,oldPrice)*100);
         addLog(`📉 A${aNum}エリア株価下落 ${oldPrice.toLocaleString()}G→${newPrice.toLocaleString()}G (-${pct}%)`, 'pay');
+        // stockProfit記録（株価DOWN分: diffは負の値）
+        G.players.forEach(pl=>{
+          const held=pl.stocks[aNum]||0;
+          if(held>0&&pl.stat) pl.stat.stockProfit=(pl.stat.stockProfit||0)+held*diff;
+        });
         downAreas.push({aNum,oldPrice,newPrice,diff,pct,n});
       }
     });
@@ -18783,6 +18787,11 @@ function _applyStockBoughtUp(next){
     if(diff>0){
       const gainers=G.players.filter(pl=>!pl.bankrupt&&(pl.stocks[aNum]||0)>0)
         .map(pl=>({name:pl.name,color:pl.color,gain:(pl.stocks[aNum]||0)*diff}));
+      // stockProfit記録（株価UP分）
+      G.players.forEach(pl=>{
+        const held=pl.stocks[aNum]||0;
+        if(held>0&&pl.stat) pl.stat.stockProfit=(pl.stat.stockProfit||0)+held*diff;
+      });
       upResults.push({aNum,oldPrice,newPrice,diff,gainers});
       addLog(`📈 A${aNum}株価上昇 ${oldPrice.toLocaleString()}G→${newPrice.toLocaleString()}G (+${diff}G)`,'shop');
     }
@@ -21766,6 +21775,7 @@ function endGame(winnerId){
         <div class="res-stat">${t("tollReceived")}<span class="rsv green">${(st.tollReceived||0).toLocaleString()}G</span></div>
         <div class="res-stat"><span>支払い回数</span><span class="rsv">${st.tollPaidCount||0}回</span></div>
         <div class="res-stat"><span>受取り回数</span><span class="rsv">${st.tollReceivedCount||0}回</span></div>
+        <div class="res-stat"><span>株儲け額</span><span class="rsv" style="color:${(st.stockProfit||0)>=0?`var(--green)`:`var(--red)`}">${(st.stockProfit||0)>=0?`+`:`-`}${Math.abs(st.stockProfit||0).toLocaleString()}G</span></div>
       </div>
     </div>`;
   });
