@@ -11920,19 +11920,21 @@ function buyShopThenPay(player,sq,done){
   updateAreaStockPrices(false);
   addLog(`🏪 ${player.name}「${sq.label}」購入 (${sq.price.toLocaleString()}G)`,'shop');
   SFX.buy&&SFX.buy();
-  renderStatus();
   if(player.cash>=sq.price){
-    // 現金で払える
+    // 現金で払える → 先に現金を引いてからrenderStatusで反映
     player.cash-=sq.price;
     renderStatus();
     _checkMonopolyBlocked(player,sq);
     checkMonopolySFXAll(player,sq.area);
     done();
   } else {
-    // 現金不足 → キュー完了後に株売却UIを表示（株価変動カード等と重なり防止）
+    // 現金不足 → 先に払える分だけ引いてrenderStatusで反映、残りは株売却UI
+    const canPay=player.cash;
+    player.cash=0;
+    renderStatus();
     _queueDisp((_next)=>{
       _next();
-      showPaymentModal(player,sq.price,()=>{
+      showPaymentModal(player,sq.price-canPay,()=>{
         _checkMonopolyBlocked(player,sq);
         checkMonopolySFXAll(player,sq.area);
         done();
@@ -15738,6 +15740,10 @@ function showInvestModal(player,sq,done){
     sq.extraInvest+=amount; sq.price+=amount;
     const tollAfter=calcToll(sq);
     addLog(`📈 ${player.name}「${sq.label}」+${amount.toLocaleString()}G増資 (料:${tollBefore.toLocaleString()}→${tollAfter.toLocaleString()}G)`,'shop');
+    // 現金不足ケース: 払える分を先引きしてrenderStatusへ反映
+    const prePayable=Math.min(player.cash,amount);
+    player.cash-=prePayable;
+    const preRemaining=amount-prePayable;
     renderStatus();
     let _investDone=false;
     const finish=()=>{ if(_investDone)return; _investDone=true; done(); };
@@ -15747,22 +15753,20 @@ function showInvestModal(player,sq,done){
       // 現金不足モーダルを出すため、キューの末尾に処理を積む
       _queueDisp((_next)=>{
         _next(); // キューを進める
-        if(player.cash>=amount){
-          player.cash-=amount;
+        if(preRemaining<=0){
+          // 現金で全額支払い済み
           finish();
         } else if(player.isCPU){
           // CPUの現金不足 → CPU用株売却処理
-          const remaining=amount-player.cash;
-          player.cash=0;
-          _cpuRaiseCashWithAnim(player,remaining,()=>{
-            if(player.cash>=remaining){player.cash-=remaining;}
+          _cpuRaiseCashWithAnim(player,preRemaining,()=>{
+            if(player.cash>=preRemaining){player.cash-=preRemaining;}
             else bankrupt(player);
             renderStatus();
             cpuSay(player,'investDone');
             finish();
           });
         } else {
-          showPaymentModal(player,amount,finish);
+          showPaymentModal(player,preRemaining,finish);
         }
       });
     });
