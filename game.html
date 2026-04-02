@@ -17611,8 +17611,8 @@ s_souma:{...CPU_CHARS['souma'], name:'S・そうま', color:'#93c5fd', rank:'S',
       sabotageCounted:['株にかなりの損が出ている…10枚売りか。整理する','これだけ損をさせられたら動かざるを得ない','10枚売りをされたな。俺は見逃さないぞ','損失が積み上がった。今すぐ対策に動く'],
     }},
   s_sakura:{...CPU_CHARS['sakura'], name:'S・さくら', color:'#f9a8d4', rank:'S', routeSharp:true, spreadStock:true, insiderMul:1.2,
-    speech:{...CPU_CHARS['sakura'].speech, gameStart:['えいっ！今日は本気で全力でいくよ！', 'Aランクのさくらを舐めないでね！！']}},
-  s_wise:{...CPU_CHARS['wise'], name:'S・ワイズ', color:'#fde68a', rank:'S', routeSharp:true, spreadStock:true, insiderMul:1.35,
+    speech:{...CPU_CHARS['sakura'].speech, gameStart:['えいっ！今日は本気で全力でいくよ！', 'Sランクのさくらを舐めないでね！！']}},
+  s_wise:{...CPU_CHARS['wise'], name:'S・ワイズ', color:'#fde68a', rank:'S', routeSharp:true, spreadStock:true, insiderMul:1.5,
     speech:{...CPU_CHARS['wise'].speech, gameStart:['イギリス仕込みの本気、見せてあげる', 'Aランクのワイズより強いわよ。覚悟して']}},
   s_haruka:{...CPU_CHARS['haruka'], name:'S・はるか', color:'#a7f3d0', rank:'S', routeSharp:true, spreadStock:true, insiderMul:1.5,
     speech:{...CPU_CHARS['haruka'].speech, gameStart:['今日は全力で行く。ひかり、見てろ', 'Aランクの俺より強い。それが今日のはるかだ']}},
@@ -18115,14 +18115,14 @@ function showCpuAction(player,text,icon){
 // ===== Sランク専用: 銀行手前の株入れ替え =====
 // ── Sランク10枚売り対策：閾値テーブル ──
 const SABOTAGE_COUNTER_THRESHOLD = {
-  s_wise: 2500,
-  s_hayuu: 2000,
-  sako: 2000,
-  // その他Sランクはデフォルト1500
+  s_wise: 2000,
+  s_hayuu: 1600,
+  sako: 1600,
+  // その他Sランクはデフォルト1200
 };
 function _getSabotageCounterThreshold(player){
   const key = player.cpuChar;
-  return SABOTAGE_COUNTER_THRESHOLD[key] || 1500;
+  return SABOTAGE_COUNTER_THRESHOLD[key] || 1200;
 }
 
 // 株価下落によって victim が受けた損失を記録する
