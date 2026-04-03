@@ -13489,12 +13489,12 @@ function landEvent(player,sq){
       // 10枚以上売却時は株価下落（通常売却と同じ処理）
       pendingStockDown(area,cnt);
       if(cnt>=10){
-        const estNewSP=Math.max(1,sp69-Math.floor(sp69*cnt/100));
-        const priceDrop=sp69-estNewSP;
-        if(priceDrop>0){
+        // 株価下落は7%固定（B*0.93）
+        const priceDrop69=Math.floor(sp69*0.07);
+        if(priceDrop69>0){
           G.players.forEach(victim=>{
             if(victim.id===player.id||victim.bankrupt)return;
-            _recordStockDamage(victim,area,priceDrop);
+            _recordStockDamage(victim,area,priceDrop69);
           });
         }
       }
@@ -13508,7 +13508,12 @@ function landEvent(player,sq){
     const _safe69=setTimeout(()=>{ if(_orig69[1]&&G.areas[1].stockPrice!==_orig69[1]) _restore69(); },30000);
     if(player.isCPU){
       const best69=held69.reduce((a,b)=>((player.stocks[a]||0)*G.areas[a].stockPrice)>=((player.stocks[b]||0)*G.areas[b].stockPrice)?a:b);
-      _doSell69(best69); clearTimeout(_safe69); _restore69();
+      const cnt69=player.stocks[best69]||0;
+      const sp69tmp=G.areas[best69].stockPrice;
+      const plan69=[{a:best69,n:cnt69,sp:sp69tmp}];
+      showCpuSellThinking(player,plan69,[],false,()=>{
+        _doSell69(best69); clearTimeout(_safe69); _restore69();
+      });
     } else {
       showSellStockModal(player,()=>{ clearTimeout(_safe69); _restore69(); endAction(); });
     }
@@ -14308,12 +14313,12 @@ function landEvent(player,sq){
       // 10枚以上売却時は株価下落（通常売却と同じ処理）
       pendingStockDown(area,cnt);
       if(cnt>=10){
-        const estNewSP=Math.max(1,sp-Math.floor(sp*cnt/100));
-        const priceDrop=sp-estNewSP;
-        if(priceDrop>0){
+        // 株価下落は7%固定（B*0.93）
+        const priceDrop35=Math.floor(sp*0.07);
+        if(priceDrop35>0){
           G.players.forEach(victim=>{
             if(victim.id===player.id||victim.bankrupt)return;
-            _recordStockDamage(victim,area,priceDrop);
+            _recordStockDamage(victim,area,priceDrop35);
           });
         }
       }
@@ -14327,7 +14332,12 @@ function landEvent(player,sq){
     const _safe35=setTimeout(()=>{ if(_orig35[1]&&G.areas[1].stockPrice!==_orig35[1]) _restore35(); },30000);
     if(player.isCPU){
       const best35=held35.reduce((a,b)=>((player.stocks[a]||0)*G.areas[a].stockPrice)>=((player.stocks[b]||0)*G.areas[b].stockPrice)?a:b);
-      _doSell35(best35); clearTimeout(_safe35); _restore35();
+      const cnt35tmp=player.stocks[best35]||0;
+      const sp35tmp=G.areas[best35].stockPrice;
+      const plan35=[{a:best35,n:cnt35tmp,sp:sp35tmp}];
+      showCpuSellThinking(player,plan35,[],false,()=>{
+        _doSell35(best35); clearTimeout(_safe35); _restore35();
+      });
     } else {
       showSellStockModal(player,()=>{ clearTimeout(_safe35); _restore35(); endAction(); });
     }
