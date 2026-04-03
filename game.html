@@ -4975,7 +4975,7 @@ function saveGame(silent) {
       history: G.history.slice(),
       _mapId: G._mapId || 'shisaku',
       _spectateMode: !!_spectateMode,
-      _tourState: _tourState ? {mode:_tourState.mode, mapIdx:_tourState.mapIdx, clearedStages:_tourState.clearedStages||[], charaKey:_tourState.charaKey, charaName:_tourState.charaName||''} : null,
+      _tourState: _tourState ? {mode:_tourState.mode, mapIdx:_tourState.mapIdx, clearedStages:_tourState.clearedStages||[], charaKey:_tourState.charaKey||(_playerAvatar||'dog'), charaName:_tourState.charaName||''} : null,
     };
     // 変わるマークマスの現在状態を保存
     data.changeMarks = G.map.filter(n=>n.type==='changemark').map(n=>({id:n.id,mark:n.mark}));
@@ -5132,6 +5132,18 @@ function _loadGameData(data) {
       stat: Object.assign({tollPaid:0,tollReceived:0,tollPaidCount:0,tollReceivedCount:0,fiveBuyCount:0,riderGain:0,restSaved:0,stockDamageDealt:0,stockProfit:0}, pd.stat || {}),
     }));
 
+    // 序盤分散: ロード後もターン数が序盤なら _routePreference を再割り当て
+    // （セーブデータには保存されないため、ロード時に再設定が必要）
+    {
+      const _loadedTurn = data.turn || 1;
+      const _loadedPCount = players.length;
+      const _loadedRound = Math.floor((_loadedTurn - 1) / Math.max(1, _loadedPCount));
+      if(_loadedRound <= 2){
+        // まだ序盤（3ラウンド以内）→ プレイヤーIDの順に分散オフセットを再割り当て
+        players.forEach((p, i) => { p._routePreference = i; });
+      }
+    }
+
     // エリア状態復元
     const areas = {};
     for (let a = 1; a <= 16; a++) {
@@ -5185,6 +5197,10 @@ function _loadGameData(data) {
         maps: TOUR_NORMAL_MAPS,
         results: [], active: true,
       };
+      // セーブデータから駒（犬/猫）を復元
+      if(_tourState.charaKey==='dog'||_tourState.charaKey==='cat'){
+        _playerAvatar = _tourState.charaKey;
+      }
     } else {
       _tourState = null;
     }
@@ -12058,7 +12074,7 @@ function payToll(player,sq,callback){
         // 売られる側が目標金額を超えている場合は5倍買いしない
         if(getPlayerAssets(owner).total>=G.goalAmount){ callback();return; }
         let baseRate;
-        if(ch2&&(ch2.name==='宅建士りょう'||ch2.name==='ワイズ'||ch2.name==='クリスティー'||ch2.name==='サコ'||ch2.name==='はるか'||ch2.name==='ひかり')){
+        if(ch2&&(ch2.name==='宅建士りょう'||ch2.name==='ワイズ'||ch2.name==='クリスティー'||ch2.name==='サコ'||ch2.name==='はるか'||ch2.name==='ひかり'||ch2.name==='ポッター')){
           const _assetsNow=getPlayerAssets(player);
           baseRate=_assetsNow.total<G.goalAmount*0.8?(ch2.fiveTimesRate||0.70):(ch2.fiveTimesRateRich||0.50);
         } else if(ch2&&ch2.name==='ネネコ'){
@@ -12090,8 +12106,8 @@ function payToll(player,sq,callback){
         // 自分があと1軒で独占になる（4軒エリア3軒・5軒エリア4軒・6軒エリア5軒所持）
         const myNearMonopoly=areaTotal>=4&&myCount===areaTotal-1;
         // 【新条件】流動資産が店価格の15倍以上なら状況条件のしばりを外して5倍買い検討
-        const liqRich15Rest = liqRest >= sq.price * 15;
-        if(areaExpand||monopolyBreak||is3Crush||myNearMonopoly||liqRich15Rest){
+        const liqRich75Rest = liqRest >= sq.price * 75;
+        if(areaExpand||monopolyBreak||is3Crush||myNearMonopoly||liqRich75Rest){
           const _sb5=_fiveBuyStockBonus(player,sq.area,baseRate);
           const _ib5r=_fiveBuyInvestBonus(player,baseRate);
           let situScore=baseRate+_sb5+_ib5r;
@@ -12273,7 +12289,7 @@ function payToll(player,sq,callback){
         if(getPlayerAssets(owner).total>=G.goalAmount){ _afterFiveBuy();return; }
         // 宅建士りょう: 総資産80%未満→fiveTimesRate(0.95), 以上→fiveTimesRateRich(0.50)
         let baseRate;
-        if(ch2&&(ch2.name==='宅建士りょう'||ch2.name==='ワイズ'||ch2.name==='クリスティー'||ch2.name==='サコ'||ch2.name==='はるか'||ch2.name==='ひかり')){
+        if(ch2&&(ch2.name==='宅建士りょう'||ch2.name==='ワイズ'||ch2.name==='クリスティー'||ch2.name==='サコ'||ch2.name==='はるか'||ch2.name==='ひかり'||ch2.name==='ポッター')){
           const _assetsNow=getPlayerAssets(player);
           baseRate=_assetsNow.total<G.goalAmount*0.8?(ch2.fiveTimesRate||0.70):(ch2.fiveTimesRateRich||0.50);
         } else if(ch2&&ch2.name==='ネネコ'){
@@ -12308,9 +12324,9 @@ function payToll(player,sq,callback){
         // 自分があと1軒で独占（5・6軒エリアで4・5軒所持）
         const myNearMonopoly=areaTotal>=4&&myCount===areaTotal-1;
         // 【新条件】流動資産が店価格の15倍以上なら状況条件のしばりを外して5倍買い検討
-        const liqRich15 = liq >= sq.price * 15;
-        // 条件①②③④のいずれかに該当、またはliqRich15の場合に5倍買い検討
-        if(areaExpand||monopolyBreak||is3Crush||myNearMonopoly||liqRich15){
+        const liqRich75 = liq >= sq.price * 75;
+        // 条件①②③④のいずれかに該当、またはliqRich75の場合に5倍買い検討
+        if(areaExpand||monopolyBreak||is3Crush||myNearMonopoly||liqRich75){
           // 株保有枚数による補正（個性の±20%以内）
           const _sb5=_fiveBuyStockBonus(player,sq.area,baseRate);
           const _ib5p=_fiveBuyInvestBonus(player,baseRate);
@@ -16192,6 +16208,7 @@ const CHAR_SVGS={
 <circle cx="17" cy="24.5" r="1" fill="#ff8888" opacity=".5"/>
 </svg>`,
   takken_ryou:`<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="19" fill="#f0f4ff" stroke="#2255cc" stroke-width="2.5"/><ellipse cx="10" cy="12" rx="5" ry="7" fill="#5577ee" transform="rotate(-15,10,12)"/><ellipse cx="30" cy="12" rx="5" ry="7" fill="#5577ee" transform="rotate(15,30,12)"/><circle cx="20" cy="21" r="13" fill="#e0e8ff"/><ellipse cx="20" cy="26" rx="7" ry="4" fill="#a0b8ff"/><circle cx="15" cy="19" r="2.5" fill="#0a0a2a"/><circle cx="25" cy="19" r="2.5" fill="#0a0a2a"/><circle cx="16" cy="18" r="1" fill="white"/><circle cx="26" cy="18" r="1" fill="white"/><path d="M17 24 Q20 26.5 23 24" stroke="#2244aa" stroke-width="1.5" fill="none" stroke-linecap="round"/><rect x="11" y="9" width="8" height="2.5" rx="1.2" fill="#2244bb"/><rect x="21" y="9" width="8" height="2.5" rx="1.2" fill="#2244bb"/><text x="20" y="36" text-anchor="middle" font-size="5" fill="#2244cc" font-weight="bold">宅建士</text></svg>`,
+  potter:`<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="19" fill="#e8f0ff" stroke="#3366cc" stroke-width="2.5"/><ellipse cx="10" cy="12" rx="5" ry="7" fill="#4488cc" transform="rotate(-15,10,12)"/><ellipse cx="30" cy="12" rx="5" ry="7" fill="#4488cc" transform="rotate(15,30,12)"/><circle cx="20" cy="21" r="13" fill="#d8e4ff"/><ellipse cx="20" cy="26" rx="7" ry="4" fill="#9ab0ee"/><circle cx="15" cy="19" r="2.5" fill="#0a0a2a"/><circle cx="25" cy="19" r="2.5" fill="#0a0a2a"/><circle cx="16" cy="18" r="1" fill="white"/><circle cx="26" cy="18" r="1" fill="white"/><path d="M17 24 Q20 26.5 23 24" stroke="#2244aa" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M12 15 Q15 13 18 15" stroke="#556688" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M22 15 Q25 13 28 15" stroke="#556688" stroke-width="1.5" fill="none" stroke-linecap="round"/><circle cx="15" cy="19" r="4.5" fill="none" stroke="#556688" stroke-width="0.6"/><circle cx="25" cy="19" r="4.5" fill="none" stroke="#556688" stroke-width="0.6"/><line x1="19.5" y1="19" x2="20.5" y2="19" stroke="#556688" stroke-width="0.6"/><line x1="10.5" y1="17.5" x2="9" y2="16.5" stroke="#556688" stroke-width="0.5"/><line x1="29.5" y1="17.5" x2="31" y2="16.5" stroke="#556688" stroke-width="0.5"/></svg>`,
   souma:`<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="19" fill="#fff4e8" stroke="#ee8833" stroke-width="2"/><ellipse cx="9" cy="13" rx="4.5" ry="6" fill="#ee9944" transform="rotate(-25,9,13)"/><ellipse cx="31" cy="13" rx="4.5" ry="6" fill="#ee9944" transform="rotate(25,31,13)"/><circle cx="20" cy="21" r="13" fill="#fff0de"/><ellipse cx="20" cy="26" rx="7" ry="4" fill="#ffd0aa"/><circle cx="15" cy="19" r="2.5" fill="#2a1a00"/><circle cx="25" cy="19" r="2.5" fill="#2a1a00"/><circle cx="15.7" cy="17.8" r="1.1" fill="white"/><circle cx="25.7" cy="17.8" r="1.1" fill="white"/><path d="M16 24 Q20 27.5 24 24" stroke="#cc6600" stroke-width="1.5" fill="none" stroke-linecap="round"/><circle cx="20" cy="14" r="2.5" fill="#ffcc66"/><circle cx="14" cy="21" r="1.5" fill="#ee8833" opacity=".5"/><circle cx="26" cy="21" r="1.5" fill="#ee8833" opacity=".5"/></svg>`,
   haruka:`<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="19" fill="#eef4ff" stroke="#4488dd" stroke-width="2"/><circle cx="20" cy="21" r="13" fill="#ddeeff"/><ellipse cx="20" cy="26" rx="7" ry="4" fill="#99bbee"/><circle cx="15" cy="19" r="2.5" fill="#0a1a3a"/><circle cx="25" cy="19" r="2.5" fill="#0a1a3a"/><circle cx="16" cy="18" r="1" fill="white"/><circle cx="26" cy="18" r="1" fill="white"/><path d="M17 24 Q20 26 23 24" stroke="#2255aa" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M13 15 Q20 10 27 15 Q27 12 20 11 Q13 12 13 15" fill="#3366cc"/><rect x="14" y="14" width="12" height="2" rx="1" fill="#2244bb" opacity=".6"/></svg>`,
   hikari:`<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="19" fill="#fff0f8" stroke="#ff88cc" stroke-width="2"/><ellipse cx="8" cy="15" rx="4.5" ry="6.5" fill="#ffaad8" transform="rotate(-18,8,15)"/><ellipse cx="32" cy="15" rx="4.5" ry="6.5" fill="#ffaad8" transform="rotate(18,32,15)"/><circle cx="20" cy="21" r="13" fill="#ffe8f4"/><ellipse cx="20" cy="26" rx="7" ry="4" fill="#ffbbdd"/><circle cx="15" cy="19" r="2.5" fill="#3a1a2a"/><circle cx="25" cy="19" r="2.5" fill="#3a1a2a"/><circle cx="16" cy="18" r="1" fill="white"/><circle cx="26" cy="18" r="1" fill="white"/><path d="M17 24 Q20 27 23 24" stroke="#ee5599" stroke-width="1.5" fill="none" stroke-linecap="round"/><ellipse cx="13" cy="22" rx="2.5" ry="1.5" fill="#ffaacc" opacity=".7"/><ellipse cx="27" cy="22" rx="2.5" ry="1.5" fill="#ffaacc" opacity=".7"/><circle cx="20" cy="12" r="2" fill="#ffdd88"/></svg>`,
@@ -16321,6 +16338,28 @@ const CHAR_SVGS_NO_BG={
 <circle cx="17" cy="24.5" r="1" fill="#ff8888" opacity=".5"/>
 </svg>`,
   takken_ryou:``,
+  potter:`<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+<path d="M8 14 Q6 9 10 7 Q20 4 30 7 Q34 9 32 14" fill="#4488cc" opacity=".85"/>
+<path d="M8 14 Q6 20 7 28 Q9 23 9 19" fill="#3366aa" opacity=".65"/>
+<path d="M32 14 Q34 20 33 28 Q31 23 31 19" fill="#3366aa" opacity=".65"/>
+<circle cx="20" cy="21" r="13" fill="#e8edff"/>
+<ellipse cx="20" cy="27" rx="7" ry="4" fill="#c8d4f0"/>
+<circle cx="15" cy="19" r="2.8" fill="#1a0a00"/>
+<circle cx="25" cy="19" r="2.8" fill="#1a0a00"/>
+<circle cx="15.8" cy="18" r="1.1" fill="white"/>
+<circle cx="25.8" cy="18" r="1.1" fill="white"/>
+<path d="M12 15 Q15 13 18 15" stroke="#556688" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+<path d="M22 15 Q25 13 28 15" stroke="#556688" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+<path d="M16 24 Q20 27 24 24" stroke="#6677aa" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+<ellipse cx="14" cy="22" rx="2.5" ry="1.5" fill="#aabbdd" opacity=".5"/>
+<ellipse cx="26" cy="22" rx="2.5" ry="1.5" fill="#aabbdd" opacity=".5"/>
+<!-- 丸メガネ -->
+<circle cx="15" cy="19" r="4.5" fill="none" stroke="#556688" stroke-width="0.6"/>
+<circle cx="25" cy="19" r="4.5" fill="none" stroke="#556688" stroke-width="0.6"/>
+<line x1="19.5" y1="19" x2="20.5" y2="19" stroke="#556688" stroke-width="0.6"/>
+<line x1="10.5" y1="17.5" x2="9" y2="16.5" stroke="#556688" stroke-width="0.5"/>
+<line x1="29.5" y1="17.5" x2="31" y2="16.5" stroke="#556688" stroke-width="0.5"/>
+</svg>`,
   souma:``,
   haruka:``,
   hikari:``,
@@ -16418,6 +16457,7 @@ const CHAR_ICONS={
   mei:'🦊',ryou:'🐺',sakura:'🌸',hiroshi:'🦉',orika:'🐻',kiyoko:'🐢',ena:'🌙',
   hayuu:'🐯',souma:'🦝',takken_ryou:'🏠',sako:'💼',wise:'👑',christie:'🌷',
   haruka:'🌊',hikari:'🌟',neneko:'🎩',
+  potter:'🔵',
 };
 // ── 株価20%UP エリア選択画面（株売買画面と同じ形式）──
 // areas: 選択可能エリア配列, cpuTargetArea: CPUが選ぶエリア番号(nullならプレイヤー操作)
@@ -17611,6 +17651,53 @@ talkToPlayerGoalReached:['そこまで行くなんて…読めなかった。す
         rank3:['3位…トリックが足りなかったか', '読みが甘かった', '次はもっとうまくやる'],
         rank4:['4位か…これは想定外', 'まだトリックは残ってる', '次はリベンジするよ'],
         bankrupt:['破産か…マジシャンも失敗することはある', 'これはトリックじゃないよ、本当に負けた', '次こそ必ず取り返す'],
+      },
+    }
+  },
+  potter:{name:'ポッター', color:'#60a5fa',rank:'S',gender:'男',age:28,
+    investMin1:80,investMin2:90,investMin3:100,investMin4:100,insiderMul:1.0,
+    fiveTimesRate:0.80,fiveTimesRateRich:0.40,routeSharp:true,spreadStock:true,
+    speech:{
+      preRoll:['さて、どこに止まるかな','計算済みだ、行くぞ','全エリアが視野に入ってる','勝負！'],
+      buyShop:['このエリア、いただく','ここは外せない','計算どおりの選択だ'],
+      cantBuyShop:['今は見送る','タイミングじゃないな'],
+      payToll:['くっ、払うか','覚えておく','想定の範囲ではあるが…'],
+      buyStock:['全エリアを均等に見ていく','ここの株は価値がある','増資余りを考えれば買いだ'],
+      buyStockRider:['このエリア、増資余りが読める','便乗も立派な戦略だ','ここの動向は追っていた'],
+      levelUp:['よし、マークコンプだ','レベルアップ！'],
+      richComment:['このまま押し切る','ペース通りだ'],
+      poorComment:['まだあきらめない','巻き返せる'],
+      investDone:['増資完了、これで料金が上がる','狙い通りだ','店の価値を高めた'],
+      heavyToll:['これは…痛い出費だ','株を売るしかないか','まいった、想定外だ'],
+      cheapToll:['このくらいなら問題ない','安い。後で取り返す','想定の範囲内だ','まあ大したことはない','こんな金額か、余裕だ'],
+      bankrupt:['破産か…読み違えたな','まだやれると思ってたのに','また挑戦する、次は負けない'],
+      gameStart:['ポッターだ。全エリアを視野に入れて動く。覚悟してくれ','りょうが磨いた戦略をここで使う。全エリア制圧が目標だ'],
+      shop2:['2軒目確保。このエリア着実に固める','2軒揃えた'],
+      shop3:['3軒！あと1軒で独占だ','独占まであと一歩'],
+      shop4:['独占！このエリアもらった','4軒全部確保。増資し放題だ'],
+      shop4mid:['4軒！あと1軒で独占だ','もう一息'],
+      shop5:['5軒独占！完全制覇だ！','5軒全部確保した'],
+      shop5mid:['5軒！あと1軒で独占','5軒まで来た'],
+      shop6:['6軒独占！完璧だ！','6軒全部いただいた！'],
+      landedLucky:['ラッキーマス！全エリアから稼ぐぞ','これは嬉しい','ラッキーマス、計算どおり'],
+      landedRest:['休日マスか、作戦を立て直す','ゆっくり考えよう'],
+      monopolyBlocked:['そこ取られた！','くっ、邪魔された','後で5倍買いしてやる'],
+      talkToPlayer:['全力でいこうぜ','負けないからな','油断するなよ'],
+      talkToPlayerLosing:['差がついてるな…でもまだあきらめない。全エリアを使って巻き返す','今は負けてるが、増資余りの計算上まだチャンスはある'],
+      talkToPlayerLeading:['今は俺が上だ。このまま全エリアで差を広げる','いい展開だ。あとは押し切るだけだ'],
+      talkToPlayerGoalReached:['目標金額に届いたか。こっちも急がないとな','先にそこまで来られるとは。急ぐぞ'],
+      nearLevelUp:['銀行まであと少し！レベルアップだ！','もうすぐ昇格、着実に進んでいる'],
+      sabotageCounted:['株価の下落…10枚売りか。対策する','これ以上損は増やせない。整理だ'],
+      playerLanded:['来た！','ありがとな','いただきます！'],
+      playerLandedBig:['こ、これは！','でかい！ありがとう！','最高だ！'],
+      investDone:['増資完了！','店が育った，これで料金アップ','狙い通りだ'],
+      result:{
+        win:['勝った！全エリアを制圧した結果だ', '計算どおりの勝利だ', 'みんないい勝負だった。俺の勝ちだ'],
+        richlose:['先にゴールされたか…悔しい', '総資産では負けてないのに', '次は銀行も意識する'],
+        rank2:['2位か。惜しかった', 'あともう少しだったな', '次は勝つ'],
+        rank3:['3位…反省点が多い', '全エリア戦略が中途半端だったか', '次はもっとうまくやる'],
+        rank4:['4位は辛いな', '読みが甘かった', '次は必ずリベンジだ'],
+        bankrupt:['破産か…読み違えた', '全エリア対応が裏目に出たか', 'また挑戦する'],
       },
     }
   },
@@ -20678,7 +20765,7 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     }
 
     // ランク別制限
-    if(ch?.name!=='メイ'&&ch?.name!=='本気きよこ'&&ch?.name!=='覚醒ひろし'&&ch?.name!=='さくら'&&ch?.name!=='はゆう'&&ch?.name!=='そうま'&&ch?.name!=='ワイズ'&&ch?.name!=='ネネコ'&&ch?.name!=='エナ'&&ch?.name!=='クリスティー'&&ch?.name!=='きよこ'){
+    if(ch?.name!=='メイ'&&ch?.name!=='本気きよこ'&&ch?.name!=='覚醒ひろし'&&ch?.name!=='さくら'&&ch?.name!=='はゆう'&&ch?.name!=='そうま'&&ch?.name!=='ワイズ'&&ch?.name!=='ネネコ'&&ch?.name!=='エナ'&&ch?.name!=='クリスティー'&&ch?.name!=='きよこ'&&ch?.name!=='ポッター'){
       if(rank==='D'&&myShops===0)continue;
       if(rank==='C'&&myShops===0){if(Math.random()>0.1)continue;}
       // Bランク: 自分の店がないエリアは40%の確率でスキップ（60%で全エリア対象）
@@ -20698,6 +20785,7 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     if(ch?.name==='さくら'&&myShops===0){if(Math.random()>0.75)continue;}
     // エナ: 自分の店がないエリアは20%の確率でスキップ（80%で全エリア対象）
     if(ch?.name==='エナ'&&myShops===0){if(Math.random()>0.80)continue;}
+    // ポッター: 100%全エリア対象（スキップなし）
 
     // ============ 宅建士りょう専用: モード決定 ============
     // ターンの最初のcandidatesループ前(a===1)に1回だけモードを決める
@@ -20841,6 +20929,12 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
       score=(myRem*0.8+enemyRem*1.0)/Math.max(1,sp);
       // 相乗りエリア（敵の方が増資余りが多い）は分散購入するためスコアを均等化
       if(enemyRem>myRem) score*=(0.7+Math.random()*0.6);
+    } else if(ch&&ch.name==='ポッター'){
+      // ポッター専用: 100%全エリア対象、軒数によりx倍変動
+      // x: 1軒=1.0, 2軒=1.5, 3軒=2.0, 4軒以上=3.0
+      const _potterCount=myShops;
+      const _potterX=_potterCount>=4?3.0:_potterCount>=3?2.0:_potterCount>=2?1.5:1.0;
+      score=(myRem*_potterX+enemyRem*1.0)/Math.max(1,sp);
     } else {
       const insiderScore=myShops>0?(myRem/sp)*insiderMul:0;
       const riderScore=enemyRem>0?(enemyRem/sp)*1.0:0;
@@ -20863,7 +20957,7 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     let minShares;
     const _chNm=ch?ch.name:'';
     if(myShops===1||myShops===2){
-      if(_chNm==='メイ'||_chNm==='本気きよこ'||_chNm==='覚醒ひろし'||_chNm==='宅建士りょう'
+      if(_chNm==='メイ'||_chNm==='本気きよこ'||_chNm==='覚醒ひろし'||_chNm==='宅建士りょう'||_chNm==='ポッター'
         ||_chNm==='S・そうま'||_chNm==='S・クリスティー'||_chNm==='S・エナ'||_chNm==='S・おりか'
         ||_chNm==='S・はゆう'||_chNm==='S・さくら'||_chNm==='S・はるか'||_chNm==='S・ひかり'){
         const _aS=getAreaShops(a);
@@ -20892,6 +20986,8 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
           minShares=_oT?99:(_liqBS>=1000?0:99);
         } else if(_chNm==='宅建士りょう'){
           minShares=_oT?60:(_liqBS>=1000?0:60);
+        } else if(_chNm==='ポッター'){
+          minShares=_oT?80:(_liqBS>=1000?0:80);
         } else {
           // Sランク版（ワイズ除く）: 最高料金店未所有かつ流動1000G以上なら閾値0
           const _inv=myShops>=2?(ch?.investMin2??ch?.investMin12??50):(ch?.investMin1??ch?.investMin12??20);
@@ -20921,6 +21017,10 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
       else if(ch.name==='ひかり') _myMul=(ch._hikaribuyMode||'all')==='all'?0.9:1.2;
       else if(ch.name==='ネネコ') _myMul=2.0;
       else if(ch.name==='りょう') _myMul=0.8;
+      else if(ch.name==='ポッター'){
+        const _pCount=myShops;
+        _myMul=_pCount>=4?3.0:_pCount>=3?2.0:_pCount>=2?1.5:1.0;
+      }
       else if(ch.insiderMul) _myMul=ch.insiderMul;
     }
     const _myScore=myRem*_myMul;
@@ -21093,6 +21193,14 @@ function cpuInvest(player,done){
       if(_nm==='宅建士りょう'){
         if(cnt===1) return _ownsTop?60:(_liqCI>=1000?0:60);
         if(cnt===2) return _ownsTop?60:(_liqCI>=1000?0:60);
+      }
+      if(_nm==='ポッター'){
+        if(cnt===1) return _ownsTop?80:(_liqCI>=1000?0:80);
+        if(cnt===2) return _ownsTop?90:(_liqCI>=1000?0:90);
+        if(cnt===3) return _ownsTop?100:90;
+        if(cnt===4) return _ownsTop?100:90;
+        if(cnt===5) return _ownsTop?100:90;
+        if(cnt===6) return _ownsTop?100:90;
       }
       if(_nm==='ワイズ'){
         if(cnt===1) return _ownsTop?90:(_liqCI>=5000?0:(_liqCI>=1000?60:90));
@@ -24467,7 +24575,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
     ryou:'#e8edff', sakura:'#fff0e8', hiroshi:'#eef0d8', orika:'#ffeecc',
     kiyoko:'#eeffee', ena:'#eeebff', hayuu:'#dce8ff',
     sako:'#3a2010', wise:'#fff8ee', christie:'#fff8ee',
-    takken_ryou:'#e0e8ff', souma:'#fff0de',
+    takken_ryou:'#e0e8ff', potter:'#d8e4ff', souma:'#fff0de',
     haruka:'#ddeeff', hikari:'#ffe8f4', neneko:'#2a1040',
     s_souma:'#fff0de',
     s_christie:'#fff8ee',
@@ -24481,7 +24589,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
   };
   const CHAR_ACC={
     mei:'#ffaac8', honkikiyoko:'#44bbaa', kakuseihiroshi:'#88cc44', ryou:'#88aaff',
-    takken_ryou:'#2255cc', sako:'#e8a030', wise:'#cc9900', christie:'#dd8833',
+    takken_ryou:'#2255cc', potter:'#3366cc', sako:'#e8a030', wise:'#cc9900', christie:'#dd8833',
     sakura:'#ffcc88', hiroshi:'#aabb66', orika:'#ffaa66', kiyoko:'#66ccaa',
     ena:'#cc99ff', haruka:'#6699dd', hikari:'#ff99cc', neneko:'#cc88ff',
     s_souma:'#ee9944',
@@ -24511,6 +24619,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
     mei:        {tail:'#ff9ec8', belly:'#fff0f5', pattern:'fox'},   // キツネ
     ryou:       {tail:'#aabcff', belly:'#e8edff', pattern:'wolf'},  // オオカミ
     takken_ryou:{tail:'#5577ee', belly:'#e0e8ff', pattern:'wolf'},
+    potter:     {tail:'#3366cc', belly:'#d8e4ff', pattern:'wolf'},
     orika:      {tail:'#ffcc99', belly:'#ffeecc', pattern:'bear'},  // クマ
     ena:        {tail:'#cc99ff', belly:'#eeebff', pattern:'cat'},   // ネコ
     hayuu:      {tail:'#4466bb', belly:'#dce8ff', pattern:'tiger'}, // トラ
@@ -24748,7 +24857,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
         addRotatedEllipse(sx(10),sy(12),sr(5),sr(7),-15);
         addRotatedEllipse(sx(30),sy(12),sr(5),sr(7),15);
         ctx.arc(sx(20),sy(21),sr(13),0,Math.PI*2);
-      } else if(charKey==='takken_ryou'){
+      } else if(charKey==='takken_ryou'||charKey==='potter'){
         addRotatedEllipse(sx(10),sy(12),sr(5),sr(7),-15);
         addRotatedEllipse(sx(30),sy(12),sr(5),sr(7),15);
         ctx.arc(sx(20),sy(21),sr(13),0,Math.PI*2);
@@ -24826,7 +24935,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
   }
 
   // ── 名前プレート ──
-  const _CHAR_NAMES={mei:'メイ',honkikiyoko:'本気きよこ',kakuseihiroshi:'覚醒ひろし',ryou:'りょう',takken_ryou:'宅建士りょう',sako:'サコ',wise:'ワイズ',christie:'クリスティー',sakura:'さくら',hiroshi:'ひろし',orika:'おりか',kiyoko:'きよこ',ena:'エナ',hayuu:'はゆう',souma:'そうま',haruka:'はるか',hikari:'ひかり',neneko:'ネネコ',s_souma:'S・そうま',s_christie:'S・クリスティー',s_ena:'S・エナ',s_orika:'S・おりか',s_hayuu:'S・はゆう',s_sakura:'S・さくら',s_wise:'S・ワイズ',s_haruka:'S・はるか',s_hikari:'S・ひかり'};
+  const _CHAR_NAMES={mei:'メイ',honkikiyoko:'本気きよこ',kakuseihiroshi:'覚醒ひろし',ryou:'りょう',takken_ryou:'宅建士りょう',sako:'サコ',wise:'ワイズ',christie:'クリスティー',sakura:'さくら',hiroshi:'ひろし',orika:'おりか',kiyoko:'きよこ',ena:'エナ',hayuu:'はゆう',souma:'そうま',haruka:'はるか',hikari:'ひかり',neneko:'ネネコ',potter:'ポッター',s_souma:'S・そうま',s_christie:'S・クリスティー',s_ena:'S・エナ',s_orika:'S・おりか',s_hayuu:'S・はゆう',s_sakura:'S・さくら',s_wise:'S・ワイズ',s_haruka:'S・はるか',s_hikari:'S・ひかり'};
   const nameText = charKey ? (_CHAR_NAMES[charKey]||'?') : 'YOU';
   ctx.font='bold 8px "M PLUS Rounded 1c",sans-serif';
   const tw=ctx.measureText(nameText).width;
@@ -25777,7 +25886,7 @@ const TOUR_HARD_CONFIG = [
   {mapId:'sunsetharbor', goal:22000, cpus:['s_wise','s_hayuu','takken_ryou']},
   {mapId:'casinoourorea',goal:22000, cpus:['sako','s_ena','s_haruka']},
   {mapId:'rivera',       goal:25000, cpus:['mei','s_wise','kakuseihiroshi']},
-  {mapId:'lastheaven',   goal:50000, cpus:['neneko','takken_ryou','s_sakura']},
+  {mapId:'lastheaven',   goal:50000, cpus:['neneko','potter','s_sakura']},
 ];
 
 // プレイヤー選択キャラ（犬・猫）
@@ -26833,6 +26942,18 @@ const CPU_GUIDE_DATA = [
     ],
   },
   {
+    key:'potter', stars:[5,4,4], rank:'S',
+    tagline:'りょうが丸メガネをかけた全エリア制圧型',
+    tend:[
+      'りょうと同一人物ながら、丸メガネをかけた姿で登場するSランクキャラ。<b>盤面全体を常に広く見渡して株を評価し</b>、自分の店がないエリアにも積極的に手を伸ばします。',
+      'ポッターの最大の特徴は<b>エリアに自分の店が増えるほど、そのエリアの株をより高く評価する</b>点です。店を増やせば増やすほど株への執着も強くなるため、育てたエリアは一気に制圧されるおそれがあります。5倍買いには積極的ですが、資産が目標に十分近づくと急に大人しくなります。',
+    ],
+    tips:[
+      'ポッターに<b>特定のエリアで複数の店を取られると、そのエリアの株を猛烈に買い集め始めます。</b>早めに阻止するか、そのエリアへの着地を避けましょう。',
+      '資産が目標金額に近づくと5倍買いを大きく控えるようになります。逆に言えば<b>序盤〜中盤の資産が少ない時期が最も危険</b>です。独占エリアを作らないことが基本的な対策です。',
+    ],
+  },
+  {
     key:'sako', stars:[4,4,5], rank:'S',
     tagline:'コートジボワール発・バランス型の若き強豪',
     tend:[
@@ -26889,7 +27010,7 @@ function _isSRankUnlocked(){
 }
 // Sランクキャラかどうか判定（s_プレフィックス or 元からSランクの固定キャラ）
 const S_RANK_HIDDEN_KEYS = new Set([
-  'mei','honkikiyoko','kakuseihiroshi','sako','neneko','takken_ryou',
+  'mei','honkikiyoko','kakuseihiroshi','sako','neneko','takken_ryou','potter',
   's_souma','s_christie','s_ena','s_orika','s_hayuu','s_sakura',
   's_wise','s_haruka','s_hikari',
 ]);
@@ -27011,7 +27132,7 @@ function showHelp(){
 }
 
 // ===== SETUP UI =====
-const CHAR_ORDER=['mei','honkikiyoko','kakuseihiroshi','sako','neneko','ryou','takken_ryou','haruka','s_haruka','sakura','s_sakura','hiroshi','orika','s_orika','kiyoko','ena','s_ena','hayuu','s_hayuu','wise','s_wise','hikari','s_hikari','christie','s_christie','souma','s_souma'];
+const CHAR_ORDER=['mei','honkikiyoko','kakuseihiroshi','sako','neneko','ryou','takken_ryou','potter','haruka','s_haruka','sakura','s_sakura','hiroshi','orika','s_orika','kiyoko','ena','s_ena','hayuu','s_hayuu','wise','s_wise','hikari','s_hikari','christie','s_christie','souma','s_souma'];
 const RANK_BADGE={'S':'🔴S','A':'🟠A','C':'🔵C','B':'🟡B','C':'🟢C','D':'⚪D'};
 // 各スロットに選択されているキャラID ('human' or cpuChar key or null=なし)
 let _gameRunning=false;  // ゲーム進行フラグ
