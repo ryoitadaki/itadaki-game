@@ -11861,15 +11861,7 @@ function landShop(player,sq){
   }else if(sq.owner===player.id){
     if(player.isCPU){
       const _ch_inv=getCpuChar(player);
-      const _afterInvest=()=>{
-        // S/Aランクは増資後に不要株整理を実行してからendAction
-        if(_ch_inv&&(_ch_inv.rank==='S'||_ch_inv.rank==='A')){
-          meiSmartStockSwap(player,()=>endAction());
-        } else {
-          endAction();
-        }
-      };
-      cpuInvest(player,_afterInvest);
+      cpuInvest(player,()=>endAction());
     } else {
       // プレイヤー: 増資確認ダイアログを表示してから増資画面へ
       const _rem=G.map.filter(s=>s.type==='shop'&&s.owner===player.id&&getRemainingInvest(s)>0).length;
@@ -14696,14 +14688,7 @@ function landEvent(player,sq){
     _flashOverlay('#4ade80',_td(300),0.35);
     if(player.isCPU){
       const _ch_inv36=getCpuChar(player);
-      const _afterInvest36=()=>{
-        if(_ch_inv36&&(_ch_inv36.rank==='S'||_ch_inv36.rank==='A')){
-          meiSmartStockSwap(player,()=>endAction());
-        } else {
-          endAction();
-        }
-      };
-      cpuInvest(player,_afterInvest36);
+      cpuInvest(player,()=>endAction());
     } else {
       showEventNotif('📈','増資チャンス！','100G払って持ち店を1軒増資できる（任意）','#4da6ff',
         ()=>showInvestSelectModal(player,()=>endAction()),true);
