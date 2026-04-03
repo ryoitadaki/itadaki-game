@@ -17656,7 +17656,7 @@ talkToPlayerGoalReached:['そこまで行くなんて…読めなかった。す
   },
   potter:{name:'ポッター', color:'#60a5fa',rank:'S',gender:'男',age:28,
     investMin1:80,investMin2:90,investMin3:100,investMin4:100,insiderMul:1.0,
-    fiveTimesRate:0.80,fiveTimesRateRich:0.40,routeSharp:true,spreadStock:true,
+    fiveTimesRate:0.99,fiveTimesRateRich:0.40,routeSharp:true,spreadStock:true,
     speech:{
       preRoll:['さて、どこに止まるかな','計算済みだ、行くぞ','全エリアが視野に入ってる','勝負！'],
       buyShop:['このエリア、いただく','ここは外せない','計算どおりの選択だ'],
@@ -21282,6 +21282,24 @@ function cpuInvest(player,done){
   const target=scored[0];
   const sq=target.sq;
   const rem=target.rem;
+
+  // ===== ポッター専用: 条件次第で100G増資 =====
+  if(ch&&ch.name==='ポッター'&&target.cnt>=3){
+    const _pTotal=getPlayerAssets(player).total;
+    const _pRich=_pTotal>=G.goalAmount*0.9;
+    const _pHeld=target.myHeld;
+    // ① 総資産90%未満 & 株80〜99枚 → 100G増資
+    // ② 総資産90%以上 & 株80〜89枚 → 100G増資
+    const _potter100G=(!_pRich&&_pHeld>=80&&_pHeld<=99)||(_pRich&&_pHeld>=80&&_pHeld<=89);
+    if(_potter100G){
+      const investAmt100=Math.min(100,rem,liq);
+      if(investAmt100>=1){
+        _showInvestHTML(player,done);
+        showCpuInvestThink(player,sq,investAmt100,scored,done);
+        return;
+      }
+    }
+  }
 
   // 増資額決定
   let investAmt=Math.min(999,rem,Math.floor(liq*0.6)); // 1回の増資上限は999G
