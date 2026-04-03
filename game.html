@@ -5179,6 +5179,7 @@ function _loadGameData(data) {
       _allTollBoost30ExpireIdx: data._allTollBoost30ExpireIdx??null,
       _diceRngSeed: data._diceRngSeed||1,
       _diceRngCount: data._diceRngCount||0,
+      _stockDownApplied: new Set(),
     };
 
     mapScale = 0.85; mapOffX = 0; mapOffY = 0;
@@ -9876,6 +9877,7 @@ function initGame(playerDefs,goalAmount,bankruptLimit){
   G._pendingStockDown={};
   G._pendingStockBought={};
   G._pendingStockBoughtUp={};
+  G._stockDownApplied=new Set();
   G._junctionPending=false;
   updateAreaStockPrices();
   renderAll();
@@ -18930,11 +18932,14 @@ function _endActionProceed(){
   };
   if(G._pendingStockDown&&Object.keys(G._pendingStockDown).length>0){
     const downAreas=[];
+    // ターン内で既にB*0.93を適用済みのエリアを記録（同一ターン内で最大1回のみ）
+    G._stockDownApplied=G._stockDownApplied||new Set();
     Object.entries(G._pendingStockDown).forEach(([a,n])=>{
       const aNum=parseInt(a);
       const _boughtThisTurn=(G._pendingStockBought||{})[aNum]||0;
       const _netSell=n-_boughtThisTurn; // 購入分を差し引いた実質売却枚数
-      if(_netSell>=10){
+      if(_netSell>=10&&!G._stockDownApplied.has(aNum)){
+        G._stockDownApplied.add(aNum); // このターンこのエリアは適用済みにマーク
         const oldPrice=G.areas[aNum].stockPrice;
         G.areas[aNum].B=Math.max(100,Math.floor(G.areas[aNum].B*0.93));
         updateAreaStockPrices(false);
@@ -19027,6 +19032,7 @@ function nextTurn(){
   if(!_gameRunning)return;
   if(!G||!G.players||!G.players.length)return;
   if(!G._pendingStockDown)G._pendingStockDown={};
+  G._stockDownApplied=new Set(); // ターン内適用済みフラグをリセット
   // Sランク10枚売りの除外エリアをターン終了時にクリア
   const _prevP=G.players[(G.currentPlayerIdx-1+G.players.length)%G.players.length];
   if(_prevP) _prevP._sabotageAreas=[];
@@ -21609,7 +21615,8 @@ function showCpuSellThinking(player, sellPlan, shopSell, isSabotage, callback){
   setTimeout(()=>{
     const mc=mc_get();if(!mc)return;
     const h=mc.querySelector('.sh-header span:first-child');
-    if(h)h.textContent=isSabotage?`🎯 ${player.name} が10枚売りを実行中…`:`📉 ${player.name} が株を売ります…`;
+    if(h)h.textContent=isSabotage?`🎯 ${player.name} が10枚売りを実行中…`
+      :`📉 ${player.name} が株を売ります…`;
   },150);
 
   const highlightArea=(aIdx,color)=>{
