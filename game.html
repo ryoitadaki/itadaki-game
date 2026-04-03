@@ -21246,6 +21246,15 @@ function cpuInvest(player,done){
         return (!_ownsTop&&_liqCI>=1000)?0:_inv;
       }
     }
+    // ポッター: cnt>=3のとき100G増資条件(80枚以上)でもscoredに通す
+    if(_nm==='ポッター'&&cnt>=3){
+      const _pTotal2=getPlayerAssets(player).total;
+      const _pRich2=_pTotal2>=G.goalAmount*0.9;
+      // 通常増資閾値（①②条件外: 100枚以上 or 90%以上で90枚以上）
+      // ただし100G増資条件（80枚〜）でも通すため最低閾値を80に
+      const _pNormalMin=_pRich2?90:100;
+      return Math.min(_pNormalMin,80); // 80枚以上でscoredに通す
+    }
     if(cnt>=4) return ch?.investMin4??90;
     if(cnt>=3) return ch?.investMin3??70;
     if(cnt>=2) return ch?.investMin2??ch?.investMin12??50;
