@@ -12432,8 +12432,12 @@ function _cpuRaiseCashWithAnim(player,needed,callback){
     const maxSell=Math.max(0,held-minKeep);
     const boughtThisTurn=(G._pendingStockBought||{})[a]||0;
     const forceMin9=held>=9&&minKeep===0&&boughtThisTurn===0;
-    const n=Math.min(maxSell,Math.max(forceMin9?9:1,needN));
+    let n=Math.min(maxSell,Math.max(forceMin9?9:1,needN));
     if(n<=0)continue;
+    // ポッター専用: 10枚以上売るときは5枚余分に売る
+    if(ch_rc&&ch_rc.name==='ポッター'&&n>=10){
+      n=Math.min(maxSell,n+5);
+    }
     sellPlan.push({a,n,sp});
     simCash+=n*sp;
   }
