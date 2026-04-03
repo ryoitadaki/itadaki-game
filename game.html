@@ -12456,16 +12456,18 @@ function _cpuRaiseCashWithAnim(player,needed,callback){
   const sellPlan=[];
   let simCash=player.cash;
   for(const{a,held,sp} of areaScores){
-    if(simCash>=needed)break;
-    const needN=Math.ceil((needed-simCash)/sp);
     // 不要株かどうか判定
     const isUnnec=isUnnecessaryStock(a);
     // Sランクは35枚残し対象なら35枚、それ以外の不要株なら5枚、不要株でなければ0枚残す
     const minKeep=isUnnec?(isSrank_rc&&hold35Areas_rc.has(a)?35:5):0;
+    // 不要株でなく既に必要額が集まっていればスキップ
+    if(!isUnnec&&simCash>=needed)continue;
+    const needN=Math.ceil((needed-simCash)/sp);
     const maxSell=Math.max(0,held-minKeep);
     const boughtThisTurn=(G._pendingStockBought||{})[a]||0;
     const forceMin9=held>=9&&minKeep===0&&boughtThisTurn===0;
-    let n=Math.min(maxSell,Math.max(forceMin9?9:1,needN));
+    // 不要株なら最大まで売る（5枚残し/35枚残し）、通常株なら必要分だけ
+    let n=isUnnec?maxSell:Math.min(maxSell,Math.max(forceMin9?9:1,needN));
     if(n<=0)continue;
     // ポッター専用: 10枚以上売るときは5枚余分に売る
     if(ch_rc&&ch_rc.name==='ポッター'&&n>=10){
