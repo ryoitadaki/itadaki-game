@@ -9755,6 +9755,7 @@ function _td(ms){
   return ms;
 }
 let _routeArrowAnim=null;
+
 function toggleCpuSpeed(){
   _cpuSpeedMode=(_cpuSpeedMode+1)%3;
   _cpuSpeedX2=(_cpuSpeedMode>=1); // 互換用
@@ -18440,28 +18441,35 @@ function _checkSabotageCounter(player, callback){
   cpuSay(player,'sabotageCounted');
   // 対策売りしたエリアを購入除外リストに追加
   player._sabotageAreas = player._sabotageAreas||[];
-  // 順番に35枚残して売却
-  function _doNext(idx){
-    if(idx>=targets.length){callback();return;}
-    const{a, held} = targets[idx];
+
+  // sellPlanを構築（showCpuSellThinkingに渡す形式）
+  const _counterSellPlan = [];
+  for(const{a, held} of targets){
     const sellN = held - 35;
-    if(sellN<=0){_doNext(idx+1);return;}
+    if(sellN <= 0) continue;
     const sp = G.areas[a].stockPrice;
-    const gain = sellN * sp;
-    player.stocks[a] = 35;
-    player.cash += gain;
-    pendingStockDown(a, sellN);
-    pendingStockSoldForUp(a, sellN);
-    // このターン中はこのエリアの株を買わない
-    if(!player._sabotageAreas.includes(a)) player._sabotageAreas.push(a);
-    addLog(`🛡️ ${player.name} 対策売り！A${a}株×${sellN}枚(35枚残し) +${gain.toLocaleString()}G`,'pay');
-    showCpuAction(player,`A${a}株を対策売り(35枚残し)！`,'🛡️');
-    renderStatus();
-    _doNext(idx+1);
+    _counterSellPlan.push({a, n: sellN, sp});
   }
+  if(!_counterSellPlan.length){callback();return;}
+
+  // セリフ(_queueDisp)が完了してから株売買画面を表示する
   _queueDisp((_next)=>{
-    _doNext(0);
-    _next();
+    showCpuSellThinking(player, _counterSellPlan, [], false, ()=>{
+      for(const{a, n, sp} of _counterSellPlan){
+        if((player.stocks[a]||0) < n) continue;
+        const gain = n * sp;
+        player.stocks[a] -= n;
+        player.cash += gain;
+        pendingStockDown(a, n);
+        pendingStockSoldForUp(a, n);
+        // このターン中はこのエリアの株を買わない
+        if(!player._sabotageAreas.includes(a)) player._sabotageAreas.push(a);
+        addLog(`🛡️ ${player.name} 対策売り！A${a}株×${n}枚(35枚残し) +${gain.toLocaleString()}G`,'pay');
+      }
+      renderStatus();
+      _next();
+      callback();
+    });
   });
 }
 
@@ -19604,7 +19612,6 @@ function _cpuAucShopSelectAnim(player, myShops, mc, onSelect){
 // ============================================================
 function _showAuctionAnnounce(sq, sellerName, isForced, callback){
   if(!sq){if(callback)callback();return;}
-
   // 告知〜競売開始までの待機中はプレイヤー操作をブロック
   setCpuInputBlock(true);
 
@@ -21122,8 +21129,8 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
       } else {
         minShares=myShops>=2?(((_chNm==='はゆう'||_chNm==='S・はゆう')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin2??50)):(ch?.investMin1??ch?.investMin12??20);
       }
-    } else if(myShops>=4) minShares=((_chNm==='ワイズ'||_chNm==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:(((['サコ','はゆう','S・はゆう'].includes(_chNm))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin4??90));
-    else if(myShops>=3) minShares=((_chNm==='ワイズ'||_chNm==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:(((['サコ','はゆう','S・はゆう'].includes(_chNm))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin3??70));
+    } else if(myShops>=4) minShares=((_chNm==='ワイズ'||_chNm==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:((_chNm==='ワイズ'||_chNm==='S・ワイズ')?140:(((['サコ','はゆう','S・はゆう'].includes(_chNm))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin4??90)));
+    else if(myShops>=3) minShares=((_chNm==='ワイズ'||_chNm==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:((_chNm==='ワイズ'||_chNm==='S・ワイズ')?140:(((['サコ','はゆう','S・はゆう'].includes(_chNm))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin3??70)));
     else                minShares=ch?.investMin1??ch?.investMin12??20;
     if(score<0.1&&myHeld>=minShares)continue;
 
@@ -21261,8 +21268,8 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     } else {
       minSB=myShopsB>=2?(((_chNm2==='はゆう'||_chNm2==='S・はゆう')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin2??50)):(ch?.investMin1??ch?.investMin12??20);
     }
-  } else if(myShopsB>=4) minSB=((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:(((['サコ','はゆう','S・はゆう'].includes(_chNm2))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin4??90));
-  else if(myShopsB>=3) minSB=((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:(((['サコ','はゆう','S・はゆう'].includes(_chNm2))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin3??70));
+  } else if(myShopsB>=4) minSB=((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')?140:(((['サコ','はゆう','S・はゆう'].includes(_chNm2))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin4??90)));
+  else if(myShopsB>=3) minSB=((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')?140:(((['サコ','はゆう','S・はゆう'].includes(_chNm2))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin3??70)));
   else                 minSB=ch?.investMin1??ch?.investMin12??20;
   if((player.stocks[best.a]||0)>=minSB&&best.score<=2){callback();return;}
 
