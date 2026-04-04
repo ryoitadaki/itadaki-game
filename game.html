@@ -5131,6 +5131,7 @@ function _loadGameData(data) {
       _cashDebt: pd._cashDebt||0,
       _eventLandCount: pd._eventLandCount||0,
       _stockDamageTaken: {},
+      _stockDamageByAttacker: {},
       stat: Object.assign({tollPaid:0,tollReceived:0,tollPaidCount:0,tollReceivedCount:0,fiveBuyCount:0,riderGain:0,restSaved:0,stockDamageDealt:0,stockProfit:0}, pd.stat || {}),
     }));
 
@@ -9839,7 +9840,7 @@ function initGame(playerDefs,goalAmount,bankruptLimit){
     marks:[false,false,false,false],
     level:1,pos:0,
     resting:false,lucky:false,bankrupt:false,_needExtraLap:false,_prevPos:null,_canReverse:false,_tollBoost30My:false,_tollHalfMy:false,_tollBoost2My:false,_freeToll:false,_halfToll:false,anyCards:0,_forceDice1:false,_cashDebt:0,_eventLandCount:0,
-    _bankStockBoughtThisTurn:false,_warpedThisTurn:false,_stockDamageTaken:{},
+    _bankStockBoughtThisTurn:false,_warpedThisTurn:false,_stockDamageTaken:{},_stockDamageByAttacker:{},
   }));
   // 順番はshowOrderSlot()のサイコロ結果で確定済みのためシャッフル不要
   // ID を振り直す（colorはそのまま）
@@ -13494,7 +13495,7 @@ function landEvent(player,sq){
         if(priceDrop69>0){
           G.players.forEach(victim=>{
             if(victim.id===player.id||victim.bankrupt)return;
-            _recordStockDamage(victim,area,priceDrop69);
+            _recordStockDamage(victim,area,priceDrop69,player);
           });
         }
       }
@@ -14318,7 +14319,7 @@ function landEvent(player,sq){
         if(priceDrop35>0){
           G.players.forEach(victim=>{
             if(victim.id===player.id||victim.bankrupt)return;
-            _recordStockDamage(victim,area,priceDrop35);
+            _recordStockDamage(victim,area,priceDrop35,player);
           });
         }
       }
@@ -16728,7 +16729,7 @@ function _showSellStockHTML(player,done,neededCash){
             if(priceDrop>0){
               G.players.forEach(victim=>{
                 if(victim.id===player.id||victim.bankrupt)return;
-                _recordStockDamage(victim,ar,priceDrop);
+                _recordStockDamage(victim,ar,priceDrop,player);
               });
             }
           }
@@ -18334,7 +18335,8 @@ function _getSabotageCounterThreshold(player){
 
 // 株価下落によって victim が受けた損失を記録する
 // priceDrop: 1枚あたりの株価下落額、area: エリア番号
-function _recordStockDamage(victim, area, priceDrop){
+// attacker: 売却を行ったプレイヤー（省略可、省略時は加害者別履歴を記録しない）
+function _recordStockDamage(victim, area, priceDrop, attacker){
   if(!victim||victim.bankrupt)return;
   const ch = getCpuChar(victim);
   if(!ch||ch.rank!=='S')return; // Sランクのみ記録
@@ -18342,8 +18344,37 @@ function _recordStockDamage(victim, area, priceDrop){
   if(held<=0)return;
   const damage = held * priceDrop;
   if(damage<=0)return;
+  // ── 既存: エリア別累積ダメージ ──
   victim._stockDamageTaken = victim._stockDamageTaken||{};
   victim._stockDamageTaken[area] = (victim._stockDamageTaken[area]||0) + damage;
+  // ── 新規: 加害者別・直近3巡ダメージ履歴 ──
+  // attacker が指定されている場合のみ記録
+  if(!attacker||attacker.id===victim.id)return;
+  victim._stockDamageByAttacker = victim._stockDamageByAttacker||{};
+  const key = attacker.id;
+  if(!victim._stockDamageByAttacker[key]){
+    // [現在ターン累積, 1巡前, 2巡前] の3要素配列
+    victim._stockDamageByAttacker[key] = [0, 0, 0];
+  }
+  // 現在のターン枠（index 0）に加算
+  victim._stockDamageByAttacker[key][0] += damage;
+}
+
+// 加害者のターン開始時に呼ぶ：直近3巡ウィンドウをスライドする
+// attacker のターンが始まったとき、全Sランク被害者の履歴配列をシフトし
+// 古い4件目以降を捨てる（直近3件 = index 0〜2 を保持）
+function _advanceAttackerTurn(attacker){
+  if(!G||!G.players)return;
+  G.players.forEach(victim=>{
+    if(victim.id===attacker.id||victim.bankrupt)return;
+    const ch = getCpuChar(victim);
+    if(!ch||ch.rank!=='S')return;
+    const rec = victim._stockDamageByAttacker&&victim._stockDamageByAttacker[attacker.id];
+    if(!rec)return;
+    // 新しいターン枠を先頭に追加し、配列を直近3件に切り詰める
+    rec.unshift(0);
+    if(rec.length>3) rec.length=3;
+  });
 }
 
 // ── Sランク10枚売り対策：ターン開始時チェック＆35枚残し売却 ──
@@ -18353,17 +18384,55 @@ function _checkSabotageCounter(player, callback){
   if(!ch||ch.rank!=='S'){callback();return;}
   const threshold = _getSabotageCounterThreshold(player);
   const damaged = player._stockDamageTaken||{};
+
+  // ── 加害者別3巡合計：エリアをまたいだ合計損失をエリア別に積み上げる ──
+  // 各被害エリアの損失をまず collectする
+  // （エリア別ではなく「加害者が3巡で与えた総損失」で判定）
+  const byAttacker = player._stockDamageByAttacker||{};
+  // 加害者ごとに直近3巡合計を計算し、閾値を超えていれば
+  // その加害者が荒らしたと考えられる全エリアを対策対象に加える
+  const attackerTriggered = new Set(); // 閾値超えた加害者IDのSet
+  for(const atkId of Object.keys(byAttacker)){
+    const hist = byAttacker[atkId]; // [今ターン, 1巡前, 2巡前]
+    const total3 = (hist[0]||0)+(hist[1]||0)+(hist[2]||0);
+    if(total3>=threshold) attackerTriggered.add(Number(atkId));
+  }
+
   // 閾値を超えたエリアを抽出（保有株があるもの）
+  // 判定1: 従来のエリア別累積ダメージ
+  // 判定2: 加害者別3巡合計がthresholdを超えた場合、そのプレイヤーの全保有エリアを対象に
   const targets = [];
+  const targetSet = new Set();
+
   for(let a=1;a<=16;a++){
     const dmg = damaged[a]||0;
     const held = player.stocks[a]||0;
-    if(dmg>=threshold&&held>35){
+    if(dmg>=threshold&&held>35&&!targetSet.has(a)){
       targets.push({a, dmg, held});
+      targetSet.add(a);
     }
   }
+
+  // 加害者別3巡トリガー：そのエリアに保有株が36枚以上あれば追加
+  if(attackerTriggered.size>0){
+    for(let a=1;a<=16;a++){
+      if(targetSet.has(a))continue;
+      const held = player.stocks[a]||0;
+      if(held>35){
+        // このエリアが攻撃されていたか確認（累積ダメージ>0）
+        // 攻撃されていたエリアのみ対策対象（無関係エリアは売らない）
+        const dmg = damaged[a]||0;
+        if(dmg>0){
+          targets.push({a, dmg: dmg+threshold, held}); // 確実に並び順の先頭寄りにするためdmgにoffset
+          targetSet.add(a);
+        }
+      }
+    }
+  }
+
   // 損失記録をリセット（売らないエリアも含めてリセット）
   player._stockDamageTaken = {};
+  // 加害者別3巡履歴はリセットしない（スライドウィンドウで継続監視）
   if(!targets.length){callback();return;}
   // 損失が大きいエリア順にソート
   targets.sort((a,b)=>b.dmg-a.dmg);
@@ -18782,7 +18851,7 @@ function cpuTurn(player){
                     const held=victim.stocks[a]||0;
                     if(held>0) player.stat.stockDamageDealt=(player.stat.stockDamageDealt||0)+held*priceDrop;
                     // Sランク被害者の損失を記録（対策テクニック用）
-                    _recordStockDamage(victim, a, priceDrop);
+                    _recordStockDamage(victim, a, priceDrop, player);
                   });
                 }
                 sabotageAreas.push(a);
@@ -19097,6 +19166,8 @@ function preRollPhase(){
   // ターン切り替わり時はカメラを即座にテレポート（ぬるっと動かない）
   snapCamera(player);
   focusOnPlayer(player);
+  // 加害者別3巡ウィンドウをスライド（このプレイヤーが加害者として各Sランクの履歴を1枠進める）
+  _advanceAttackerTurn(player);
   if(player.isCPU){
     setCpuInputBlock(true);  // CPUターン中はプレイヤー操作をブロック
     // Sランク10枚売り対策：損失閾値を超えたエリアの株を35枚残して売却
