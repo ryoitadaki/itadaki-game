@@ -10923,13 +10923,11 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
       }
 
       const threat=toll>=highTollThresh;
-      // 総資産10%以上の買い物料: 大きなペナルティ
+      // 総資産10%以上の買い物料にぴったり止まる場合: 上限なしの絶対拒否ペナルティ
       const isBigThreat = toll >= totalAssets * 0.10;
-      if(isBigThreat){
-        // ぴったり止まる場合は絶対拒否に近いペナルティ
-        // 通過・将来リスクも被弾確率に応じて強く抑制
-        const bigMul = isLanding(d) ? (d<=FOCUS_DIST?300:150) : 40;
-        pen -= Math.min(500000, toll * hp * bigMul);
+      if(isBigThreat && isLanding(d)){
+        const bigMul = d<=FOCUS_DIST ? 1000 : 500;
+        pen -= toll * hp * bigMul;
         continue;
       }
       // 実質被弾期待コスト = 通行料 × 被弾確率
