@@ -21381,8 +21381,8 @@ function cpuInvest(player,done){
         if(cnt===2) return _ownsTop?60:(_liqCI>=1000?0:60);
       }
       if(_nm==='ポッター'){
-        if(cnt===1) return _ownsTop?80:(_liqCI>=1000?0:80);
-        if(cnt===2) return _ownsTop?90:(_liqCI>=1000?0:90);
+        if(cnt===1) return _ownsTop?60:(_liqCI>=1000?0:60);
+        if(cnt===2) return _ownsTop?70:(_liqCI>=1000?0:70);
         // 3軒以上: 総資産が目標金額の90%以上なら90枚、それ以外は100枚
         const _potterRich=(getPlayerAssets(player).total>=G.goalAmount*0.9);
         if(cnt===3) return _ownsTop?(_potterRich?90:100):90;
