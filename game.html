@@ -2763,6 +2763,7 @@ const _T = {
   target:         {ja:'目標',            en:'Goal'},
   rank1:          {ja:'🥇 1位',          en:'🥇 1st'},
   rank2:          {ja:'🥈 2位以上',      en:'🥈 2nd or better'},
+  rank3:          {ja:'🥉 3位以上',      en:'🥉 3rd or better'},
   // ─── セットアップ画面 ───
   setupTitle:     {ja:'対戦相手を選ぼう',         en:'Select Opponents'},
   cpuRandom:      {ja:'🎲 CPUをランダムで選ぶ',   en:'🎲 Random CPU'},
@@ -22189,7 +22190,7 @@ function endGame(winnerId){
     _tourState.active = true; // 確実にtrueに
     // 人間プレイヤーの順位を取得（0始まり）
     _tourHumanRank = sorted.findIndex(p => !p.isCPU);
-    // クリア条件: TOUR_CLEAR_RANK[mapIdx] === 0 なら1位必須、1なら2位以上OK
+    // クリア条件: TOUR_CLEAR_RANK[mapIdx] === 0 なら1位必須、1なら2位以上OK、2なら3位以上OK
     const reqRank = TOUR_CLEAR_RANK[_tourState.mapIdx] ?? 0;
     _tourPlayerWon = _tourHumanRank !== -1 && _tourHumanRank <= reqRank;
     // クリア成功なら結果画面表示前に clearedStages を確定記録
@@ -26087,8 +26088,8 @@ const TOUR_NORMAL_CONFIG = [
   {mapId:'lastheaven',  goal:50000, cpus:['neneko','ryou','sakura']},
 ];
 
-// クリア条件: 0=1位, 1=2位以上 (stageIdx 0-9)
-const TOUR_CLEAR_RANK = [1,1,1,1,1,0,0,0,0,0]; // 0〜4章:2位以上, 5〜9章:1位
+// クリア条件: 0=1位, 1=2位以上, 2=3位以上 (stageIdx 0-9)
+const TOUR_CLEAR_RANK = [2,2,1,1,1,0,0,0,0,0]; // 0〜1章:3位以上, 2〜4章:2位以上, 5〜9章:1位
 
 // ハードモード各マップの設定
 const TOUR_HARD_CONFIG = [
@@ -26260,8 +26261,8 @@ function showTourStageSelect(mode){
     const mapName    = unlocked ? _getTourMapName(cfg.mapId) : '？？？？';
     const mapIcon    = unlocked ? _getTourMapIcon(cfg.mapId) : '🔒';
     const reqRank    = TOUR_CLEAR_RANK[idx];
-    const reqLabel   = reqRank===0 ? t('rank1') : t('rank2');
-    const reqColor   = reqRank===0 ? '#f87171' : '#fbbf24';
+    const reqLabel   = reqRank===0 ? t('rank1') : reqRank===1 ? t('rank2') : t('rank3');
+    const reqColor   = reqRank===0 ? '#f87171' : reqRank===1 ? '#fbbf24' : '#60d394';
 
     const card = document.createElement('div');
     card.style.cssText = [
@@ -26305,7 +26306,7 @@ function showTourStageSelect(mode){
         const prevName = _getTourMapName(prevCfg.mapId);
         const pr = TOUR_CLEAR_RANK[prevIdx];
         showModal('🔒 未解放',
-          [`第${prevIdx+1}章「${prevName}」を${pr===0?'1位':'2位以上'}でクリアすると解放されます`],
+          [`第${prevIdx+1}章「${prevName}」を${pr===0?'1位':pr===1?'2位以上':'3位以上'}でクリアすると解放されます`],
           [{label:'OK',key:'Enter',action:()=>{}}]);
       };
     }
@@ -26543,7 +26544,7 @@ function showTourComplete(){
 function showTourGameOver(stageIdx, playerRank){
   const mode = _tourState ? _tourState.mode : 'normal';
   const req = TOUR_CLEAR_RANK[stageIdx||0];
-  const reqStr = req===0?'1位が必要':'2位以上が必要';
+  const reqStr = req===0?'1位が必要':req===1?'2位以上が必要':'3位以上が必要';
   const rankStr = playerRank===0?'1位':playerRank===1?'2位':playerRank>=0?`${playerRank+1}位`:'圏外';
   showModal('💀 クリア失敗',[
     `第${(stageIdx||0)+1}章：${rankStr}`,
