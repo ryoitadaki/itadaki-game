@@ -12928,7 +12928,7 @@ const EVENT_CARD_INFO = {
   62:{icon:'💹',title:'株配当20%！',desc:'保有株に対して20%の配当がもらえる'},
   63:{icon:'📈',title:'株価20%アップ！',desc:'ランダムなエリアの株価が20%上昇'},
   64:{icon:'📈',title:'株価30%アップ！',desc:'ランダムなエリアの株価が30%上昇'},
-  65:{icon:'⚡',title:'2軒独占に5倍買い！',desc:'好きなお店を5倍買いできる'},
+  65:{icon:'⚡',title:'5倍買いチャンス！',desc:'好きなお店を5倍の値段で購入できる'},
   66:{icon:'📊',title:'最高株価10枚ゲット！',desc:'最も株価の高いエリアの株を10枚タダでもらえる'},
   67:{icon:'📊',title:'株を買えるチャンス！',desc:'今すぐ株を購入できる'},
   68:{icon:'⚡',title:'スーパーハイテンション！',desc:'1巡の間、自分の持ち店の買い物料が2倍に！'},
@@ -12942,7 +12942,7 @@ const EVENT_CARD_INFO = {
   76:{icon:'💎',title:'宝箱！500Gゲット！',desc:'銀行から500Gをもらえる'},
   77:{icon:'📊',title:'全員株5枚ゲット！',desc:'すべてのエリアの株を5枚ずつもらえる'},
   78:{icon:'🏪',title:'+200Gで買えるチャンス！',desc:'空き店舗を価格+200Gで購入できるチャンス'},
-  79:{icon:'⚡',title:'3軒独占に5倍買い！',desc:'好きなお店を３倍買いできる'},
+  79:{icon:'⚡',title:'3倍買いチャンス！',desc:'好きなお店を3倍の値段で購入できる'},
   80:{icon:'😈',title:'マーク没収！',desc:'誰かのマークを1つ没収される'},
   81:{icon:'🐢',title:'牛歩戦術…',desc:'自分以外の次のサイコロの目が必ず1になる'},
   82:{icon:'📈',title:'隣接店30%アップ！',desc:'隣接マスの店価格が30%アップ'},
@@ -12959,7 +12959,7 @@ const EVENT_CARD_INFO = {
   95:{icon:'🎉',title:'全員パーティー！',desc:'自分がいるマスに強制移動'},
   96:{icon:'🚨',title:'緊急事態！',desc:'どこかに緊急集合'},
   97:{icon:'📈',title:'株価20%アップ（選択）',desc:'好きなエリアの株価を20%アップできる'},
-  98:{icon:'⚡',title:'4軒独占に5倍買い！',desc:'好きなお店を4倍買いできるチャンス'},
+  98:{icon:'⚡',title:'4倍買いチャンス！',desc:'好きなお店を4倍の値段で購入できる'},
   99:{icon:'🍀',title:'ラッキーマーク！',desc:'マーク4種かどこでもマークを1枚もらえる'},
   100:{icon:'🃏',title:'どこでもカード！',desc:'マークの代わりに使えるどこでもカードを1枚もらえる'},
 };
@@ -13068,7 +13068,13 @@ function _drawEventCard(){
     _initEventDeck();
     addLog('🃏 イベントデッキをシャッフル！新たな64枚を引き直します','event');
   }
-  const no=G.eventDeck.shift();
+  let no=G.eventDeck.shift();
+  // undefinedや0が出た場合（デッキ異常）はデッキを再構築して引き直す
+  if(!no){
+    _initEventDeck();
+    no=G.eventDeck.shift()||1;
+    addLog('🃏 デッキ異常検知 → 再シャッフルして引き直し','event');
+  }
   const eventType=_EVENT_NO_TO_TYPE[no]||'random';
   addLog(`🃏 イベントカード No.${no}「${eventType}」`,'event');
   return {no, eventType};
@@ -16929,16 +16935,18 @@ const CPU_CHARS={
     investMin1:60,investMin2:80,investMin3:90,investMin4:90,investMin12:60,insiderMul:1.0,
     fiveTimesRate:0.92,routeSharp:true,spreadStock:true,
     speech:{
-      preRoll:['さ、計算どおりにいきましょ♪','フフ、どこ止まっても対応できるわ','勝利は私が決めるもの','うん、行くわよ'],
-      buyShop:['このエリアをいただくわ','はい、計算済みよ','ここ重要なのよね〜♪'],
-      cantBuyShop:['今は見送るわ','タイミングじゃないわね'],
-      payToll:['ちっ…払うわよ','覚えておきなさい'],
+      preRoll:['さ、計算どおりにいきましょ♪','フフ、どこ止まっても対応できるわ','勝利は私が決めるもの','うん、行くわよ','フフ、今ターンも完璧にこなすわ','さあ、どこに止まるかしら？','行くわよ、覚悟して','計算は済んでるわ。さあ'],
+      buyShop:['このエリアをいただくわ','はい、計算済みよ','ここ重要なのよね〜♪','フフ、ここは押さえておくわ','このエリア、将来性があるのよ','計算どおり、ここをいただく'],
+      cantBuyShop:['今は見送るわ','タイミングじゃないわね','今は資金を温存する方が賢明ね','フフ、焦らないわよ','次のチャンスを待つわ'],
+      skipInvest:['まだ増資のタイミングではないわね','株が足りないから増資は見送るわ','今回は増資しない。次の機会ね','株を増やしてから増資するわ'],
+      dangerAhead:['なんだか寒気がしてきたわ','禍々しい気を感じるわ…','絶対あんな高い店止まらないんだから！','あの店の前を通るなんてゾッとするわ'],
+      payToll:['ちっ…払うわよ','覚えておきなさい','くっ、想定外の出費ね','フフ…後で取り返すわ','痛いわね…でも仕方ない','この借り、利子付きで返すわよ'],
       buyStock:['フフ、自分のエリアに仕込むわ♪','インサイダーが最も効率的よ','自分の店の株、着実に積むわ','このエリアは私のもの、株も当然ね'],
       buyStockRider:['計算上、このエリアは美味しいわ','フフ、相乗りも立派な戦略よ','あなたが育てたエリア、便乗させてもらうわ','全エリアが私のフィールド♪'],
-      levelUp:['計算どおりね♪','フフ、これで一歩進んだわ'],
-      richComment:['フフ、もう勝負はついてるでしょ？','私の計算に狂いはないわ'],
-      poorComment:['まだよ、まだ終わってないわ','焦らない。計算し直すだけよ'],
-      sabotage:['あなたの資産、少し削らせてもらうわね','フフ…これが本当の戦略よ'],
+      levelUp:['計算どおりね♪','フフ、これで一歩進んだわ','よし！レベルアップよ！','マーク全部揃えたわ。当然ね','フフフ…これで差が開くわ'],
+      richComment:['フフ、もう勝負はついてるでしょ？','私の計算に狂いはないわ','このまま逃げ切るわ','余裕ね。このペースでいきましょ','フフ、もう誰も追いつけないわ'],
+      poorComment:['まだよ、まだ終わってないわ','焦らない。計算し直すだけよ','ここから逆転よ、見てなさい','諦めるつもりは全くないわ','一発逆転の計算、できてるわ'],
+      sabotage:['あなたの資産、少し削らせてもらうわね','フフ…これが本当の戦略よ','邪魔させてもらうわよ','あなたの株価、少し下げてあげるわ','フフ、妨害も計算のうちよ'],
       investDone:['フフ、私の店がまた育ったわ♪','計算どおりの増資ね','これで買い物料が上がったわよ'],
       heavyToll:['これは…さすがに痛いわね','計算が狂ったわ…株を売るしかない','フフ…でも諦めないわよ'],
       cheapToll:['フフ、こんな端金？計算の誤差以下ね','これくらいなら痛くも痒くもないわ♪','安い授業料ね。後でたっぷり回収するわ','こんな金額、誤差よ誤差。余裕で払うわ','フフ…次はあなたの店に止まりに来るわね♪'],
@@ -16975,15 +16983,17 @@ talkToPlayerGoalReached:['目標金額に届くなんて…正直、見事だわ
     investMin1:80,investMin2:90,investMin3:90,investMin4:90,insiderMul:1.0,
     fiveTimesRate:0.70,routeSharp:false,spreadStock:true,
     speech:{
-      preRoll:['よし、いくか','まあ焦らず行こう','今日は慎重に行くぞ','うーん、どうかな'],
-      buyShop:['ここは押さえとかないと','よし、買っちゃうか'],
-      cantBuyShop:['今は資金が…','ちょっと厳しいな'],
-      payToll:['ぐっ、仕方ない','くっ、払うよ…','覚えてろよ'],
+      preRoll:['よし、いくか','まあ焦らず行こう','今日は慎重に行くぞ','うーん、どうかな','さあ、どこに止まるかな','気合い入れていくぞ','慎重に、でも大胆に','行くぞ！'],
+      buyShop:['ここは押さえとかないと','よし、買っちゃうか','このエリア、いただいた','ここは重要だな、買っておく','よし、ゲット！'],
+      cantBuyShop:['今は資金が…','ちょっと厳しいな','もう少し待つか','今は見送りだな','資金を貯めてから動く'],
+      skipInvest:['今は増資しないでおく','株が少ないから見送り','いつも増資するわけじゃないぜ','まだ増資のタイミングじゃないな'],
+      dangerAhead:['なんだあのバカ高い店は…','あの店だけは絶対踏まないぞ','禍々しい気を感じる','なんだか嫌な予感がするな'],
+      payToll:['ぐっ、仕方ない','くっ、払うよ…','覚えてろよ','痛い出費だ…','こんな高い店踏むとは','次はこの店を避けるぞ','まいったな…'],
       buyStock:['自分のエリアに集中だ','インサイダーが基本だよな','自分の店の株を積む、それだけだ'],
       buyStockRider:['このエリア、なんか儲かりそうだな。乗っかるぞ','敵が育ててるとこに乗っておく','相乗りも計算のうちだ'],
-      levelUp:['よし！マークコンプだ','レベルアップ！気持ちいい'],
-      richComment:['このまま押し切るぞ','まあ、悪くない展開だ'],
-      poorComment:['まだあきらめてないぞ','ここから巻き返す'],
+      levelUp:['よし！マークコンプだ','レベルアップ！気持ちいい','やったぞ！レベルアップだ！','マーク全部揃えた！','よっしゃ！昇格だ！'],
+      richComment:['このまま押し切るぞ','まあ、悪くない展開だ','差が開いてきたな','このペースで行けば勝てる','余裕が出てきたな'],
+      poorComment:['まだあきらめてないぞ','ここから巻き返す','一発逆転を狙う','諦めるのはまだ早い','ここが踏ん張りどころだ'],
       investDone:['よし！増資できた','店が大きくなったぞ','これで料金アップだ'],
       heavyToll:['うっ…これは痛い出費だ','株を売らないと…','まいったな、かなりきつい'],
       cheapToll:['これくらいなら全然問題ない','まあ安く済んでよかったな','こんな金額か、余裕だ','安いな。後で取り返してやる','これくらいなら想定内だ'],
@@ -17020,15 +17030,17 @@ talkToPlayerGoalReached:['目標金額に届くなんて…正直、見事だわ
     investMin1:99,investMin2:99,investMin3:99,investMin4:99,insiderMul:2.0,
     fiveTimesRate:0.75,routeSharp:false,spreadStock:false,
     speech:{
-      preRoll:['えいっ！行きます！','ドキドキ〜♪','頑張るぞー！','やったるで！'],
-      buyShop:['やった！買っちゃう！','ここゲット！わーい♪'],
-      cantBuyShop:['えーん、お金ない…','もうちょっとで買えたのに！'],
-      payToll:['うわーん！','はらうのやだー！','ちくしょー！'],
+      preRoll:['えいっ！行きます！','ドキドキ〜♪','頑張るぞー！','やったるで！','よーし！いくよ！','さあどこに止まるかな〜！','気合い入れていくよ〜！','えいやあ！'],
+      buyShop:['やった！買っちゃう！','ここゲット！わーい♪','このエリアもらった〜！','ここは絶対押さえたかったんだよ〜！','よっしゃ！ゲット！'],
+      cantBuyShop:['えーん、お金ない…','もうちょっとで買えたのに！','くやし〜！','今は見送り〜','ちくしょ〜！次は絶対！'],
+      skipInvest:['増資するの忘れてたー！','今回は増資しないよ〜','株が足りないから見送り〜','うーん、まだ増資のタイミングじゃないか'],
+      dangerAhead:['なんかイヤな予感がする〜','絶対あんな高い店止まりたくない！','なんだかゾワゾワする…','あの店こわい〜！'],
+      payToll:['うわーん！','はらうのやだー！','ちくしょー！','たかすぎる〜！','もう〜！なんでこんなに！','えーん、お財布が〜！','やだやだ〜！でも払う！'],
       buyStock:['株もゲット！','自分のエリアの株、買っておかなきゃ！','インサイダー、えいっ！'],
       buyStockRider:['なんかここの株、上がりそうな気がする〜♡','えへへ、便乗しちゃえ〜♪','このエリア育ってるじゃん！株もらっとこ'],
-      levelUp:['やったー！！レベルアップ！','マーク揃った〜！うれし！'],
-      richComment:['わーい！私が1位！','このまま勝つぞー！'],
-      poorComment:['まけないもん！','絶対追いつくからね！'],
+      levelUp:['やったー！！レベルアップ！','マーク揃った〜！うれし！','きゃー！レベルアップだよ〜！','やったやった！昇格！','マーク全部集めた！最高〜！'],
+      richComment:['わーい！私が1位！','このまま勝つぞー！','差がついてきた〜！うれし！','このペースで行けば勝てるよ〜！','いい感じ〜！このまま逃げ切る！'],
+      poorComment:['まけないもん！','絶対追いつくからね！','まだ諦めないよ〜！','ここから逆転だよ！','一発逆転するから見てて！'],
       investDone:['やった！お店が育った〜！','増資できたよ〜♪','どんどん大きくなーれ！'],
       heavyToll:['うわーん！こんなに払えない！','たかい〜！株売るしかないよ〜！','ぐすん…お財布が…'],
       cheapToll:['あ、意外と安い！♪','このくらいなら余裕〜！','えへへ、こんなに安いなら大丈夫だよ♪','安い安い！ラッキー☆','これくらいなんともない〜！'],
@@ -17065,15 +17077,17 @@ talkToPlayerGoalReached:['えええ！そこまで行ったの！？すごすぎ
     investMin1:50,investMin2:50,investMin3:60,investMin4:60,insiderMul:4.0,
     fiveTimesRate:0.50,routeSharp:false,spreadStock:false,
     speech:{
-      preRoll:['さてと、いくかの','慎重に、慎重に','うむ、行くぞ','長年の経験を見せてやろう'],
-      buyShop:['ふむ、ここは重要だな','よし、買っておこう'],
-      cantBuyShop:['資金が足りんか…','仕方あるまい'],
-      payToll:['くっ…払わんといかんか','ぐぬぬ…'],
+      preRoll:['さてと、いくかの','慎重に、慎重に','うむ、行くぞ','長年の経験を見せてやろう','ふむ、今ターンも気合を入れていくぞ','老いてなお盛んじゃ','さあ、儂の番じゃ','経験と勘でいくぞ'],
+      buyShop:['ふむ、ここは重要だな','よし、買っておこう','長年の勘が「ここだ」と言っておる','このエリアは儂がもらう','ふっふっふ、いただくぞ'],
+      cantBuyShop:['資金が足りんか…','仕方あるまい','今は見送るとするか','タイミングを待つのも戦略じゃ','急いては事を仕損じる、じゃな'],
+      skipInvest:['今は増資せんでおこう','株が足りん、見送りじゃ','増資はタイミングが大事じゃ','今回は見合わせる'],
+      dangerAhead:['禍々しい気を感じるわい','なんだあのバカ高い店は…','あの店だけは踏まんぞ','なんだか嫌な予感がする'],
+      payToll:['くっ…払わんといかんか','ぐぬぬ…','痛い出費じゃ…','くぬぬ、この借りは返すぞ','仕方あるまい、払うか','まいった、想定外の出費じゃ'],
       buyStock:['自分のエリアに投資じゃ','インサイダーが鉄則じゃよ','儂の店の株を積むのが一番じゃ'],
       buyStockRider:['ここも儲かりそうだ！乗っておこう！','上がりそうな株は全部買い！男は度胸だ！','ここの株も仕込んでおかなきゃ！'],
-      levelUp:['ふむ、良い流れじゃ','レベルアップじゃ。経験の差よ'],
-      richComment:['ふっふっふ、このまま押しきるぞ','長年の勘は正しかった'],
-      poorComment:['まだじゃ、まだ終わらんぞ','年の功を見せてやる'],
+      levelUp:['ふむ、良い流れじゃ','レベルアップじゃ。経験の差よ','よし！マークコンプじゃ！','昇格じゃ！長年の努力が実った','ふっふっふ、レベルアップじゃ'],
+      richComment:['ふっふっふ、このまま押しきるぞ','長年の勘は正しかった','老練の力を見せてやろう','この流れ、逃がさんぞ','余裕じゃな。このまま勝つぞ'],
+      poorComment:['まだじゃ、まだ終わらんぞ','年の功を見せてやる','逆転は儂の十八番じゃ','ここから盛り返すぞ','長年の経験で乗り越えてみせる'],
       investDone:['ふむ、店が大きくなったぞ','長年の経験が実を結んだ','増資完了じゃ、これで一歩前進'],
       heavyToll:['ぐぬぬ…これほどとは','株を売って補填するしかないか…','痛い…だが仕方あるまい'],
       cheapToll:['ふむ、これくらいなら問題ないのう','はした金じゃ、くれてやる','長年の経験で言うとこれは安い部類じゃ','ほほ、こんな金額なら大したことあるまい','余裕じゃ余裕。後で取り返せばよい'],
@@ -17113,6 +17127,8 @@ talkToPlayerGoalReached:['えええ！そこまで行ったの！？すごすぎ
       preRoll:['いくわよ！','5倍買いで一発逆転ね！','景気よくいきましょ！','来なさい！サイコロ！'],
       buyShop:['このエリアはあたしのもの！','ゲット！うふふ♪'],
       cantBuyShop:['くっ、お金が足りないわ…','ちょっと待ってなさい！'],
+      skipInvest:['今は増資しないわよ','株が足りないから見送り！','増資するの忘れてたわ！','まだタイミングじゃないわね'],
+      dangerAhead:['なんか嫌な予感がするわ！','絶対あんな高い店止まらないんだから！','なんだあのバカ高い店は…！','ゾッとするわ、あの店だけは踏みたくない'],
       payToll:['払うわよ！覚えてなさい！','くやしい…でも払う！','絶対取り返すから！'],
       buyStock:['インサイダー最高よ！','あたしのエリアに全力投資！','自分の店の株が一番よね！'],
       buyStockRider:['このエリア伸びてるじゃない！株もらっとく！','ふふ、乗っかっちゃえ〜！','いいエリアには投資しとかないと！'],
@@ -17155,15 +17171,17 @@ talkToPlayerGoalReached:['そこまで行ったの！？すごいわね、本当
     investMin1:10,investMin2:10,investMin3:20,investMin4:20,insiderMul:100,
     fiveTimesRate:0.0,routeSharp:false,spreadStock:false,
     speech:{
-      preRoll:['ほほ、いくわよ〜','さてさて、どこかしら','えいや〜','ほほほ〜'],
-      buyShop:['あらあら、いただくわ〜','ほほ、ここね'],
+      preRoll:['ほほ、いくわよ〜','さてさて、どこかしら','えいや〜','ほほほ〜','さあ、どこに止まるかしらね','ほほほ、今ターンも楽しみよ〜','えい！いくわよ','ほほ、気合入れていくわよ'],
+      buyShop:['あらあら、いただくわ〜','ほほ、ここね','ほほほ、このエリアいただくわよ〜','ここが欲しかったのよ〜','ほほ、もらった'],
       cantBuyShop:['あらら、お金がないわ〜','まあ仕方ないわね'],
-      payToll:['あらまあ、払うわよ〜','ほほほ、ご縁があったわね'],
+      skipInvest:['今回は増資しないわ〜','株が足りないから見送り','増資するの忘れてたわ〜','まあ今は増資のタイミングじゃないわね'],
+      dangerAhead:['なんだかゾワゾワするわ〜','禍々しい気を感じるわ','あんな高い店絶対踏みたくないわ〜','なんか寒気がしてきたわ'],
+      payToll:['あらまあ、払うわよ〜','ほほほ、ご縁があったわね','あら高い〜','ほほほ…仕方ないわね','覚えておくわよ〜','まあ払うものは払う'],
       buyStock:['自分の店の株が一番よ〜','ほほほ、インサイダーよ','自分のエリアに着実に積むのよ'],
       buyStockRider:['ほほほ、このエリア将来性があるわね','じっくり育つエリアに乗っておきましょう','あなたが育ててくれたのね。ありがたくいただくわ'],
-      levelUp:['ほほほ！レベルアップよ〜','あら嬉しい！'],
-      richComment:['ほほほ、まだまだよ〜','おばあちゃんを舐めないで'],
-      poorComment:['ほほほ、焦らないわよ〜','まあまあ、なんとかなるわ'],
+      levelUp:['ほほほ！レベルアップよ〜','あら嬉しい！','ほほほ！昇格よ〜！','マーク揃えたわよ〜♪','おばあちゃん嬉しいわ〜！'],
+      richComment:['ほほほ、まだまだよ〜','おばあちゃんを舐めないで','ほほほ、いい感じよ〜','このまま逃げ切るわ〜','差がついてきたわよ〜♪'],
+      poorComment:['ほほほ、焦らないわよ〜','まあまあ、なんとかなるわ','ほほほ、まだ終わってないわよ','逆転よ、逆転！','おばあちゃんはあきらめないわ'],
       investDone:['ほほほ、お店が育ったわ〜','あら嬉しい、増資できたわよ','ほほほ、これで料金が上がるわね'],
       heavyToll:['あらまあ…こんなに払うの〜？','ほほほ…仕方ないわね、株を売るか','まあまあ、なんとかするわよ'],
       cheapToll:['あらまあ、こんなに安いの〜？','ほほほ、このくらいなら楽しいわね♪','はした金ねえ。でもありがたくもらうわよ','いつもこのくらい安いと助かるわ〜','ほほ、これくらいなら笑って払えるわね'],
@@ -17200,15 +17218,17 @@ talkToPlayerGoalReached:['そこまで行ったの！？すごいわね、本当
     investMin1:50,investMin2:50,investMin3:50,investMin4:50,insiderMul:8.0,
     fiveTimesRate:0.88,routeSharp:false,spreadStock:false,avoidEnemyRoute:true,
     speech:{
-      preRoll:['ふふ、ここはわたしのルートよ♡','インサイダー全開でいくわ！','えいっ！','うふふ、読んでるわよ〜'],
-      buyShop:['ここ、増資余りが多いのよね♡','当然よ、計算済み！'],
+      preRoll:['ふふ、ここはわたしのルートよ♡','インサイダー全開でいくわ！','えいっ！','うふふ、読んでるわよ〜','さあ、全エリアに目を光らせるわ','ふふ、どこに止まるかしらね','気合入れていくわよ','先を読んで動くわ'],
+      buyShop:['ここ、増資余りが多いのよね♡','当然よ、計算済み！','このエリアいただくわ♡','増資余りが大きいここが欲しかった♡','ゲット♡'],
       cantBuyShop:['くう、今は無理ね…','次のターンに取り返す！'],
-      payToll:['やられたわ…','しっかり払うわ、でも覚えてて！'],
+      skipInvest:['今回は増資しない','株が足りないから見送り','まだ増資のタイミングじゃないわ','いつも増資するわけじゃないのよ'],
+      dangerAhead:['なんか嫌な予感がする…','絶対あんな高い店止まらないんだから！','禍々しい気を感じるわ','あの店だけは踏みたくない'],
+      payToll:['やられたわ…','しっかり払うわ、でも覚えてて！','くっ、この分は増資で取り返す♡','痛い出費…','覚えてるわよ♡','計算外だったわ…'],
       buyStock:['増資余りが多いとこよ♡','インサイダー最優先！','自分のエリアに集中するわ♡'],
       buyStockRider:['ここの株…気になってたんだよね','このエリア、なんか儲かりそうな予感！','えいっ、ここも買っちゃえ！'],
-      levelUp:['うふふ♡ レベルアップ！','わたしの読み通りよ！'],
-      richComment:['このまま押しきるわよ♡','インサイダー無敵ね！'],
-      poorComment:['まだ諦めない！','増資余り狙いで逆転よ！'],
+      levelUp:['うふふ♡ レベルアップ！','わたしの読み通りよ！','よし！レベルアップ♡','マーク全部揃えたわ♡','うれし〜♡ 昇格！'],
+      richComment:['このまま押しきるわよ♡','インサイダー無敵ね！','差がついてきたわ♡','余裕が出てきた♡','このまま逃げ切るよ♡'],
+      poorComment:['まだ諦めない！','増資余り狙いで逆転よ！','ここから株と増資で盛り返す♡','諦めたら終わりよ♡','一発逆転する♡'],
       investDone:['うふふ♡ お店が育ったわ','増資完了！これが私の戦略よ♡','料金アップね、うふふ'],
       heavyToll:['くっ…これだけ取られたら株を売るしかない','痛い出費…でも諦めない！','計算外だったわ…株を売って立て直す'],
       cheapToll:['あ、意外と安い！ラッキー！','このくらいなら余裕〜！','こんな金額なら全然OKだよ！','やった！安く済んだ！','こんなに安いと後で5倍買いしちゃうかも笑'],
@@ -17245,16 +17265,18 @@ talkToPlayerGoalReached:['そこまで行くなんて…すごいわ♡ 本当�
     investMin1:99,investMin2:99,investMin3:140,investMin4:140,insiderMul:5.0,
     fiveTimesRate:0.65,routeSharp:false,spreadStock:false,avoidEnemyRoute:false,
     speech:{
-      preRoll:['ここは俺のエリアだ','じっくり行くぞ','計算どおりに…','よし、行こうか'],
-      buyShop:['このエリア、狙ってたんだよな','ゲット。じっくり育てるか'],
-      cantBuyShop:['今は資金を温存する','ちょっと待つか…'],
-      payToll:['くっ、払う','まあ仕方ない、後で取り返す'],
+      preRoll:['ここは俺のエリアだ','じっくり行くぞ','計算どおりに…','よし、行こうか','さあ行くか','落ち着いていく','今ターンも集中だ','じっくり、でも大胆に'],
+      buyShop:['このエリア、狙ってたんだよな','ゲット。じっくり育てるか','増資余りが多い、ここをもらう','このエリアいただく','ゲット。株を積んで増資する'],
+      cantBuyShop:['今は資金を温存する','ちょっと待つか…','インサイダーのために資金をとっておくわ','今は株に集中する','タイミングを見計らうわ'],
+      skipInvest:['増資の条件を満たしていない','今は株が足りない、見送り','計算上、今回は増資しない','増資はタイミングが命だ'],
+      dangerAhead:['禍々しい気を感じる','なんだあのバカ高い店は…','あの店には近づかない方が賢明だ','嫌な予感がする、気をつけよう'],
+      payToll:['くっ、払う','まあ仕方ない、後で取り返す','痛い出費だ','計算外だったか…','覚えとく','増資で取り返してやる'],
       buyStock:['自分のエリアにどんどん積む','株はじっくり溜めてからだ','インサイダーが基本、自分のエリアに全力だ','ここは俺のエリア、株を積む'],
       buyStockRider:['相乗りも悪くないな','少しだけ乗っかっとくか','敵が育ててるとこか…まあ乗っておくか','ここは相乗りで稼がせてもらう'],
-      levelUp:['よし、レベルアップ！','この調子だ'],
-      richComment:['株がたんまりある、勝てる','このまま増資して押し切る'],
-      poorComment:['まだ株がある、諦めない','ここから増資で逆転だ'],
-      sabotage:['悪いな、もらっとくぞ','これも戦略のうちだ'],
+      levelUp:['よし、レベルアップ！','この調子だ','マークコンプ！','計画通りだ','よし！昇格！'],
+      richComment:['株がたんまりある、勝てる','このまま増資して押し切る','差がついてきた','余裕が出てきた','このまま逃げ切る'],
+      poorComment:['まだ株がある、諦めない','ここから増資で逆転だ','諦めるのは早い','ここが踏ん張りどころ','一発逆転を狙う'],
+      sabotage:['悪いな、もらっとくぞ','これも戦略のうちだ','じゃますまないな、でもやる','株を下げてもらう','戦略だから仕方ない'],
       gameStart:['株を溜め込んでから増資する、それが俺のスタイルだ','増資余りが大きいエリアを先に抑えに行くぞ'],
       investDone:['よし、増資した。これで料金が上がる','店を育てるのが俺のスタイルだ','増資完了。じっくり育てていくぞ'],
       heavyToll:['これは…総資産の1割以上か','株を売って立て直すか','増資余りを考えると売るしかない'],
@@ -17293,9 +17315,12 @@ talkToPlayerGoalReached:['そこまで行くなんて…すごいわ♡ 本当�
     investMin1:60,investMin2:80,investMin3:90,investMin4:90,investMin12:60,insiderMul:1.2,
     fiveTimesRate:0.83,routeSharp:true,spreadStock:true,
     speech:{
-      preRoll:['ほほほ…本気を見せてあげるわ','さて、計算どおりにいくわよ','おばあちゃんを舐めないで','ほほ、全部お見通しよ'],
-      buyShop:['ここはいただくわ','ほほほ、計算済みよ','このエリア、ちゃんと見てたのよ'],
-      cantBuyShop:['今は見送るわ','タイミングじゃないわね'],
+      preRoll:['ほほほ…本気を見せてあげるわ','さて、計算どおりにいくわよ','おばあちゃんを舐めないで','ほほ、全部お見通しよ','ほほほ、今ターンも全力でいくわよ','さあ、計算どおりに','今日のきよこは本気よ','ほほほ、見ていなさい'],
+      buyShop:['ここはいただくわ','ほほほ、計算済みよ','このエリア、ちゃんと見てたのよ','このエリアはおばあちゃんのもの','ほほほ、予定どおりよ','ここは必要なの'],
+      cantBuyShop:['今は見送るわ','タイミングじゃないわね','今は資金を温存するわよ','次の機会を狙うわ','焦らないのがおばあちゃん流よ'],
+      skipInvest:['まだ増資のタイミングではないわね','ほほほ、株が足りないから見送るわ','今回は増資しない。次の機会ね','計算上、今は増資より株優先よ'],
+      dangerAhead:['なんだか寒気がしてきたわ','あの店の前を通るなんてゾッとするわ','絶対あんな高い店止まらないんだから！','禍々しい気を感じるわ'],
+      dangerAhead:['なんだか寒気がしてきたわ','禍々しい気を感じるわ','絶対あんな高い店止まらないんだから！','ほほほ…あの店は避けなければね'],
       payToll:['ちっ…払うわよ','覚えておきなさい','くぬぬ…'],
       buyStock:['全エリアが私のフィールドよ','ほほほ、自分のエリアにしっかり積むわよ','インサイダーも外さないわ','増資余りのある店の株よ、当然ね'],
       buyStockRider:['相乗りも美味しいのよ〜','ほほほ、乗っかるわよ','あなたが育てたエリア、おばあちゃんも便乗するわ','ほほほ、このエリア将来性があるわよ'],
@@ -17342,7 +17367,9 @@ talkToPlayerGoalReached:['まあ！目標金額に届いたのね！素晴らし
     speech:{
       preRoll:['ふむ…本気を出すとするか','長年の経験、見せてやろう','覚醒したわしを舐めるなよ','さて、計算どおりにいくぞ'],
       buyShop:['ここは押さえておく','ふむ、計算済みじゃ','このエリア、ずっと狙っておったぞ'],
-      cantBuyShop:['今は見送る','タイミングじゃないな'],
+      cantBuyShop:['今は見送る','タイミングじゃないな','全エリアを考えると今は資金温存だ','計算上、今は買い時じゃない','次の機会を待つ'],
+      skipInvest:['今は増資しない','株が足りないから見送り','まだ増資のタイミングじゃないな','いつも増資するわけじゃないんだぜ'],
+      dangerAhead:['なんだかイヤな予感がする…','なんだあのバカ高い店は…','絶対あんな高い店止まらないんだから！','禍々しい気を感じるな'],
       payToll:['ちっ…払うぞ','覚えておけ','くぬぬ…'],
       buyStock:['全エリアが儂のフィールドじゃ','ふむ、自分のエリアにしっかり積むぞ','インサイダーも外さんぞ','増資余りのある店の株じゃ'],
       buyStockRider:['相乗りも美味しいのう','乗っかっておくか','あなたが育てたエリア、儂も便乗させてもらうぞ','ふむ、このエリア将来性があるな'],
@@ -17392,6 +17419,8 @@ talkToPlayerGoalReached:['まあ！目標金額に届いたのね！素晴らし
       preRoll:['不動産の目利きは任せろ','さて、どこに止まるかな','宅建士の直感を信じよう','土地勘で行くぞ'],
       buyShop:['このエリア、目をつけてたんだよ','不動産の観点から見て買いだ','宅建士として判断した、買う'],
       cantBuyShop:['今は資金が足りないか…','見送るが、次は必ず','タイミングを待とう'],
+      skipInvest:['今は増資しない','株が足りないからな、見送り','タイミングを見極めてから増資する','今回は増資せずにおく'],
+      dangerAhead:['禍々しい気を感じる…','あの店、なんか怖い','なんだかゾワッとする','絶対あんな高い店踏みたくない'],
       payToll:['くっ、払うよ','まあ仕方ない、後で取り返す','参ったな…'],
       buyStock:['全エリアに仕込んでいく','インサイダーで攻める','不動産の知識で株も読む','自分のエリアの株、これが基本だ'],
       buyStockRider:['このエリア、将来性があるな','相乗りも立派な投資だ','ここの株に乗っておこう','不動産眼で見るとここは有望だ'],
@@ -17440,6 +17469,8 @@ talkToPlayerGoalReached:['目標金額に届いたか。宅建士として素直
       preRoll:['さあ、行くわよ','投資家の勘を信じて','チャンスは逃さない','コートジボワールの誇りを見せる'],
       buyShop:['このエリア、いただくわ','投資家として正しい判断よ','ここは必ず押さえる'],
       cantBuyShop:['今は資金が足りないわ','タイミングを待つわ'],
+      skipInvest:['まだ増資のタイミングじゃないわ','株が足りないから見送るわ','今回は増資しない','増資は次の機会に'],
+      dangerAhead:['なんだか寒気がしてきたわ','禍々しい気を感じるわ','絶対あんな高い店止まらないんだから！','あの店だけは踏みたくない'],
       payToll:['くっ…払うわよ','まあ許してあげる','次で取り返す'],
       buyStock:['全エリアに仕込むわ','自分のエリアを重点的に','株は戦略的に動かす','インサイダーよ、自分の店の株が一番'],
       buyStockRider:['このエリア将来性がある','乗っておきましょう','あなたが育てたエリア、便乗するわ','コートジボワールの投資家として相乗りも見逃さない'],
@@ -17491,6 +17522,8 @@ talkToPlayerGoalReached:['目標金額に届いたか。宅建士として素直
       preRoll:['さあ、どこに止まるかしら','計算どおりに行くわ','チャンスを見逃さないわよ','勝負よ'],
       buyShop:['ここは押さえないと','このエリア、狙ってたの','買いね、間違いなく'],
       cantBuyShop:['今は資金が足りないわ','タイミングじゃないわね'],
+      skipInvest:['まだ増資のタイミングではないわね','株が足りないから見送るわ','今回は増資しない','増資するの忘れてたわ'],
+      dangerAhead:['なんだか寒気がしてきたわ','禍々しい気を感じるわ','絶対あんな高い店止まらないんだから！','あの店、なんか怖い'],
       payToll:['くっ…払うわ','まあ仕方ないわね','覚えておくわよ'],
       buyStock:['全エリアに仕込むわ','自分のエリアを重点的に','株は広く持つのが基本よ','インサイダー優先、自分の店の株ね'],
       buyStockRider:['このエリア将来性があるわ','乗っておきましょう','あなたが育てたエリア、イギリス仕込みで便乗するわ','ここの株、相乗りで稼がせてもらうわ'],
@@ -17538,6 +17571,8 @@ talkToPlayerGoalReached:['先に目標金額に届いたのね。私も急がな
       preRoll:['えっと、どこかしら','ドキドキするわ','行ってみよう！','うーん、どうかな'],
       buyShop:['ここにしようかな','買っちゃおう！','このお店かわいい'],
       cantBuyShop:['お金が足りないわ…','また今度ね'],
+      skipInvest:['今回は増資しないよ〜','株が足りないから見送り〜','増資するの忘れてた！','まだ増資のタイミングじゃないな'],
+      dangerAhead:['なんかイヤな予感がする〜','絶対あんな高い店止まりたくない！','なんだかゾワゾワする…','あの店こわい！'],
       payToll:['えっ！払うの…','しょうがないわね','くやしいわ'],
       buyStock:['ここに集中するわ','自分のエリアが大事','株もがんばらないと','インサイダー！自分の店の株よ！'],
       buyStockRider:['ここも買っとこう','なんかよさそう','このエリア育ってる！便乗しちゃえ！','相乗りって美味しいのね♪'],
@@ -17585,6 +17620,8 @@ talkToPlayerGoalReached:['先に目標金額に届いたのね。私も急がな
       preRoll:['行くぞ','さあ、どこだ','ひかり、見てるか','勝ちに行く'],
       buyShop:['このエリア押さえた','買っておく','ここは外せない'],
       cantBuyShop:['今は資金が足りないか','次だ'],
+      skipInvest:['今は増資しない','株が足りない、見送り','まだタイミングじゃない','増資は後回しだ'],
+      dangerAhead:['なんかイヤな予感がする…','なんだあのバカ高い店は…','あの店だけは絶対踏まない','禍々しい気を感じる'],
       payToll:['くっ…','ここは払う','覚えとけよ'],
       buyStock:['しっかり仕込んでおく','株も大事だ','ここに乗っておく','自分のエリアの株、これが優先だ'],
       buyStockRider:['このエリア将来性がある','乗っておこう','敵が育ててるエリアか…乗っておくか','相乗りで稼ぐのも悪くない'],
@@ -17634,6 +17671,9 @@ talkToPlayerGoalReached:['目標金額に届いたか。…正直、見事だ','
       preRoll:['えい！','どこかな〜','行きます！','ドキドキ'],
       buyShop:['ここ買う！','このお店いただき','絶対買う！'],
       cantBuyShop:['お金が足りないよ…','また今度ね'],
+      skipInvest:['増資するの忘れてたー！','今回は増資しないよ〜','株が足りないから見送り','まあ今は増資のタイミングじゃないな'],
+      dangerAhead:['うわっ、あの店近いじゃん…','なんだあのバカ高い店は…','絶対あんな高い店踏みたくない！','なんかイヤな予感がする〜'],
+      dangerAhead:['なんかイヤな予感がする〜','なんだあのバカ高い店は…','絶対あんな高い店踏みたくない！','うわっ、あの店近いじゃん…'],
       payToll:['えっ！払うの…','くやしい','しょうがないか'],
       buyStock:['自分のエリアに集中','株もがんばる','ここも仕込んでおこう','インサイダー！自分の店の株よ！'],
       buyStockRider:['ここも買っとこう','なんか良さそう','このエリア育ってる！便乗しちゃえ！','お兄ちゃんのエリアにも乗っかっとこ！'],
@@ -17681,6 +17721,8 @@ talkToPlayerGoalReached:['目標金額に届いたか。…正直、見事だ','
       preRoll:['さて、どこに止まるかな','マジックのように鮮やかに','トリックじゃないよ、本気だよ','見ててよ'],
       buyShop:['ここは押さえておくよ','このエリアもらう','買うよ'],
       cantBuyShop:['今は待つよ','タイミングじゃない'],
+      skipInvest:['今回は増資しない','株が足りないから見送り','まだ増資のタイミングじゃないよ','いつも増資するわけじゃないからね'],
+      dangerAhead:['なんだかゾワゾワする','禍々しい気を感じる','絶対あんな高い店止まらないんだから！','なんだあのバカ高い店は…'],
       payToll:['イカサマじゃないよ…払う','くっ…','ここは引き下がる'],
       buyStock:['全部のエリアを見るよ','広く持つのが基本','どこが一番得かな','自分のエリアの株…読んでた通りここだよ'],
       buyStockRider:['このエリア面白そう','乗っておこう','敵が育ててるエリアか…計算どおりだよ','相乗りもマジシャンの戦略のうちさ'],
@@ -17723,41 +17765,43 @@ talkToPlayerGoalReached:['そこまで行くなんて…読めなかった。す
     }
   },
   potter:{name:'ポッター', color:'#60a5fa',rank:'S',gender:'男',age:28,
-    investMin1:80,investMin2:90,investMin3:100,investMin4:100,insiderMul:1.0,
+    investMin1:60,investMin2:70,investMin3:100,investMin4:100,insiderMul:1.0,
     fiveTimesRate:0.54,fiveTimesRateRich:0.40,routeSharp:true,spreadStock:true,
     speech:{
-      preRoll:['さて、どこに止まるかな','計算済みだ、行くぞ','全エリアが視野に入ってる','勝負！'],
-      buyShop:['このエリア、いただく','ここは外せない','計算どおりの選択だ'],
+      preRoll:['さて、どこに止まるかな','計算済みだ、行くぞ','全エリアが視野に入ってる','勝負！','全エリアを制圧する、その第一歩だ','さあ行くぞ、計算は済んでいる','どこに止まっても対応できる','落ち着いていく'],
+      buyShop:['このエリア、いただく','ここは外せない','計算どおりの選択だ','このエリアも視野に入れてた','全エリア制圧への一歩だ','ここは押さえておく必要がある'],
       cantBuyShop:['今は見送る','タイミングじゃないな'],
-      payToll:['くっ、払うか','覚えておく','想定の範囲ではあるが…'],
+      skipInvest:['今は増資しない、株が足りない','まだ増資のタイミングじゃない','計算上、今回の増資は見送りだ','全エリアを考えると今は増資より株優先'],
+      dangerAhead:['なんだあのバカ高い店は…','あの店だけは踏まないように計算する','禍々しい気を感じる','6マス以内に危険なマスがある'],
+      payToll:['くっ、払うか','覚えておく','想定の範囲ではあるが…','痛い出費だ','計算が少しずれた','この分は後で取り返す','仕方ない、次だ'],
       buyStock:['全エリアを均等に見ていく','ここの株は価値がある','増資余りを考えれば買いだ'],
       buyStockRider:['このエリア、増資余りが読める','便乗も立派な戦略だ','ここの動向は追っていた'],
-      levelUp:['よし、マークコンプだ','レベルアップ！'],
-      richComment:['このまま押し切る','ペース通りだ'],
-      poorComment:['まだあきらめない','巻き返せる'],
+      levelUp:['よし、マークコンプだ','レベルアップ！','計算どおり、昇格だ','全エリア制圧の道が開けた','よし！レベルアップだ！'],
+      richComment:['このまま押し切る','ペース通りだ','差が開いてきた。計算どおりだ','このまま全エリアで差を広げる','余裕が出てきた。あとは押し切るだけ'],
+      poorComment:['まだあきらめない','巻き返せる','全エリア戦略で逆転する','計算し直す。まだチャンスはある','諦めるのは計算外だ'],
       investDone:['増資完了、これで料金が上がる','狙い通りだ','店の価値を高めた'],
       heavyToll:['これは…痛い出費だ','株を売るしかないか','まいった、想定外だ'],
       cheapToll:['このくらいなら問題ない','安い。後で取り返す','想定の範囲内だ','まあ大したことはない','こんな金額か、余裕だ'],
       bankrupt:['破産か…読み違えたな','まだやれると思ってたのに','また挑戦する、次は負けない'],
       gameStart:['ポッターだ。全エリアを視野に入れて動く。覚悟してくれ','りょうが磨いた戦略をここで使う。全エリア制圧が目標だ'],
-      shop2:['2軒目確保。このエリア着実に固める','2軒揃えた'],
-      shop3:['3軒！あと1軒で独占だ','独占まであと一歩'],
-      shop4:['独占！このエリアもらった','4軒全部確保。増資し放題だ'],
+      shop2:['2軒目確保。このエリア着実に固める','2軒揃えた','2軒目だ。株を積んでから増資する','このエリア、2軒になった。着実に進んでいる'],
+      shop3:['3軒！あと1軒で独占だ','独占まであと一歩','3軒揃えた。独占が見えてきた','あと1軒で完全制覇だ'],
+      shop4:['独占！このエリアもらった','4軒全部確保。増資し放題だ','このエリア、完全に俺のものだ','独占完了。計算どおりだ'],
       shop4mid:['4軒！あと1軒で独占だ','もう一息'],
       shop5:['5軒独占！完全制覇だ！','5軒全部確保した'],
       shop5mid:['5軒！あと1軒で独占','5軒まで来た'],
       shop6:['6軒独占！完璧だ！','6軒全部いただいた！'],
-      landedLucky:['ラッキーマス！全エリアから稼ぐぞ','これは嬉しい','ラッキーマス、計算どおり'],
-      landedRest:['休日マスか、作戦を立て直す','ゆっくり考えよう'],
-      monopolyBlocked:['そこ取られた！','くっ、邪魔された','後で5倍買いしてやる'],
-      talkToPlayer:['全力でいこうぜ','負けないからな','油断するなよ'],
+      landedLucky:['ラッキーマス！全エリアから稼ぐぞ','これは嬉しい','ラッキーマス、計算どおり','全エリアの店から稼がせてもらう','ラッキーマス！この流れを活かす'],
+      landedRest:['休日マスか、作戦を立て直す','ゆっくり考えよう','全エリアの状況を整理する','英気を養うか','休日マス…次の手を計算する'],
+      monopolyBlocked:['そこ取られた！','くっ、邪魔された','後で5倍買いしてやる','独占を阻まれた…','邪魔するなよ。計算が狂った','後で取り返す'],
+      talkToPlayer:['全力でいこうぜ','負けないからな','油断するなよ','全エリアが視野に入ってる。覚悟してくれ','いい戦いをしよう','最後まで気を抜かないぞ'],
       talkToPlayerLosing:['差がついてるな…でもまだあきらめない。全エリアを使って巻き返す','今は負けてるが、増資余りの計算上まだチャンスはある'],
       talkToPlayerLeading:['今は俺が上だ。このまま全エリアで差を広げる','いい展開だ。あとは押し切るだけだ'],
       talkToPlayerGoalReached:['目標金額に届いたか。こっちも急がないとな','先にそこまで来られるとは。急ぐぞ'],
-      nearLevelUp:['銀行まであと少し！レベルアップだ！','もうすぐ昇格、着実に進んでいる'],
-      sabotageCounted:['株価の下落…10枚売りか。対策する','これ以上損は増やせない。整理だ'],
-      playerLanded:['来た！','ありがとな','いただきます！'],
-      playerLandedBig:['こ、これは！','でかい！ありがとう！','最高だ！'],
+      nearLevelUp:['銀行まであと少し！レベルアップだ！','もうすぐ昇格、着実に進んでいる','計算どおり、銀行が近い','あと少しだ。集中していく','レベルアップまであと一歩、気を抜かない'],
+      sabotageCounted:['株価の下落…10枚売りか。対策する','これ以上損は増やせない。整理だ','全エリアを見てると被害が見えてくる。対策する','計算上、今は整理が最善だ'],
+      playerLanded:['来た！','ありがとな','いただきます！','計算どおり','よし、いただく','ここに来てくれるとは'],
+      playerLandedBig:['こ、これは！','でかい！ありがとう！','最高だ！','計算以上だ…！','これで差が開く！','ありがとう、助かる！'],
       investDone:['増資完了！','店が育った，これで料金アップ','狙い通りだ'],
       result:{
         win:['勝った！全エリアを制圧した結果だ', '計算どおりの勝利だ', 'みんないい勝負だった。俺の勝ちだ'],
@@ -17773,15 +17817,17 @@ talkToPlayerGoalReached:['そこまで行くなんて…読めなかった。す
     investMin1:40,investMin2:40,investMin3:50,investMin4:50,insiderMul:0.7,
     fiveTimesRate:0.55,routeSharp:false,spreadStock:false,avoidEnemyRoute:false,
     speech:{
-      preRoll:['相乗り最高！','どこ行こうかな〜','ま、行ってみますか','運に任せて！'],
-      buyShop:['ここ買っとこう','いい感じの場所だ'],
-      cantBuyShop:['うーん、今は無理か','もうちょっとで買えたのに'],
-      payToll:['まじかー、払います','しゃーない、払うか'],
+      preRoll:['相乗り最高！','どこ行こうかな〜','ま、行ってみますか','運に任せて！','うはは、今日もいく！','相乗りで稼ぐぞ〜！','さあどこだ！','行くよ〜！'],
+      buyShop:['ここ買っとこう','いい感じの場所だ','うはは、もらった！','このエリアも相乗りしやすそう','よし、押さえた！'],
+      cantBuyShop:['うーん、今は無理か','もうちょっとで買えたのに','まあ、相乗りで稼ぐか','資金が足りないな…','次の機会に！'],
+      skipInvest:['増資するの忘れてたー！','今回は増資しないよ〜','株が足りないから見送り','いつも増資するわけじゃないんだぜ'],
+      dangerAhead:['うわっ、あの店近いじゃん…','なんだあのバカ高い店は…','絶対あんな高い店踏みたくない！','なんかイヤな予感がする〜'],
+      payToll:['まじかー、払います','しゃーない、払うか','うわっ、高い！','これは痛いな〜','くやしいけど払う！','うはは、仕方ない','覚えてろよ〜！'],
       buyStock:['敵が育ててるとこが美味しい','相乗りで稼ぐのが俺のやり方','自分のエリアにも一応積んどくか','インサイダーも悪くないな'],
       buyStockRider:['これ、絶対おいしいやつ','うはは、もらった','敵が育てたエリアに乗っかる！これが俺のスタイル！','うはは！相乗り最高！'],
-      levelUp:['レベルアップ！やったぜ','相乗り作戦うまくいってる'],
-      richComment:['相乗りで稼ぐのが一番だよな','このまま行けば勝てそう'],
-      poorComment:['まだ逆転できる','敵の株を狙って盛り返すぞ'],
+      levelUp:['レベルアップ！やったぜ','相乗り作戦うまくいってる','うはは！レベルアップだぜ！','マーク全部集めた！やった！','昇格！相乗り最高！'],
+      richComment:['相乗りで稼ぐのが一番だよな','このまま行けば勝てそう','差がついてきた！うはは！','このまま逃げ切るぞ！','相乗り戦略が実ってきた！'],
+      poorComment:['まだ逆転できる','敵の株を狙って盛り返すぞ','相乗りで一気に追い上げる！','うはは、諦めないぜ！','ここから逆転だ！'],
       gameStart:['俺は相乗り専門。敵が育てたエリアをいただく！','みんな増資してくれよ〜、俺が株で稼ぐから'],
       investDone:['増資完了！これで料金アップだ','店が育った！うはは','まあ増資くらいするよ'],
       heavyToll:['まじかー、これだけ取られたら株を売るしかない','うわ、総資産の1割以上…きつい','相乗りで稼いでも追いつかん…'],
@@ -17896,6 +17942,8 @@ const EMOTION_MAP={
   bankrupt:'sad',           // ⑥破産時専用セリフ
   shop2:'happy', shop3:'happy', shop4:'joy',
   shop4mid:'happy', shop5:'joy', shop5mid:'happy', shop6:'joy',
+  skipInvest:'normal',
+  dangerAhead:'worried',
 };
 
 function cpuSay(player,category){
@@ -17948,6 +17996,8 @@ const CPU_SPEECH_DEFAULT={
   shop5:['5軒独占！このエリア完全制覇！','5軒全部もらった！最高！','5軒独占完了！覚悟しろ！'],
   shop5mid:['5軒目！あと1軒で独占！','5軒揃えた、次で決めるぞ！','もう1軒で完全制覇だ！'],
   shop6:['6軒独占！完全制覇だ！','6軒全部いただいた！最強！','6軒独占！もう誰も止められない！'],
+  skipInvest:['今は増資のタイミングじゃないな','株が足りないから見送り','今回は増資しない','まだ増資できる状況じゃないな','株を積んでから増資する','後で増資するか'],
+  dangerAhead:['なんだかイヤな予感がする…','禍々しい気を感じる','絶対あんな高い店止まらないんだから！','なんだあのバカ高い店は…','あの店だけは踏みたくない','なんだか寒気がしてきた'],
 };
 
 // キャラ別台詞追加
@@ -18812,12 +18862,26 @@ function cpuTurn(player){
     speechCat='gameStart';
     player._firstTurn=false;
   } else if(_hasFullMarks(player)&&_cpuBankDist(player)<=6){
-    // レベルアップ条件満たし＋銀行まで6マス以内 → 専用セリフ
     speechCat='nearLevelUp';
   } else if(assets.total>G.goalAmount*0.7){
     speechCat=Math.random()>.6?'preRoll':'richComment';
   } else if(assets.total<5000){
     speechCat=Math.random()>.6?'preRoll':'poorComment';
+  }
+  // 進行方向6マス以内に総資産10%以上の敵高額店がある → dangerAhead セリフで上書き
+  {
+    const _dangerThresh = assets.total * 0.10;
+    const _dist6 = _bfsDistances(player.pos, 6, player._prevPos);
+    const _hasDanger = Object.entries(_dist6).some(([idStr, d]) => {
+      if(d < 1 || d > 6) return false;
+      const nd = getNode(parseInt(idStr));
+      if(!nd || nd.type !== 'shop') return false;
+      if(nd.owner < 0 || nd.owner === player.id) return false;
+      const owner = G.players[nd.owner];
+      if(!owner || owner.bankrupt || owner.resting) return false;
+      return calcToll(nd) >= _dangerThresh;
+    });
+    if(_hasDanger) speechCat = 'dangerAhead';
   }
   cpuSay(player,speechCat);
 
@@ -19460,96 +19524,101 @@ function _showAuctionShopSelect(player,done){
   const myShops=G.map.filter(s=>s.type==='shop'&&s.owner===player.id);
   const liq=getLiquid(player);
   const AREA_CLR=['','#22c55e','#818cf8','#38bdf8','#f87171','#fb7185','#fbbf24','#4ade80','#c084fc','#f472b6','#fb923c','#2dd4bf','#a3e635','#f59e0b','#06b6d4','#ec4899','#84cc16'];
-  const myAreaNums=[...new Set(G.map.filter(s=>s.type==='shop').map(s=>s.area))].sort((a,b)=>a-b);
+  const allAreaNums=[...new Set(G.map.filter(s=>s.type==='shop').map(s=>s.area))].sort((a,b)=>a-b);
   const allPlayers=G.players.filter(p=>!p.bankrupt);
 
-  let blocksHtml='';
-  myAreaNums.forEach(aNum=>{
+  let rows='';
+  allAreaNums.forEach(aNum=>{
     const areaColor=AREA_CLR[aNum]||'#5a7090';
-    const cnt=getPlayerAreaCount(player.id,aNum);
-    const multi=getTollMulti(cnt);
     const allAreaShops=getAreaShops(aNum);
+    const sp=G.areas[aNum].stockPrice;
+    const myCount=getPlayerAreaCount(player.id,aNum);
+    const hasMyShop=allAreaShops.some(s=>s.owner===player.id);
+
+    // 全プレイヤー株保有状況（株売買画面と同じ形式）
     const holdersHtml=allPlayers.map(p=>{
       const h=p.stocks[aNum]||0;
-      return `<div class="sh-holder ${p.id===player.id?'me':''}" style="--pc:${p.color}">
-        <span class="sh-hname">${p.name}</span>
-        <span class="sh-hcount">${h}${_lang==='ja'?'枚':' sh'}</span>
-      </div>`;
+      return '<div class="sh-holder '+(p.id===player.id?'me':'')+'" style="--pc:'+p.color+'">'
+        +'<span class="sh-hname">'+p.name+'</span>'
+        +'<span class="sh-hcount">'+h+'枚</span>'
+        +'</div>';
     }).join('');
-    const rowsHtml=allAreaShops.map(sq=>{
+
+    // 店ごとの行（株売買画面と同じ形式・自分の店は競売ボタン付き）
+    const shopRows=allAreaShops.map(sq=>{
       const toll=calcToll(sq);
+      const rem=getRemainingInvest(sq);
+      const maxInv=getMaxExtraInvest(sq);
+      const remPct=maxInv>0?Math.round(rem/maxInv*100):0;
       const isOwn=sq.owner===player.id;
-      const ownerColor=sq.owner>=0?G.players.find(p=>p.id===sq.owner)?.color||'#6b7280':'#6b7280';
-      const ownerName=sq.owner>=0?(G.players.find(p=>p.id===sq.owner)?.name||'？'):'空き';
+      const ownerP=sq.owner>=0?G.players.find(p=>p.id===sq.owner):null;
+      const ownerColor=ownerP?ownerP.color:'#6b7280';
+      const ownerName=ownerP?ownerP.name:'空き';
       const myIdx=isOwn?myShops.indexOf(sq):-1;
-      if(isOwn){
-        return `<div class="inv-shoprow auc-sel-row" data-idx="${myIdx}" style="cursor:pointer;" tabindex="0">
-          <span class="sh-label">${sq.label}</span>
-          <span style="color:${player.color};font-size:.65rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${player.name}</span>
-          <span class="sh-val"><span class="sh-lbl">開始価格</span>💰${sq.price.toLocaleString()}G</span>
-          <span class="sh-val pink"><span class="sh-lbl">買い物料</span>🛒${toll.toLocaleString()}G</span>
-          <span class="sh-val cyan"><span class="sh-lbl">落札想定</span>📦${(sq.price*1.2).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')}G〜</span>
-          <button class="isc-invest-btn-sm" data-idx="${myIdx}">競売</button>
-        </div>`;
-      } else {
-        return `<div class="inv-shoprow" style="opacity:.65;">
-          <span class="sh-label">${sq.label}</span>
-          <span style="color:${ownerColor};font-size:.65rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${ownerName}</span>
-          <span class="sh-val"><span class="sh-lbl">店価格</span>💰${sq.price.toLocaleString()}G</span>
-          <span class="sh-val pink"><span class="sh-lbl">買い物料</span>🛒${toll.toLocaleString()}G</span>
-          <span class="sh-val dim"><span class="sh-lbl">所有者</span>${ownerName==='空き'?'空き':ownerName}</span>
-          <span style="font-size:.6rem;color:var(--gray);white-space:nowrap;">－</span>
-        </div>`;
-      }
+      const rowAttr=isOwn?' data-idx="'+myIdx+'" style="cursor:pointer;" tabindex="0"':' style="opacity:.75;"';
+      return '<div class="sh-shoprow'+(isOwn?' mine':'')+'"'+rowAttr+'>'
+        +'<span class="sh-label">'+sq.label+'</span>'
+        +'<span class="sh-owner" style="color:'+ownerColor+'">'+ownerName+'</span>'
+        +'<span class="sh-val"><span class="sh-lbl">店価格</span>💰'+sq.price.toLocaleString()+'G</span>'
+        +'<span class="sh-val pink"><span class="sh-lbl">買い物料</span>🛒'+toll.toLocaleString()+'G</span>'
+        +'<span class="sh-val '+(rem>0?'cyan':'dim')+'"><span class="sh-lbl">増資余り</span>📈'+rem.toLocaleString()+'G('+remPct+'%)</span>'
+        +(isOwn
+          ?'<button class="isc-invest-btn-sm auc-sel-btn" data-idx="'+myIdx+'">競売</button>'
+          :'<span style="font-size:.6rem;color:var(--gray);white-space:nowrap;flex-shrink:0;">－</span>')
+        +'</div>';
     }).join('');
-    blocksHtml+=`<div class="inv-area-block">
-      <div class="inv-area-head" style="border-left:3px solid ${areaColor}">
-        <span class="inv-a-num" style="color:${areaColor}">A${aNum} <span style="font-size:.72rem;font-weight:400">${getAreaName(aNum)}</span></span>
-        <span class="inv-a-cnt">${cnt}軒所有 / 倍率${multi}×</span>
-      </div>
-      <div class="sh-holders">${holdersHtml}</div>
-      ${rowsHtml}
-    </div>`;
+
+    rows+='<div class="sh-area">'
+      +'<div class="sh-area-head" style="--ac:'+areaColor+'">'
+      +'<span class="sh-a-num">A'+aNum+' <span style="font-size:.72rem;font-weight:400">'+getAreaName(aNum)+'</span></span>'
+      +'<span class="sh-a-price">'+sp.toLocaleString()+'G/枚</span>'
+      +'<span class="sh-a-self">自分: <b>'+myCount+'軒</b></span>'
+      +(hasMyShop?'':'<span class="sh-ng">自分の店なし</span>')
+      +'</div>'
+      +'<div class="sh-holders">'+holdersHtml+'</div>'
+      +'<div class="sh-shops">'+shopRows+'</div>'
+      +'</div>';
   });
 
   const mc=document.getElementById('modal-content');
-  mc.innerHTML=`<div class="modal-drag"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;">
-      <h2 style="margin:0">🔨 競売に出す店を選択</h2>
-      <span style="font-size:.8rem;color:var(--gold)">流動: ${liq.toLocaleString()}G</span>
-    </div>
-    <p style="font-size:.72rem;color:var(--gray);margin:.2rem 0 .5rem">自分の店（競売ボタンあり）を選んでください</p>
-    <div class="sh-scroll" style="max-height:54vh;overflow-y:auto;">
-      ${blocksHtml}
-    </div>
-    <div class="modal-buttons" style="margin-top:.5rem;">
-      ${player.isCPU?'<span style="color:var(--gray);font-size:.75rem">CPUが自動選択します...</span>'
-        :`<button class="action-btn" id="auc-cancel">キャンセル<span class="key-hint">Backspace</span></button>`}
-    </div>`;
+  mc.innerHTML='<div class="modal-drag"></div>'
+    +'<div class="sh-header">'
+    +'<span>🔨 競売に出す店を選択</span>'
+    +'<span class="sh-cash">流動 '+liq.toLocaleString()+'G</span>'
+    +'</div>'
+    +'<p style="font-size:.72rem;color:var(--gray);margin:.1rem 0 .4rem">自分の店（緑枠・競売ボタンあり）を選んでください。他プレイヤーの店・株状況も確認できます。</p>'
+    +'<div class="sh-scroll">'+rows+'</div>'
+    +'<div class="modal-buttons" style="margin-top:.5rem;">'
+    +(player.isCPU
+      ?'<span style="color:var(--gray);font-size:.75rem">CPUが自動選択します...</span>'
+      :'<button class="action-btn" id="auc-cancel">キャンセル<span class="key-hint">Backspace</span></button>')
+    +'</div>';
   document.getElementById('modal-overlay').classList.add('active');
   G._modalButtons=null; G._numModal=null;
 
   if(!player.isCPU){
     const cancelBtn=document.getElementById('auc-cancel');
     if(cancelBtn) cancelBtn.onclick=()=>{closeModal();done();};
-    mc.querySelectorAll('.isc-invest-btn-sm[data-idx]').forEach(btn=>{
-      btn.onclick=()=>{
+    // 競売ボタン
+    mc.querySelectorAll('.auc-sel-btn[data-idx]').forEach(btn=>{
+      btn.onclick=(e)=>{
+        e.stopPropagation();
         const sq=myShops[parseInt(btn.dataset.idx)];
         closeModal();
         startAuction(player,sq,done);
       };
     });
-    // 行クリックでも選択可
-    mc.querySelectorAll('.auc-sel-row[data-idx]').forEach(row=>{
+    // 自分の店行クリックでも選択可
+    mc.querySelectorAll('.sh-shoprow.mine[data-idx]').forEach(row=>{
       row.onclick=(e)=>{
-        if(e.target.classList.contains('isc-invest-btn-sm'))return;
+        if(e.target.classList.contains('auc-sel-btn'))return;
         const sq=myShops[parseInt(row.dataset.idx)];
         closeModal();
         startAuction(player,sq,done);
       };
     });
   } else {
-    // CPUカーソル演出
+    // CPUカーソル演出（既存の_cpuAucShopSelectAnimを流用）
     _cpuAucShopSelectAnim(player, myShops, mc, (sq)=>{
       closeModal();
       startAuction(player,sq,done);
@@ -21465,7 +21534,7 @@ function cpuInvest(player,done){
     return{sq,rem,cnt,myHeld};
   }).filter(Boolean);
 
-  if(!scored.length){done();return;}
+  if(!scored.length){cpuSay(player,'skipInvest');done();return;}
 
   // 自分の株保有枚数が多いエリア順に並べる（主ソート）
   // 同一エリアで複数店舗がある場合は増資余りが多い店を先にする（副ソート）
