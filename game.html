@@ -10142,6 +10142,63 @@ function rollDice(){
   G.diceResult=[d1];return d1;
 }
 
+// ===== ポッター専用: サイコロ予知システム =====
+// シード固定RNGを利用して、未来のサイコロ目をN個先まで先読みする
+//
+// peekDice(offset): 現在の消費数+offsetのサイコロ目を返す
+//   offset=0 → 次に振られるサイコロ
+//   offset=1 → その次のサイコロ
+//   ...
+//
+// 注意: ボーナスサイコロ(イベント効果)で予測順序がずれる可能性あり。
+// その場合は予知が外れるが、これも「ポッターも完璧ではない」として許容する。
+function peekDice(offset){
+  const rng=_mulberry32(G._diceRngSeed||1);
+  const skip=(G._diceRngCount||0)+offset;
+  for(let i=0;i<skip;i++) rng();
+  return Math.floor(rng()*6)+1;
+}
+
+// 次にサイコロを振るプレイヤー順を予測（破産者をスキップ）
+// count: 何手先まで返すか
+// 戻り値: [{playerId, diceOffset}, ...] (diceOffset は peekDice の引数)
+//
+// 注意: この関数は「現在プレイヤーが既にサイコロを振った後」に呼ばれる前提。
+// 例えば cpuChooseRoute 内では現在ターンの rollDice は既に消費されているので、
+// peekDice(0) は次のプレイヤー(idx+1)のサイコロ目を返す。
+function peekTurnOrder(count){
+  const order=[];
+  if(!G||!G.players||!G.players.length) return order;
+  // 次のプレイヤーから開始
+  let idx=(G.currentPlayerIdx+1)%G.players.length;
+  let diceOffset=0;
+  // 安全制限: 最大 count*players*2 + 20 ループ (破産者多数時の保険)
+  const maxLoop = count*G.players.length*2 + 20;
+  for(let n=0; n<maxLoop && order.length<count; n++){
+    const p=G.players[idx];
+    if(p && !p.bankrupt){
+      order.push({playerId:p.id,diceOffset});
+      diceOffset++;
+    }
+    idx=(idx+1)%G.players.length;
+  }
+  return order;
+}
+
+// 指定プレイヤーの未来 n 番目(0始まり)のサイコロ目を取得
+// n=0 → そのプレイヤーの次のサイコロ
+function peekPlayerDice(playerId,n){
+  const order=peekTurnOrder((n+1)*G.players.length+5);
+  let cnt=0;
+  for(const t of order){
+    if(t.playerId===playerId){
+      if(cnt===n) return peekDice(t.diceOffset);
+      cnt++;
+    }
+  }
+  return null;
+}
+
 // ===== MOVEMENT (グラフ対応) =====
 function getNode(id){return G&&G.map?G.map.find(n=>n.id===id):null;}
 
@@ -10801,25 +10858,85 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
   const BFS_DEPTH=60;
   const FOCUS_DIST=6; // 残り6マス先を最重視
 
+  // ═══════════════════════════════════════════════════════════════
+  // ポッター専用: サイコロ予知システム (5ターン先まで全員のサイコロを把握)
+  //
+  // 案A: 自分の次〜5ターン先の動きを先読み
+  // 案B: 敵プレイヤーの未来サイコロも先読み
+  // 案E: 危険回避を確率→確定値に
+  // ═══════════════════════════════════════════════════════════════
+  const isPotter = ch && ch.name === 'ポッター';
+  const POTTER_PREDICT_TURNS = 5; // 5ターン先まで予知
+  let potterMyFutureDice = null;   // 自分の今後のサイコロ目
+  let potterEnemyFutureDice = null;// 敵の今後のサイコロ目
+  if(isPotter){
+    // 自分の今後POTTER_PREDICT_TURNSターン分のサイコロ目を取得
+    // [0]=今ターン(まだ振っていなければ)、[1]=次ターン、...
+    // 注意: 既に今ターンのサイコロを振った後で cpuChooseRoute が呼ばれているので
+    // [0] = 自分の次ターンのサイコロ目 になる
+    potterMyFutureDice = [];
+    for(let n=0; n<POTTER_PREDICT_TURNS; n++){
+      const d=peekPlayerDice(player.id, n);
+      if(d!=null) potterMyFutureDice.push(d);
+    }
+    // 全敵プレイヤーの未来サイコロもMap化
+    potterEnemyFutureDice = {};
+    G.players.forEach(p=>{
+      if(p.bankrupt||p.id===player.id) return;
+      potterEnemyFutureDice[p.id]=[];
+      for(let n=0; n<POTTER_PREDICT_TURNS; n++){
+        const d=peekPlayerDice(p.id, n);
+        if(d!=null) potterEnemyFutureDice[p.id].push(d);
+      }
+    });
+  }
+
   // ── 共通: 敵店に止まる実質リスク確率（スキップ期待値込み）──
   // 距離dの敵店について「今ターンのサイコロで飛び越えられる確率」を考慮した
   // 実質的な被弾確率を返す。いかなるモードでも共通して使用する。
-  //   d < remSteps  : 今ターン必ず通過（飛び越え確定）→ ほぼリスクなし
-  //   d === remSteps: 今ターンぴったり止まる → 確実に被弾
-  //   d > remSteps  : 今ターンは止まらないが将来リスクあり
-  //     飛び越えられる出目 = d+1〜6 → スキップ確率 = max(0,6-d)/6
-  //     止まってしまう出目 = 1〜d（ただしd>6は出目範囲外なので別途）
-  //     実質被弾確率 = 1 - スキップ確率（将来ターンも考慮して補正）
+  // 注意: dist は分岐後の最初のマス(=1歩消費後)を起点としたBFS距離なので、
+  // 「今ターンぴったり止まる位置」は d === remSteps - 1
+  //   d < remSteps-1   : 今ターン必ず通過（飛び越え確定）→ ほぼリスクなし
+  //   d === remSteps-1 : 今ターンぴったり止まる → 確実に被弾
+  //   d > remSteps-1   : 今ターンは止まらないが将来リスクあり
+  //
+  // ポッター専用: 確率計算の代わりに、確定したサイコロ目から
+  // 「今後POTTER_PREDICT_TURNS分の総歩数で d にぴったり止まるか」を確定判定
   function calcHitProb(d){
-    if(d < remSteps)  return 0.04;                          // 今ターン通過確定
-    if(d === remSteps) return 1.0;                          // 今ターンぴったり被弾
-    // d > remSteps: 将来ターンのリスク
-    // 飛び越えられる確率: 出目(d+1)〜6が出ればスキップ
-    const skipProb = Math.max(0, 6 - d) / 6;               // d=1→0.83, d=5→0.17, d>=6→0
-    const hitProb  = 1 - skipProb;                          // 飛び越えられない確率
-    // さらに将来ターンの到達確率で減衰（距離が遠いほど不確実）
-    const futureDecay = Math.min(1.0, 1.0 / (d - remSteps + 1));
-    return hitProb * futureDecay;
+    const landDist = remSteps - 1; // 今ターンぴったり止まる距離
+    if(d < landDist)  return 0.04;                          // 今ターン通過確定
+    if(d === landDist) return 1.0;                          // 今ターンぴったり被弾
+
+    // ポッター専用: 予知範囲内での確定ヒット判定
+    // 注意: 予知範囲内で「止まる」と確定した場合のみ高い値を返す。
+    // 予知範囲内で止まらなかった場合でも、予知範囲外では通常CPUの確率近似に
+    // フォールバックする(弱体化回避)。
+    let potterHit = 0;
+    if(isPotter && potterMyFutureDice && potterMyFutureDice.length>0){
+      let cum = remSteps;
+      for(let i=0; i<potterMyFutureDice.length; i++){
+        cum += potterMyFutureDice[i];
+        if(cum-1 === d){
+          // 距離 d のマスにぴったり止まる
+          // i=0 (次ターン) → 0.95、i=1 → 0.82、..., i=4 → 0.43
+          potterHit = Math.max(0.4, 0.95 - i*0.13);
+          break;
+        }
+      }
+    }
+
+    // d > landDist: 将来ターンのリスク(確率近似)
+    const dExtra = d - landDist;
+    const skipProb = Math.max(0, 6 - dExtra) / 6;
+    const hitProb  = 1 - skipProb;
+    const futureDecay = Math.min(1.0, 1.0 / (dExtra + 1));
+    const normalHit = hitProb * futureDecay;
+
+    // ポッターは「予知確定ヒット」と「通常の確率近似」の大きい方を返す
+    // → 予知範囲内の確定ヒットがあればそれを優先
+    // → 予知範囲外の将来リスクも通常CPUと同等には警戒する
+    if(isPotter) return Math.max(potterHit, normalHit);
+    return normalHit;
   }
 
   // ── 状態把握 ──
@@ -10898,8 +11015,12 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
   }
 
   // ── 残り歩数が着地する（ぴったり止まる）かチェック ──
-  function isLanding(d){return d===remSteps;}
-  function canJump(d){return remSteps>d;}
+  // 重要: routeDists は nextIds(=分岐後の最初のマス)を起点としたBFS距離なので、
+  // dist=0 が分岐後の最初のマス(=1歩消費後)を意味する。
+  // よって「ぴったり止まる位置」は dist === remSteps - 1
+  // 「飛び越える(通過確定)位置」は dist < remSteps - 1
+  function isLanding(d){return d===remSteps-1;}
+  function canJump(d){return d<remSteps-1;}
 
   // ── 大前提: 敵高額店ペナルティ（calcHitProb でスキップ期待値込み）──
   function calcEnemyTollPenalty(dist){
@@ -10931,6 +11052,18 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
         pen -= toll * hp * bigMul;
         continue;
       }
+
+      // ポッター専用: 予知hp >= 0.4 (=未来ターンで確定で踏む)場合は
+      // isLanding でなくても増ペナルティを適用する (ただし過剰回避を避けるため穏やかに)
+      // hp >= 0.4 はポッターの calcHitProb が「予知範囲内でぴったり止まる」と判定したケース
+      if(isPotter && hp >= 0.4 && !isLanding(d)){
+        // 高額店(>=10%)は強めに、それ以外は通常CPUの将来リスク程度に
+        // 通常CPUでは !isLanding && threat → mul=4 なので、それと同程度〜やや強め
+        const potterMul = isBigThreat ? 200 : 6;
+        pen -= Math.min(80000, toll * hp * potterMul);
+        continue;
+      }
+
       // 実質被弾期待コスト = 通行料 × 被弾確率
       const mul = isLanding(d) ? (d<=FOCUS_DIST?12:6) : (threat?4:2);
       pen -= Math.min(100000, toll * hp * mul);
@@ -11163,6 +11296,98 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
     // ── 着地先ボーナス（同等ルート間の調整）──
     if(_landingBonus!=null)s+=_landingBonus;
 
+    // ══════════════════════════════════════════════════════
+    // ポッター専用: マルチターン先読みボーナス
+    // 自分の今後のサイコロ目から、各ターン終了位置(累積距離)を計算し、
+    // その位置にある「自分の店」「未取得マーク」「銀行」に加点、
+    // 「敵高額店」に減点する
+    // ══════════════════════════════════════════════════════
+    if(isPotter && potterMyFutureDice && potterMyFutureDice.length>0){
+      let cum = remSteps; // 今ターン終了時点の累積歩数
+      for(let i=0; i<potterMyFutureDice.length; i++){
+        cum += potterMyFutureDice[i];
+        const targetD = cum - 1; // BFS距離(landDist相当)
+        // 距離targetDのマスを全列挙
+        for(const[idStr,d2] of Object.entries(dist)){
+          if(d2 !== targetD) continue;
+          const nd2 = getNode(parseInt(idStr));
+          if(!nd2) continue;
+          // 距離が遠いほど確度が下がるので減衰
+          const decay = Math.max(0.4, 1.0 - i*0.13);
+          if(nd2.type === 'shop'){
+            if(nd2.owner === player.id){
+              // 自分の店にぴったり止まる予測 → 加点
+              s += 800 * decay;
+            } else if(nd2.owner === -1){
+              // 空き店舗 → 購入可能なら加点
+              if(liq >= nd2.price) s += nd2.price * 0.4 * decay;
+            } else {
+              // 敵店 → 通行料分の減点
+              const owner2 = G.players[nd2.owner];
+              if(owner2 && !owner2.bankrupt && !owner2.resting){
+                const toll2 = calcToll(nd2);
+                // 通常はcalcHitProbで処理されるが、ポッターはここで明示的に再計算
+                const isBig = toll2 >= totalAssets * 0.10;
+                const mult = isBig ? 200 : 8;
+                s -= toll2 * mult * decay;
+              }
+            }
+          } else if(isMarkType(nd2) && !player.marks[nd2.mark]){
+            // 未取得マークにぴったり止まる予測 → 大幅加点
+            s += 1200 * decay;
+          } else if(nd2.id === bankId){
+            // 銀行にぴったり止まる予測 → 加点(レベルアップ可能なら更に大きく)
+            s += (canLevelUp || atGoal ? 2500 : 600) * decay;
+          } else if(nd2.type === 'lucky'){
+            s += 400 * decay;
+          }
+        }
+      }
+    }
+
+    // ══════════════════════════════════════════════════════
+    // ポッター専用: 敵プレイヤーの未来サイコロ予知ボーナス
+    // 敵が今後数ターンで「自分の店」にぴったり止まる予測がある場合、
+    // その店があるエリアへの距離が近いルートに加点
+    // (帰り道で増資チャンスを得るため)
+    // ══════════════════════════════════════════════════════
+    if(isPotter && potterEnemyFutureDice){
+      // 自分の店IDのうち「敵が予測ターン内にぴったり止まりそうなもの」を集計
+      const myShops = G.map.filter(s2=>s2.type==='shop'&&s2.owner===player.id);
+      for(const myShop of myShops){
+        // 敵プレイヤーごとに、何ターン後にこの店に止まるかチェック
+        let totalEnemyHitValue = 0;
+        for(const ep of G.players){
+          if(ep.bankrupt||ep.id===player.id) continue;
+          const epFuture = potterEnemyFutureDice[ep.id];
+          if(!epFuture) continue;
+          // 敵の現在位置から myShop までの距離
+          const epDistMap = _bfsDistances(ep.pos, BFS_DEPTH, ep._prevPos);
+          const epToShopDist = epDistMap[myShop.id];
+          if(epToShopDist == null) continue;
+          // 敵の今後のサイコロ累積で、ちょうど epToShopDist になるターンを探す
+          let epCum = 0;
+          for(let i=0; i<epFuture.length; i++){
+            epCum += epFuture[i];
+            if(epCum === epToShopDist){
+              // 敵がぴったりこの店に止まる
+              const toll = calcToll(myShop);
+              const decay = Math.max(0.3, 0.9 - i*0.12);
+              totalEnemyHitValue += toll * decay;
+              break;
+            }
+          }
+        }
+        if(totalEnemyHitValue > 0){
+          // この店までの距離が近いルートに加点(帰り道での増資チャンス)
+          const shopDist = dist[myShop.id];
+          if(shopDist != null && shopDist <= BFS_DEPTH){
+            s += totalEnemyHitValue * 0.05 / (shopDist + 1);
+          }
+        }
+      }
+    }
+
     return s;
   }
 
@@ -11184,8 +11409,9 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
   routeDists.forEach(({id,dist})=>{
     const mc=routeMarkCosts.find(r=>r.id===id)?.mc??9999;
     let bonus=0;
+    const landDist = remSteps - 1; // 今ターンぴったり止まる距離
     for(const[idStr,d] of Object.entries(dist)){
-      if(d!==remSteps)continue;
+      if(d!==landDist)continue;
       const nd=getNode(parseInt(idStr));
       if(!nd)continue;
       if(nd.type==='shop'&&nd.owner===player.id)bonus+=6000;
@@ -11264,8 +11490,9 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
     const baseScore = scoreRoute(id,dist);
     // 今回の着地マスを特定して次ターン期待値を計算
     let evScore = 0;
+    const landDist = remSteps - 1; // 分岐後の最初のマスからの距離で、ぴったり止まる位置
     for(const[idStr,d] of Object.entries(dist)){
-      if(d !== remSteps) continue;
+      if(d !== landDist) continue;
       const landingNode = getNode(parseInt(idStr));
       if(!landingNode) continue;
       evScore += calcNextTurnExpected(landingNode.id, id);
@@ -11275,16 +11502,22 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
   });
   // ── 100%回避フィルタ: ぴったり止まる先が総資産10%以上の敵店なら除外 ──
   // 回避できる別ルートがある場合のみ適用（全ルートが該当する場合は除外しない）
+  // 重要: routeDists は分岐後の最初のマス(=1歩消費後)からのBFSなので、
+  // 「ぴったり止まる位置」は dist === remSteps - 1
   const avoidThresh=totalAssets*0.10;
   const isDeadlyLanding=(routeId)=>{
     const dist=routeDists.find(r=>r.id===routeId)?.dist||{};
+    const landDist = remSteps - 1; // 今ターンぴったり止まる距離
     for(const[idStr,d] of Object.entries(dist)){
-      if(d!==remSteps)continue; // ぴったり止まるマスのみ
+      if(d!==landDist)continue; // ぴったり止まるマスのみ
       const nd=getNode(parseInt(idStr));
       if(!nd||nd.type!=='shop'||nd.owner<0||nd.owner===player.id)continue;
       const owner=G.players[nd.owner];
       if(!owner||owner.bankrupt||owner.resting)continue;
-      if(calcToll(nd)>=avoidThresh)return true;
+      // 休業中の店は被害なしなので除外
+      // ラッキー状態（自分がラッキーマスにいる）は支払い側にはならないのでチェック不要
+      const toll=calcToll(nd);
+      if(toll>=avoidThresh)return true;
     }
     return false;
   };
@@ -11299,7 +11532,8 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
   const tspStr=tspOrder?`TSP順:${tspOrder.map(n=>markNames[n.mark]).join('→')}`:'';  const modeStr=atGoal?'目標達成→銀行':(canLevelUp?'LvUP可能→銀行':(`未取得:${missingNames||'なし'} ${tspStr}`));
   if(second){
     const _avoided=scores.length>finalScores.length?'⚠️回避':''
-    addLog(`🤖 ${player.name} ルート選択 (${Math.round(best.s)}vs${Math.round(second.s)}) [${modeStr}]${_avoided}`,'event');
+    const _potterMark=isPotter?'🔮予知':''
+    addLog(`🤖 ${player.name} ルート選択 (${Math.round(best.s)}vs${Math.round(second.s)}) [${modeStr}]${_avoided}${_potterMark}`,'event');
   }
   // 序盤分散: _routePrefオフセットで無条件に方向をずらす
   if(_earlyGame && nextIds.length > 1){
@@ -12870,45 +13104,45 @@ const EVENT_CARD_INFO = {
   3:{icon:'🌀',title:'フリーワープ！',desc:'マークとイベント以外好きなマスへワープできる'},
   4:{icon:'🎁',title:'100Gプレゼント',desc:'誰かに100Gを渡す（強制）'},
   5:{icon:'🏪',title:'お店へワープ！',desc:'好きなお店のマスへワープできる'},
-  6:{icon:'🎲',title:'イベントへワープ！',desc:'イベントマスかマークマスへワープできる'},
+  6:{icon:'🎲',title:'イベントへワープ！',desc:'イベントマス（カードを引くマス）かマークマスへワープできる'},
   7:{icon:'📈',title:'7%値上がり！',desc:'自分の持ち店が全部7%値上がり'},
-  8:{icon:'💸',title:'全店3割増しデー！',desc:'1巡の間、全店の買い物料が30%アップ'},
+  8:{icon:'💸',title:'全店3割増しデー！',desc:'1巡の間、全店の買い物料が30%アップ＋ボーナスサイコロ'},
   9:{icon:'😴',title:'全店休日！',desc:'全ての店が1ターン休業＋ボーナスサイコロ'},
-  10:{icon:'🏷️',title:'全店半額デー！',desc:'1巡の間、全店の買い物料が半額に'},
+  10:{icon:'🏷️',title:'全店半額デー！',desc:'1巡の間、全店の買い物料が半額に＋ボーナスサイコロ'},
   11:{icon:'🎲',title:'サイコロ×11G！',desc:'サイコロを振って出た目×11Gをみんなからもらえる'},
   12:{icon:'📈',title:'増資チャンス！',desc:'好きな自分の店をすぐ増資できる'},
   13:{icon:'📉',title:'ちょー悲惨！',desc:'自分の持ち店が全部13%値下がり（増資余り復活）'},
   14:{icon:'🎁',title:'悲惨！',desc:'全員に30Gずつ渡す（合計が現金から引かれる）'},
   15:{icon:'🎲',title:'サイコロ×50G！',desc:'サイコロを振って出た目×50Gもらえる'},
-  16:{icon:'💰',title:'景気回復！',desc:'自分の持ち店の数×100Gもらえる'},
-  17:{icon:'📉',title:'悲惨！半額ボーナス',desc:'賞金の半額がもらえる'},
-  18:{icon:'💰',title:'2倍で売れる！',desc:'持ち店を1軒、2倍の値段で銀行に売れる'},
+  16:{icon:'🌟',title:'景気回復！',desc:'ランダムな最大3エリアの全店の店価格が10%アップ'},
+  17:{icon:'🎊',title:'半額ボーナス！',desc:'次のレベルアップ賞金の半額を今すぐ受け取れる'},
+  18:{icon:'💰',title:'2倍で売れる！',desc:'持ち店を1軒、2倍の値段で銀行に売る（強制）'},
   19:{icon:'🌙',title:'深夜料金！',desc:'1巡の間、自分の持ち店の買い物料が30%アップ'},
-  20:{icon:'📈',title:'20%値上がり！',desc:'好きなお店の値段が20%値上がり'},
+  20:{icon:'📈',title:'20%値上がり！',desc:'自分の持ち店から1軒選んで価格が20%値上がり'},
   21:{icon:'📊',title:'株20枚ゲット！',desc:'どこかのエリアの株を20枚タダでもらえる'},
   22:{icon:'💰',title:'2倍で売れる！（任意）',desc:'持ち店を1軒、2倍の値段で銀行に売れる（任意）'},
-  23:{icon:'📈',title:'50%値上がり！',desc:'好きなお店の値段が50%値上がり'},
+  23:{icon:'📈',title:'50%値上がり！',desc:'自分の持ち店から1軒選んで価格が50%値上がり'},
   24:{icon:'🏦',title:'銀行に+200Gで売る',desc:'持ち店を1軒、価格+200Gで銀行に売る（強制）'},
-  25:{icon:'🏷️',title:'自分の店半額デー',desc:'1巡の間、自分の持ち店の買い物料が半額に'},
+  25:{icon:'😱',title:'自分の店半額デー',desc:'1巡の間、自分の持ち店の買い物料が半額になってしまう（収入減）'},
   26:{icon:'⭐⭐',title:'超ラッキーチャンス！',desc:'他キャラが誰かの店に止まるたびに買い物料の50%をもらえる'},
   27:{icon:'🏪',title:'特別収入！',desc:'自分の持ち店1軒につき27Gもらえる'},
   29:{icon:'🌀',title:'プレイヤーワープ！',desc:'他のプレイヤーがいるマスへワープできる'},
-  30:{icon:'💯',title:'100G均一デー！',desc:'1巡の間、全ての買い物料が100Gになる'},
+  30:{icon:'💯',title:'100G均一デー！',desc:'1巡の間、全ての買い物料が100Gになる＋ボーナスサイコロ'},
   31:{icon:'📈',title:'エリア10%値上がり',desc:'ランダムなエリアの全店が10%値上がり'},
   32:{icon:'📈',title:'エリア20%値上がり',desc:'ランダムなエリアの全店が20%値上がり'},
   33:{icon:'💰',title:'3倍で売れる！（任意）',desc:'持ち店を1軒、3倍の値段で銀行に売れる（任意）'},
-  34:{icon:'😴',title:'自分の店休業！',desc:'次のターン終了まで自分の持ち店が全て休業する'},
+  34:{icon:'😴',title:'自分の店休業！',desc:'次の自分のターン開始まで自分の持ち店が全て休業する'},
   35:{icon:'📈',title:'株35%高く売れる！',desc:'好きなエリアの株を通常より35%高い価格で売却できます（任意）'},
   36:{icon:'📈',title:'増資チャンス！',desc:'100G払って自分の持ち店を1軒増資できる（任意）'},
   37:{icon:'📈',title:'エリア30%値上がり',desc:'ランダムなエリアの全店が30%値上がり'},
-  38:{icon:'📊',title:'株10%増で購入',desc:'どこかのエリアの株を10%増の価格で購入できる'},
+  38:{icon:'📊',title:'株10%割増で購入',desc:'好きなエリアの株を通常価格の10%割増で購入できる（任意・割高）'},
   39:{icon:'🎁',title:'悲惨！50Gプレゼント',desc:'誰かに50Gを渡す（強制）'},
-  40:{icon:'🌊',title:'洪水！',desc:'どこかのエリアの店価格が30%ダウン'},
+  40:{icon:'🌊',title:'大洪水！',desc:'ランダムなエリアの全店の店価格が20%ダウン'},
   41:{icon:'📉',title:'株価10%ダウン！',desc:'ランダムなエリアの株価が10%下落'},
   42:{icon:'📉',title:'株価20%ダウン！',desc:'ランダムなエリアの株価が20%下落'},
-  43:{icon:'💸',title:'株税金！',desc:'持ち株×2G払う'},
+  43:{icon:'💸',title:'株税金！',desc:'保有株1枚につき2G支払う'},
   44:{icon:'💥',title:'大爆発！',desc:'隣接マスの店価格が20%ダウン'},
-  45:{icon:'🏪',title:'店舗税！',desc:'自分の持ち店の数に応じた税金を払う'},
+  45:{icon:'🏪',title:'店舗税！',desc:'自分の持ち店1軒につき20G支払う'},
   46:{icon:'💸',title:'悲惨！150G支払い',desc:'現金150Gを支払う（強制）'},
   47:{icon:'💀',title:'マーク没収！',desc:'自分のマークが全て没収される'},
   48:{icon:'📉',title:'エリア10%値下がり',desc:'ランダムなエリアの全店が10%値下がり（増資余り復活）'},
@@ -12918,8 +13152,8 @@ const EVENT_CARD_INFO = {
   52:{icon:'👣',title:'あと2つ進む！',desc:'強制的に2マス進む'},
   53:{icon:'🏦',title:'銀行へワープ！',desc:'銀行に強制ワープする'},
   54:{icon:'🏦',title:'100Gで銀行へ！',desc:'100G払うと銀行へワープできる（任意）'},
-  55:{icon:'🎫',title:'無料招待！',desc:'無料サービス付きでもう1回進む'},
-  56:{icon:'🎫',title:'半額招待！',desc:'半額割引サービス付きでもう1回進む'},
+  55:{icon:'🎫',title:'無料招待！',desc:'次に止まった店の買い物料が無料＋ボーナスサイコロ'},
+  56:{icon:'🎫',title:'半額招待！',desc:'次に止まった店の買い物料が半額＋ボーナスサイコロ'},
   57:{icon:'🌀',title:'どこでもワープ！',desc:'マップ上の好きなマスへワープできる'},
   58:{icon:'🌀',title:'100Gでワープ！',desc:'100G払うと好きなマスへワープできる（任意）'},
   59:{icon:'📊',title:'全株90%で購入！',desc:'好きなエリアの株を現在の株価の90%の値段で購入できる'},
@@ -12932,15 +13166,15 @@ const EVENT_CARD_INFO = {
   66:{icon:'📊',title:'最高株価10枚ゲット！',desc:'最も株価の高いエリアの株を10枚タダでもらえる'},
   67:{icon:'📊',title:'株を買えるチャンス！',desc:'今すぐ株を購入できる'},
   68:{icon:'⚡',title:'スーパーハイテンション！',desc:'1巡の間、自分の持ち店の買い物料が2倍に！'},
-  69:{icon:'📉',title:'株20枚売り！',desc:'好きな株を20％高く売れる'},
+  69:{icon:'📈',title:'株20%高く売れる！',desc:'好きなエリアの株を通常より20%高い価格で売却できる'},
   70:{icon:'🎉',title:'即レベルアップ！',desc:'マークなしで即座にレベルアップ！賞金ももらえる'},
-  71:{icon:'📉',title:'悲惨！次のボーナス半減',desc:'賞金の半額がもらえる'},
+  71:{icon:'🎊',title:'臨時収入！',desc:'次のレベルアップ賞金の半額を今すぐ受け取れる'},
   72:{icon:'🏪',title:'お店ボーナス20G！',desc:'自分の持ち店1軒につき20Gもらえる'},
   73:{icon:'🏪',title:'買えるチャンス！',desc:'空き店舗を1軒購入できるチャンス'},
   74:{icon:'🔨',title:'2倍の値段で競売！',desc:'持ち店を1軒、2倍の開始価格で競売に出せる（強制）'},
   75:{icon:'🏪',title:'2倍で買えるチャンス！',desc:'空き店舗を2倍の値段で購入できるチャンス'},
   76:{icon:'💎',title:'宝箱！500Gゲット！',desc:'銀行から500Gをもらえる'},
-  77:{icon:'📊',title:'全員株5枚ゲット！',desc:'すべてのエリアの株を5枚ずつもらえる'},
+  77:{icon:'📊',title:'全エリア株5枚ゲット！',desc:'引いた本人が全てのエリアの株を5枚ずつ無料でもらえる'},
   78:{icon:'🏪',title:'+200Gで買えるチャンス！',desc:'空き店舗を価格+200Gで購入できるチャンス'},
   79:{icon:'⚡',title:'3倍買いチャンス！',desc:'好きなお店を3倍の値段で購入できる'},
   80:{icon:'😈',title:'マーク没収！',desc:'誰かのマークを1つ没収される'},
@@ -12949,18 +13183,18 @@ const EVENT_CARD_INFO = {
   83:{icon:'🌀',title:'台風！',desc:'自分以外の全員がランダムなマスへ飛ばされる'},
   84:{icon:'☄️',title:'隕石が降ってきた！',desc:'ランダムな店に隕石が直撃！価格が50%ダウン'},
   85:{icon:'🎲',title:'サイコロ×100G！',desc:'サイコロを振って出た目×100Gもらえる'},
-  86:{icon:'💰',title:'全員に100G！',desc:'みんなから100Gずつもらう'},
-  87:{icon:'📈',title:'ランダム1エリア50%アップ！',desc:'どこかのお店が50%値上がり'},
+  86:{icon:'💰',title:'全員から100G！',desc:'他のプレイヤー全員から100Gずつもらう'},
+  87:{icon:'📈',title:'ランダム1店50%アップ！',desc:'ランダムな1軒の店の価格が50%値上がり'},
   88:{icon:'🔀',title:'シャッフル！',desc:'自分以外の現在地がランダムに入れ替わる'},
   89:{icon:'🌀',title:'どこでもカード台風！',desc:'マークの代わりになるどこでもカードを全員1枚ずつ貰える'},
   90:{icon:'🌙',title:'全店深夜料金！',desc:'1巡の間、全ての買い物料が30%アップ'},
-  93:{icon:'📊',title:'株価大変動！',desc:'ランダムなエリアの株価が大きく上下する'},
+  93:{icon:'📊',title:'株価大変動！',desc:'ランダムな3エリアの株価がそれぞれ±20%大きく変動する'},
   94:{icon:'🏗️',title:'建築王！',desc:'自分の持ち店価格合計の10%を受け取れる'},
-  95:{icon:'🎉',title:'全員パーティー！',desc:'自分がいるマスに強制移動'},
-  96:{icon:'🚨',title:'緊急事態！',desc:'どこかに緊急集合'},
+  95:{icon:'🎉',title:'全員パーティー！',desc:'他のプレイヤー全員が自分のいるマスに強制集合'},
+  96:{icon:'🚨',title:'緊急事態！',desc:'指定したプレイヤーのマスに自分を含む全員が強制ワープ'},
   97:{icon:'📈',title:'株価20%アップ（選択）',desc:'好きなエリアの株価を20%アップできる'},
   98:{icon:'⚡',title:'4倍買いチャンス！',desc:'好きなお店を4倍の値段で購入できる'},
-  99:{icon:'🍀',title:'ラッキーマーク！',desc:'マーク4種かどこでもマークを1枚もらえる'},
+  99:{icon:'🍀',title:'ラッキープレゼント！',desc:'マーク4種を一気に全獲得（既にマーク完成済みならどこでもカード1枚）'},
   100:{icon:'🃏',title:'どこでもカード！',desc:'マークの代わりに使えるどこでもカードを1枚もらえる'},
 };
 
@@ -13679,6 +13913,27 @@ function landEvent(player,sq){
     showEventNotif('💎','宝箱！500Gゲット！','銀行から500Gをもらえる！','#ffd000',()=>endAction(),!player.isCPU);
     return;
   }}
+  // ── イベントナンバー77：全エリア株5枚ゲット！引いたプレイヤーが全エリアの株を5枚ずつ無料でもらえる
+  {  if(sq.eventType==='allstock5'){
+    // 取引可能な全エリアを取得
+    const areas77=[];
+    for(let a=1;a<=16;a++){if(isTradeableArea(a))areas77.push(a);}
+    if(!areas77.length){
+      showEventNotif('📊','全エリア株5枚ゲット！','取引可能なエリアがありません','#4da6ff',()=>endAction(),!player.isCPU);
+      return;
+    }
+    // 引き当てたプレイヤーのみが全エリアの株を5枚ずつもらう
+    areas77.forEach(a=>{
+      player.stocks[a]=(player.stocks[a]||0)+5;
+      pendingStockBought(a,5);
+    });
+    const totalGain77=areas77.length*5;
+    addLog(`📊 ${player.name} 全エリア株5枚ゲット！${areas77.length}エリア×5枚 = 合計${totalGain77}枚獲得`,'event');
+    SFX.bonus&&SFX.bonus();renderStatus();
+    _flashOverlay('#4da6ff',_td(400),0.4);
+    showEventNotif('📊','全エリア株5枚ゲット！',`${areas77.length}エリアの株を5枚ずつ獲得！合計${totalGain77}枚`,'#4da6ff',()=>endAction(),!player.isCPU);
+    return;
+  }}
   {  if(sq.eventType==='buychanceplus200'){
     const empties78=G.map.filter(n=>n.type==='shop'&&n.owner<0);
     _flashOverlay('#fbbf24',_td(300),0.35);
@@ -13877,7 +14132,7 @@ function landEvent(player,sq){
   // ── イベントナンバー86：みんなから100Gもらう
   {  if(sq.eventType==='get100all'){
     const targets86=G.players.filter(p=>!p.bankrupt&&p.id!==player.id);
-    if(!targets86.length){showEventNotif('💰','みんなから100G！','他にプレイヤーがいません','#ffd000',()=>endAction(),!player.isCPU);return;}
+    if(!targets86.length){showEventNotif('💰','全員から100G！','他にプレイヤーがいません','#ffd000',()=>endAction(),!player.isCPU);return;}
     let total86=0;
     targets86.forEach(p=>{
       const pay=Math.min(p.cash,100);p.cash-=pay;total86+=pay;
@@ -13892,7 +14147,7 @@ function landEvent(player,sq){
     addLog(`💰 ${player.name} 他の全員から100Gずつ徴収！合計+${total86.toLocaleString()}G`,'event');
     _flashOverlay('#ffd000',_td(300),0.4);
     renderStatus();
-    showEventNotif('💰','みんなから100G！',`他の${targets86.length}人から100Gずつ徴収！合計+${total86.toLocaleString()}G`,'#ffd000',()=>endAction(),!player.isCPU);
+    showEventNotif('💰','全員から100G！',`他の${targets86.length}人から100Gずつ徴収！合計+${total86.toLocaleString()}G`,'#ffd000',()=>endAction(),!player.isCPU);
     return;
   }}
   // ── イベントナンバー87：ランダム1軒の店価格50%UP
@@ -15118,9 +15373,11 @@ function landEvent(player,sq){
     return;
   }}
   // ── イベントナンバー6：好きなイベント・マークマスに行ける ─────
+  // 対象: イベントマス(cardget=カードを引くマスのみ)、マークマス、変わるマークマス
+  // 除外: 株屋(stockshop)、チャンスマス(bonus)、ダイスマス(reroll)、ラッキーマス、休日マス、ワープマス等
   {  if(sq.eventType==='eventwarp'){
     const eventTargets=G.map.filter(nd=>
-      (nd.type==='event'||nd.type==='mark'||nd.type==='changemark')&&nd.id!==player.pos
+      ((nd.type==='event'&&nd.eventType==='cardget')||nd.type==='mark'||nd.type==='changemark')&&nd.id!==player.pos
     );
     if(!eventTargets.length){endAction();return;}
 
@@ -15144,17 +15401,9 @@ function landEvent(player,sq){
       let best=null, bestScore=-Infinity;
       for(const nd of eventTargets){
         let score=0;
-        if(isMarkType(nd)&&!player.marks[nd.mark]) score=5000;
-        else if(isMarkType(nd)&&player.marks[nd.mark]) score=100; // 取得済み
-        else if(nd.type==='event'){
-          if(nd.eventType==='bonus'||nd.eventType==='reroll') score=2000;
-          else if(nd.eventType==='stockshop') score=1500;
-          else if(nd.eventType==='freewarp'||nd.eventType==='shopwarp'||nd.eventType==='eventwarp') score=1800;
-          else if(nd.eventType==='reverse') score=800;
-          else if(nd.eventType==='give100') score=-500; // 渡すのは不利
-          else if(nd.eventType==='tax') score=-1000;
-          else score=500; // random等
-        }
+        if(isMarkType(nd)&&!player.marks[nd.mark]) score=5000;       // 未取得マーク最優先
+        else if(isMarkType(nd)&&player.marks[nd.mark]) score=100;    // 取得済みマーク
+        else if(nd.type==='event'&&nd.eventType==='cardget') score=2500; // イベントカード（cardget）
         // 離れ小島ペナルティ
         if(isolatedIds.has(nd.id)){
           if(islandHasMark&&isMarkType(nd)&&!player.marks[nd.mark]){
@@ -15199,8 +15448,10 @@ function landEvent(player,sq){
 
       G._freewarpActive=true;
       G._freewarpSelectCb=(nd)=>{
-        if(nd.type!=='event'&&nd.type!=='mark'&&nd.type!=='changemark'){
-          showToast('⚠️ イベントマスかマークマスのみ選べます');
+        // イベントマス(cardgetのみ)・マークマス・変わるマークマスのみ選択可
+        const isCardgetEvent=(nd.type==='event'&&nd.eventType==='cardget');
+        if(!isCardgetEvent&&nd.type!=='mark'&&nd.type!=='changemark'){
+          showToast('⚠️ イベントマス（カード）かマークマスのみ選べます');
           return;
         }
         chosenNd=nd;
@@ -21534,7 +21785,46 @@ function cpuInvest(player,done){
     return{sq,rem,cnt,myHeld};
   }).filter(Boolean);
 
-  if(!scored.length){cpuSay(player,'skipInvest');done();return;}
+  // ===== ポッター専用: 400G底上げ（フォールバック）=====
+  // 仕様:
+  // ・株を多く持つエリアの増資を優先するのは他のCPUと同様(scoredルートが正常)
+  // ・株90枚以上(または富裕時80枚以上)の時は通常の増資方法を優先(9枚売り調整含む)
+  // ・店価格400Gにするための増資は最優先ではない
+  // → scored に該当エリアがある場合は通常ルート(100G増資 or Sランク最適化)を使う
+  // → scored が空(=株不足で通常増資できない)のときに限り、流動1000G以上なら
+  //   4軒以上エリアの400G未満店を底上げするフォールバックとして発動
+  function _potterTry400Bottom(){
+    if(!ch||ch.name!=='ポッター')return false;
+    if(liq<1000)return false; // 流動1000G以上の時のみ
+    const _potter400Cands=shops.map(sq2=>{
+      const cnt2=getPlayerAreaCount(player.id,sq2.area);
+      if(cnt2<4)return null;                  // 4軒以上エリア限定
+      if(sq2.price>=400)return null;          // 店価格400G未満限定
+      const rem2=getRemainingInvest(sq2);
+      if(rem2<=0)return null;                 // 増資余りがあること
+      return{sq:sq2,rem:rem2,cnt:cnt2,myHeld:player.stocks[sq2.area]||0};
+    }).filter(Boolean);
+    if(!_potter400Cands.length)return false;
+    // 店価格の安い順（底上げが必要な店を優先）、同価格なら増資余りが多い順
+    _potter400Cands.sort((a,b)=>{
+      if(a.sq.price!==b.sq.price)return a.sq.price-b.sq.price;
+      return b.rem-a.rem;
+    });
+    const _p400=_potter400Cands[0];
+    const _need400=400-_p400.sq.price;              // 400Gに上げるための必要増資額
+    const _invest400=Math.min(_need400,_p400.rem,liq);
+    if(_invest400<1)return false;
+    // 400G底上げ実行
+    _showInvestHTML(player,done);
+    showCpuInvestThink(player,_p400.sq,_invest400,scored.length?scored:[_p400],done);
+    return true;
+  }
+
+  if(!scored.length){
+    // 通常増資できないとき → ポッターは400G底上げをフォールバックとして試す
+    if(_potterTry400Bottom())return;
+    cpuSay(player,'skipInvest');done();return;
+  }
 
   // 自分の株保有枚数が多いエリア順に並べる（主ソート）
   // 同一エリアで複数店舗がある場合は増資余りが多い店を先にする（副ソート）
