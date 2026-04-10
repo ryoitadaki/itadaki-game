@@ -11322,15 +11322,8 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
               // 空き店舗 → 購入可能なら加点
               if(liq >= nd2.price) s += nd2.price * 0.4 * decay;
             } else {
-              // 敵店 → 通行料分の減点
-              const owner2 = G.players[nd2.owner];
-              if(owner2 && !owner2.bankrupt && !owner2.resting){
-                const toll2 = calcToll(nd2);
-                // 通常はcalcHitProbで処理されるが、ポッターはここで明示的に再計算
-                const isBig = toll2 >= totalAssets * 0.10;
-                const mult = isBig ? 200 : 8;
-                s -= toll2 * mult * decay;
-              }
+              // 敵店: calcEnemyTollPenalty で既にポッター予知ペナルティ処理済みなので
+              // ここでは二重カウントを避けるため減点しない
             }
           } else if(isMarkType(nd2) && !player.marks[nd2.mark]){
             // 未取得マークにぴったり止まる予測 → 大幅加点
@@ -12702,16 +12695,18 @@ function _cpuRaiseCashWithAnim(player,needed,callback){
   for(const{a,held,sp} of areaScores){
     // 不要株かどうか判定
     const isUnnec=isUnnecessaryStock(a);
+    // 35枚残し猶予中のエリアは不要株扱いを無効化(10枚売り優先のため)
+    const isUnnecEff=isUnnec&&!(player._hold35SkipSell&&player._hold35SkipSell[a]>0);
     // Sランクは35枚残し対象なら35枚、それ以外の不要株なら5枚、不要株でなければ0枚残す
-    const minKeep=isUnnec?(isSrank_rc&&hold35Areas_rc.has(a)?35:5):0;
+    const minKeep=isUnnecEff?(isSrank_rc&&hold35Areas_rc.has(a)?35:5):0;
     // 不要株でなく既に必要額が集まっていればスキップ
-    if(!isUnnec&&simCash>=needed)continue;
+    if(!isUnnecEff&&simCash>=needed)continue;
     const needN=Math.ceil((needed-simCash)/sp);
     const maxSell=Math.max(0,held-minKeep);
     const boughtThisTurn=(G._pendingStockBought||{})[a]||0;
     const forceMin9=held>=9&&minKeep===0&&boughtThisTurn===0;
     // 不要株なら最大まで売る（5枚残し/35枚残し）、通常株なら必要分だけ
-    let n=isUnnec?maxSell:Math.min(maxSell,Math.max(forceMin9?9:1,needN));
+    let n=isUnnecEff?maxSell:Math.min(maxSell,Math.max(forceMin9?9:1,needN));
     if(n<=0)continue;
     // ポッター専用: 10枚以上売るときは5枚余分に売る
     if(ch_rc&&ch_rc.name==='ポッター'&&n>=10){
@@ -18872,6 +18867,11 @@ function meiSmartStockSwap(player, callback){
     // 5軒・6軒エリアでは2軒所有でも通常閾値(0.10)を使う
     const threshold=(myShopsInArea===2&&shops.length===4)?0.32:0.10;
     if(currentRem/maxTotalInvest>threshold)continue;
+    // 35枚残しテクニック後の3ターン猶予エリアは不要株売却を抑制
+    // (上位プレイヤーへの10枚売り機能に機会を譲るため)
+    if(player._hold35SkipSell&&player._hold35SkipSell[a]>0){
+      continue;
+    }
     const sp=G.areas[a].stockPrice;
 
     // Sランク35枚残しテクニック: hold35Areasに含まれるエリアは35枚残す
@@ -18892,6 +18892,11 @@ function meiSmartStockSwap(player, callback){
       pendingStockSoldForUp(a,n);
       const tag=is35Hold?'(35枚残し)':'';
       addLog(`🗑️ ${player.name} A${a}株×${n}枚売却(不要株整理${tag}) +${(n*sp).toLocaleString()}G`,'pay');
+      // 35枚残し発動エリアは次3ターン不要株売却を抑制(10枚売り優先のため)
+      if(is35Hold){
+        player._hold35SkipSell=player._hold35SkipSell||{};
+        player._hold35SkipSell[a]=3;
+      }
     }
     renderStatus();
     if(callback)callback();
@@ -19105,6 +19110,14 @@ function _cpuBankDist(player){
 }
 
 function cpuTurn(player){
+  // 35枚残しテクニック後の猶予ターンカウンターをデクリメント
+  // (自分のターンが1周回るたびに-1、0になったら不要株売却を再許可)
+  if(player._hold35SkipSell){
+    for(const a of Object.keys(player._hold35SkipSell)){
+      player._hold35SkipSell[a]--;
+      if(player._hold35SkipSell[a]<=0) delete player._hold35SkipSell[a];
+    }
+  }
   if(!_gameRunning)return;
   const ch=getCpuChar(player);
   const assets=getPlayerAssets(player);
