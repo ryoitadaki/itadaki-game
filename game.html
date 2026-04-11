@@ -3192,7 +3192,7 @@ function _ensureBidirectional(nodes){
 // 同じ warpColor を持つ warp タイプのマスを warpTo で双方向に結ぶ
 // ================================================================
 function linkWarpPairs(nodes){
-  const colors=['blue','green','red'];
+  const colors=['blue','green','red','purple'];
   colors.forEach(col=>{
     const pair=nodes.filter(n=>n.type==='warp'&&n.warpColor===col);
     if(pair.length===2){
@@ -4139,14 +4139,16 @@ function buildMapRivera(){
   const mk_bl  =N('mark',  {label:'♦',mark:2,                   col:0, row:11});
   const mk_br  =N('mark',  {label:'♣',mark:3,                   col:14,row:11});
   const lucky  =N('lucky', {label:'★',                          col:7, row:2});
-  const lck_b  =N('lucky', {label:'★',                          col:12,row:9});
-  const rest_tl=N('rest',  {label:'休',                          col:2, row:2});
+  // ── 紫4マス循環ワープ ワープ1→ワープ2→ワープ3→ワープ4→ワープ1 ──
+  // 定義順=循環順。linkWarpPairsは同色ノードをこの順に拾って循環リンクする
+  const rest_tl=N('warp',  {label:'ワープ1',warpColor:'purple',  col:2, row:2});
+  const lck_b  =N('warp',  {label:'ワープ2',warpColor:'purple',  col:12,row:9});
+  const ev_tr  =N('warp',  {label:'ワープ3',warpColor:'purple',  col:12,row:2});
+  const rest_bl=N('warp',  {label:'ワープ4',warpColor:'purple',  col:2, row:9});
   const rest_tr=N('rest',  {label:'休',                          col:3, row:3});
   const rest_br=N('rest',  {label:'休',                          col:12,row:8});
-  const rest_bl=N('rest',  {label:'休',                          col:2, row:9});
   const stock_l=N('event', {label:'株屋',eventType:'stockshop',  col:3, row:8});
   const stock_r=N('event', {label:'株屋',eventType:'stockshop',  col:12,row:3});
-  const ev_tr  =N('event', {label:'チャンス',eventType:'cardget',col:12,row:2});
 
   // A1(4軒) row9左中 sp=11G
   const a1_1=N('shop',{label:'平原の市場',   area:1,basePrice:240,col:3,row:9});
@@ -12779,8 +12781,8 @@ function landedOnSquare(player,sq){
       const dest=sq.warpTo;
       const destNd=getNode(dest);
       if(!destNd){endAction();return;}
-      const colName={blue:'青',green:'緑',red:'赤'}[sq.warpColor]||'';
-      const colorEmoji={blue:'🔵',green:'🟢',red:'🔴'}[sq.warpColor]||'🌀';
+      const colName={blue:'青',green:'緑',red:'赤',purple:'紫'}[sq.warpColor]||'';
+      const colorEmoji={blue:'🔵',green:'🟢',red:'🔴',purple:'🟣'}[sq.warpColor]||'🌀';
       addLog(`${colorEmoji} ${player.name} ${colName}ワープ！→「${destNd.label}」`,'event');
       SFX.mark&&SFX.mark();
       const fromNd=getNode(player.pos); // ワープ前の位置を保存
@@ -22577,6 +22579,21 @@ function cpuInvest(player,done){
   // ── 増資閾値ヘルパー（各キャラの仕様どおり） ──
   const getMinShares=(cnt,areaNum)=>{
     const _nm=ch?ch.name:'';
+    // ── 対象5キャラ: 誰かが目標金額90%以上 ∧ 自エリア2軒以上 → 90枚で増資開始を強制 ──
+    // ただしS・はゆう/サコの「流動1000+ ∧ 2軒以下 ∧ 最高料金店未所有」0枚優先は別途効く(getAreaShopsで再評価)
+    if(cnt>=2 && ['はゆう','S・はゆう','ワイズ','S・ワイズ','サコ'].includes(_nm)){
+      const _anyRich=G.players.some(_p=>!_p.bankrupt&&getPlayerAssets(_p).total>=G.goalAmount*0.9);
+      if(_anyRich){
+        // 0枚優先チェック(S・はゆう/サコのみ)
+        if(_nm==='S・はゆう'||_nm==='サコ'){
+          const _aS=areaNum?getAreaShops(areaNum):[];
+          const _mxT=_aS.length?Math.max(..._aS.map(s=>calcToll(s))):0;
+          const _own=_aS.some(s=>s.owner===player.id&&calcToll(s)===_mxT);
+          if(getLiquid(player)>=1000&&cnt<=2&&!_own)return 0;
+        }
+        return 90;
+      }
+    }
     // 1軒・2軒の時は「エリア内最高買い物料の店を自分が所有しているか」で閾値分岐
     if(cnt===1||cnt===2){
       const _aShops=areaNum?getAreaShops(areaNum):[];
@@ -25277,7 +25294,7 @@ function renderMap(){
       else if(nd.type==='lucky'){bg='#2a1f00';bd='#ffd700';bdW=3;}
       else if(nd.type==='rest'){bg='#2d1060';bd='#9955ee';bdW=3;}
       else if(nd.type==='warp'){
-        const _wc={blue:['#e0eeff','#0055cc'],green:['#e0ffee','#008844'],red:['#ffe0e0','#cc2200']}[nd.warpColor]||['#e8e0ff','#6644bb'];
+        const _wc={blue:['#e0eeff','#0055cc'],green:['#e0ffee','#008844'],red:['#ffe0e0','#cc2200'],purple:['#f0e0ff','#8833cc']}[nd.warpColor]||['#e8e0ff','#6644bb'];
         bg=_wc[0];bd=_wc[1];bdW=3;
       }
       else if(nd.type==='cannon'){bg='#2a1a00';bd='#cc6600';bdW=3;}
@@ -25570,24 +25587,35 @@ function renderMap(){
         // ── オーナーなし：店名＋価格＋baseToll ──
         if(nd.owner===-1){
           ctx.textAlign='center'; ctx.textBaseline='top';
-          // 店名（壁上部）
-          ctx.fillStyle=gtxt;
+          // 店名（壁上部）縁取り追加で視認性向上
           ctx.font=`bold ${S2*.16}px "M PLUS Rounded 1c",sans-serif`;
+          ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2.2; ctx.lineJoin='round';
+          ctx.strokeText(nd.label,cx,wallTop+2);
+          ctx.fillStyle=gtxt;
           ctx.fillText(nd.label,cx,wallTop+2);
-          // 購入価格：白縁取り＋濃い文字で視認性確保
-          ctx.font=`bold ${S2*.17}px "M PLUS Rounded 1c",sans-serif`;
-          ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=2.5; ctx.lineJoin='round';
-          ctx.strokeText(nd.price.toLocaleString()+'G',cx,wallTop+bh*0.30);
-          ctx.fillStyle='#1a1a1a';
-          ctx.fillText(nd.price.toLocaleString()+'G',cx,wallTop+bh*0.30);
+          // 購入価格：白半透明バッジ＋濃紺文字で確実に読めるように
+          const priceStr=nd.price.toLocaleString()+'G';
+          ctx.font=`bold ${S2*.18}px "M PLUS Rounded 1c",sans-serif`;
+          const priceW=ctx.measureText(priceStr).width;
+          const priceBx=cx-priceW/2-5, priceBy=wallTop+bh*0.28;
+          const priceBw=priceW+10, priceBh=S2*.21;
+          rrect(ctx,priceBx,priceBy,priceBw,priceBh,4);
+          ctx.fillStyle='rgba(255,255,255,0.94)'; ctx.fill();
+          ctx.strokeStyle='rgba(20,30,80,0.55)'; ctx.lineWidth=1.2;
+          rrect(ctx,priceBx,priceBy,priceBw,priceBh,4); ctx.stroke();
+          ctx.fillStyle='#0a1a4a';
+          ctx.textBaseline='top';
+          ctx.fillText(priceStr,cx,priceBy+2);
           // baseToll：白背景の角丸バッジで確実に読めるように
           const tollStr='料'+nd.baseToll+'G';
-          ctx.font=`bold ${S2*.135}px "M PLUS Rounded 1c",sans-serif`;
+          ctx.font=`bold ${S2*.14}px "M PLUS Rounded 1c",sans-serif`;
           const tollW=ctx.measureText(tollStr).width;
-          const tollBx=cx-tollW/2-4, tollBy=wallTop+bh*0.49;
-          const tollBw=tollW+8, tollBh=S2*.155;
+          const tollBx=cx-tollW/2-5, tollBy=wallTop+bh*0.54;
+          const tollBw=tollW+10, tollBh=S2*.17;
           rrect(ctx,tollBx,tollBy,tollBw,tollBh,3);
-          ctx.fillStyle='rgba(255,255,255,0.88)'; ctx.fill();
+          ctx.fillStyle='rgba(255,255,255,0.94)'; ctx.fill();
+          ctx.strokeStyle='rgba(120,10,40,0.55)'; ctx.lineWidth=1;
+          rrect(ctx,tollBx,tollBy,tollBw,tollBh,3); ctx.stroke();
           ctx.fillStyle='#881133';
           ctx.textBaseline='top';
           ctx.fillText(tollStr,cx,tollBy+1);
