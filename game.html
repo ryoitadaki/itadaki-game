@@ -3802,7 +3802,7 @@ function buildMapVictoria(){
 // ================================================================
 // サンセット・ハーバーマップ
 // 16col×10row、4軒×6 + 6軒×4 = 10エリア48軒
-// ワープblue:(7,4)↔(0,7)  ワープred:(5,7)↔(13,7)
+// ワープblue:(2,3)↔(0,7)  ワープred:(5,7)↔(13,7)
 // 850G: A9(2,8)岸壁市場  A10(7,8)夕陽デッキ
 // エリア構成:
 //   A1(4): (1,0)(2,0)(0,1)(2,1)
@@ -3827,9 +3827,9 @@ function buildMapSunsetHarbor(){
   const mk_dia=N('mark',      {label:'♦',mark:2,               col:14,row:7});
   const cm_a  =N('changemark',{label:'変マーク',mark:1,         col:6, row:7});
   const cm_b  =N('changemark',{label:'変マーク',mark:3,         col:0, row:8});
-  const lucky =N('lucky',     {label:'★',                      col:2, row:3});
+  const lucky =N('warp',      {label:'ワープ',warpColor:'blue', col:2, row:3});
   const rest  =N('rest',      {label:'休',                      col:12,row:3});
-  const wp1_a =N('warp',      {label:'ワープ',warpColor:'blue', col:7, row:4});
+  const wp1_a =N('lucky',     {label:'★',                      col:7, row:4});
   const wp1_b =N('warp',      {label:'ワープ',warpColor:'blue', col:0, row:7});
   const wp2_a =N('warp',      {label:'ワープ',warpColor:'red',  col:5, row:7});
   const wp2_b =N('warp',      {label:'ワープ',warpColor:'red',  col:13,row:7});
@@ -12077,6 +12077,47 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
       }
       if(nd.type==='lucky'){s+=(land?200:50*w);}
       if(nd.type==='bank'&&nd.id!==bankId){s+=(land?300:80*w);}
+      // ── ポッター専用: ワープマスに着地する場合、ワープ先を起点に次ターンを先読み ──
+      if(isPotter && land && nd.type==='warp' && nd.warpTo!=null
+         && potterMyFutureDice && potterMyFutureDice.length>=2){
+        const _wDest=nd.warpTo;
+        const _nextDice=potterMyFutureDice[1];
+        // ワープ先からBFSで距離マップを作成
+        const _wDist={};_wDist[_wDest]=0;
+        const _wQ=[_wDest];
+        while(_wQ.length){
+          const _cid=_wQ.shift();
+          const _cd=_wDist[_cid];
+          if(_cd>=_nextDice)continue;
+          const _cnd=getNode(_cid);
+          if(!_cnd)continue;
+          const _nbs=[..._cnd.nexts||[]];
+          if(_cnd.warpTo!=null && !_nbs.includes(_cnd.warpTo)) _nbs.push(_cnd.warpTo);
+          for(const _nid of _nbs){
+            if(_wDist[_nid]==null){_wDist[_nid]=_cd+1;_wQ.push(_nid);}
+          }
+        }
+        // ワープ後の次ターン着地予想位置のスコア(ぴったり止まる位置のみ評価)
+        for(const[_idStr2,_d2] of Object.entries(_wDist)){
+          if(_d2!==_nextDice)continue;
+          const _nd2=getNode(parseInt(_idStr2));
+          if(!_nd2)continue;
+          if(_nd2.type==='shop'){
+            if(_nd2.owner<0){const _b=liq>=_nd2.price;s+=_b?_nd2.price*1.2:_nd2.price*0.04;}
+            else if(_nd2.owner===player.id){s+=200;}
+            else {const _t=calcToll(_nd2);s-=Math.max(1000,_t*1.2);}
+          } else if(_nd2.type==='bank'){
+            // ワープ後に銀行着地: atGoalなら勝利確定の大ボーナス
+            if(atGoal)s+=80000*50;
+            else s+=400;
+          } else if(_nd2.type==='lucky'){s+=150;}
+          else if(isMarkType(_nd2)&&!player.marks[_nd2.mark]){s+=200;}
+        }
+        // ワープ後に銀行を通過(ぴったり止まらなくても通過)できるなら勝利確定加点
+        if(atGoal && bankId!=null && _wDist[bankId]!=null && _wDist[bankId]<=_nextDice-1){
+          s+=80000*50;
+        }
+      }
       // 取得済みマークには加点しない（未取得のみ小さな加点）
       if(isMarkType(nd)){
         if(!player.marks[nd.mark]) s+=(land?300:60*w); // 未取得マーク
@@ -12380,6 +12421,15 @@ function passThroughBank(player, onDone){
     _consumeAnyCards(player); // どこでもカード消費
     // レベルアップ賞金付与前に目標達成済みかを記録
     const _alreadyAtGoal=getPlayerAssets(player).total>=G.goalAmount;
+    if(_alreadyAtGoal){
+      // 目標達成済み → レベルアップ演出・賞金をスキップして即勝利
+      player.level++;
+      player.marks=[false,false,false,false];
+      addLog(`🏆 ${player.name} 目標達成済みのためレベルアップ演出・賞金スキップ`,'');
+      renderStatus();
+      addLog(`🏆 ${player.name} 目標金額達成！銀行通過で勝利！`,'important');
+      setTimeout(()=>endGame(player.id),800);return;
+    }
     doLevelUp(player,()=>{
       updateMapBGM();
       const _nowAtGoal=getPlayerAssets(player).total>=G.goalAmount;
@@ -13182,7 +13232,7 @@ function payToll(player,sq,callback){
           if(myNearMonopoly) situScore+=0.30; // 自分の独占達成
           if(liqRest>fiveP*8) situScore-=0.10;
           if(liqRest<fiveP*4) situScore+=0.10;
-          situScore=Math.max(0,Math.min(1,situScore));
+          if(ch2&&ch2.rank==='S'&&monopolyBreak&&enemyCount>=4&&getPlayerAssets(sq.owner).total>getPlayerAssets(player).total)situScore*=1.15;situScore=Math.max(0,Math.min(1,situScore));
           const reqMul=3.0+(1-situScore)*7.0;
           if(liqRest>=fiveP*reqMul){ fiveTimesBuy(player,owner,sq,()=>callback()); return; }
         }
@@ -13402,7 +13452,7 @@ function payToll(player,sq,callback){
           if(myNearMonopoly) situScore+=0.30; // 自分の独占達成
           if(liq>fivePrice*8) situScore-=0.10;
           if(liq<fivePrice*4) situScore+=0.10;
-          situScore=Math.max(0,Math.min(1,situScore));
+          if(ch2&&ch2.rank==='S'&&monopolyBreak&&enemyCount>=4&&getPlayerAssets(sq.owner).total>getPlayerAssets(player).total)situScore*=1.15;situScore=Math.max(0,Math.min(1,situScore));
           const reqMul=3.0+(1-situScore)*7.0;
           if(liq>=fivePrice*reqMul){ fiveTimesBuy(player,owner,sq,()=>_afterFiveBuy()); return; }
         }
@@ -20861,7 +20911,7 @@ function _startForcedAuctionBody(seller, sq, callback){
       const isLeader=(p.id===leaderId);
       const isPassed=passed.has(p.id);
       const liq=getLiquid(p);
-      const canBid=!isPassed && liq>=currentPrice+10;
+      const _firstBid=(leaderId===-1);const _need10=_firstBid?currentPrice:currentPrice+10;const canBid=!isPassed && liq>=_need10;
       const panel=_makeAucBidderPanel(p, false, isLeader, liq, false);
       const btnsDiv=panel.querySelector('.auc-bidder-btns');
       const thinkDiv=panel.querySelector('.auc-cpu-thinking');
@@ -20912,7 +20962,8 @@ function _startForcedAuctionBody(seller, sq, callback){
   function doBid(p,amount){
     if(passed.has(p.id)) return;
     const liq=getLiquid(p);
-    const next=currentPrice+amount;
+    const isFirstBid=(leaderId===-1);
+    const next=(isFirstBid&&amount===10)?currentPrice:currentPrice+amount;
     if(liq<next){showToast(`${p.name} 資金不足`);return;}
     currentPrice=next;
     leaderId=p.id;
@@ -21100,7 +21151,7 @@ function _startAuctionBody(seller, sq, done, overrideStartPrice=null){
       const isLeader=(p.id===leaderId);
       const isPassed=passed.has(p.id);
       const liq=getLiquid(p);
-      const canBid=!isPassed && liq>=currentPrice+10;
+      const _firstBid=(leaderId===-1);const _need10=_firstBid?currentPrice:currentPrice+10;const canBid=!isPassed && liq>=_need10;
       const panel=_makeAucBidderPanel(p, false, isLeader, liq, false);
 
       // ボタン類
@@ -21160,7 +21211,9 @@ function _startAuctionBody(seller, sq, done, overrideStartPrice=null){
   function doBid(p, amount){
     if(passed.has(p.id)) return;
     const liq=getLiquid(p);
-    const next=currentPrice+amount;
+    // 初回(誰もまだ入札していない) かつ +10G ボタンの場合は価格を上乗せせず開始価格のまま落札権を取る
+    const isFirstBid=(leaderId===-1);
+    const next=(isFirstBid&&amount===10)?currentPrice:currentPrice+amount;
     if(liq<next){ showToast(`${p.name} 資金不足`); return; }
     currentPrice=next;
     leaderId=p.id;
@@ -21585,7 +21638,7 @@ function _decideFiveBuy(player, sq, rateBoost=1.0){
   if(myNearMonopoly) situScore+=0.30; // 自分の独占達成は高優先
   if(liq>fivePrice*8) situScore-=0.10;
   if(liq<fivePrice*4) situScore+=0.10;
-  situScore=Math.max(0,Math.min(1,situScore));
+  if(ch&&ch.rank==='S'&&monopolyBreak&&enemyCount>=4&&getPlayerAssets(sq.owner).total>getPlayerAssets(player).total)situScore*=1.15;situScore=Math.max(0,Math.min(1,situScore));
   const reqMul=3.0+(1-situScore)*7.0;
   return liq>=fivePrice*reqMul;
 }
