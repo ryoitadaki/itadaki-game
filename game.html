@@ -14,6 +14,11 @@
   --peach:#ffb347;--lavender:#c3b1e1;--mint:#aaf0d1;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+/* トーナメント高速シミュ: CSS transition/animation を64倍短縮 */
+body.tournament-fast-sim *{
+  transition-duration:.01s !important;
+  animation-duration:.01s !important;
+}
 html,body{height:100%;overflow:hidden;touch-action:none;}
 body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(--white);font-size:14px;}
 
@@ -2165,6 +2170,12 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
       <!-- フリーモード -->
       <button class="menu-btn title-menu-btn" style="width:100%;padding:.6rem .8rem !important;font-size:.95rem !important;" onclick="showSetup(false);initAudio();playBGM('title')">
         🎮 <span id="t-free-label">フリーモード</span>
+      </button>
+
+      <!-- トーナメントモード(一時非表示) -->
+      <button class="menu-btn title-menu-btn" style="display:none !important;width:100%;padding:.55rem .8rem !important;font-size:.9rem !important;background:linear-gradient(160deg,#6e2a1a 0%,#48180f 60%,#300f07 100%) !important;border-color:#f87171 !important;box-shadow:0 4px 0 #7f1d1d,0 6px 18px rgba(0,0,0,.6) !important;" onclick="showTournamentSelect();initAudio();playBGM('title')">
+        🏆 <span>トーナメント</span>
+        <span style="font-size:.58rem;background:rgba(248,113,113,.2);color:#fca5a5;border:1px solid #f87171;border-radius:4px;padding:.02rem .28rem;margin-left:.35rem;vertical-align:middle;">NEW</span>
       </button>
 
       <!-- CPU観戦 -->
@@ -4847,6 +4858,7 @@ function drawDice3D(ctx,cx,cy,size,rx,ry){
 
 let _diceAnim=null;
 function showDiceRoll(player,finalFace,onDone){
+  if(_fastSimMode){ if(onDone)onDone(); return; }
   const canvas=document.getElementById('dice-canvas-3d');
   const splash=document.getElementById('dice-result-splash');
   const label=document.getElementById('dice-player-label');
@@ -4918,6 +4930,7 @@ function showDiceRoll(player,finalFace,onDone){
 // ===== SAVE / LOAD =====
 const SAVE_KEY = 'itadaki_save_v1';
 const TOUR_SAVE_KEY = 'itadaki_tour_save_v1';
+const TOURNAMENT_SAVE_KEY = 'itadaki_tournament_save_v1';
 
 function saveGame(silent) {
   if (!G || !G.players || !_gameRunning) {
@@ -4984,13 +4997,20 @@ function saveGame(silent) {
     data.changeMarks = G.map.filter(n=>n.type==='changemark').map(n=>({id:n.id,mark:n.mark}));
     // ツアー中はツアー用キーに保存、フリーモードは通常キー
     const _isTourSave = (_tourState && _tourState.mapIdx !== undefined);
-    const _saveKey = _isTourSave ? TOUR_SAVE_KEY : SAVE_KEY;
+    // セーブキー決定: トーナメント中 → 専用、ツアー中 → ツアー、それ以外 → 通常
+    const _isTournamentSave = !!(_tournamentState && _tournamentState.active);
+    const _saveKey = _isTournamentSave ? TOURNAMENT_SAVE_KEY
+                   : _isTourSave ? TOUR_SAVE_KEY : SAVE_KEY;
     if(_isTourSave){
       // ツアーセーブ: 観戦モードフラグを含めない
       data._spectateMode = false;
     } else {
       // フリー・CPU観戦セーブ: _tourStateを完全に除去（混入防止）
       delete data._tourState;
+    }
+    // トーナメント状態を保存(進行中のみ)
+    if(_tournamentState && _tournamentState.active){
+      data._tournamentState = JSON.parse(JSON.stringify(_tournamentState));
     }
     localStorage.setItem(_saveKey, JSON.stringify(data));
     if(!silent){
@@ -5076,6 +5096,28 @@ function loadGame() {
     return;
   }
   _loadGameData(data);
+}
+
+// トーナメント専用ロード: TOURNAMENT_SAVE_KEY からのみ読み込む
+function loadTournamentGame() {
+  const raw = localStorage.getItem(TOURNAMENT_SAVE_KEY);
+  if(!raw){ showToast('⚠️ トーナメントのセーブデータがありません'); return; }
+  try {
+    const data = JSON.parse(raw);
+    if(!data._tournamentState){
+      showToast('⚠️ このデータはトーナメント用ではありません');
+      return;
+    }
+    _loadGameData(data);
+  } catch(e){
+    showToast('⚠️ ロードに失敗: ' + e.message);
+  }
+}
+
+// トーナメントセーブの存在チェック
+function hasTournamentSave(){
+  try { return !!localStorage.getItem(TOURNAMENT_SAVE_KEY); }
+  catch(e){ return false; }
 }
 
 function _loadGameData(data) {
@@ -5233,6 +5275,17 @@ function _loadGameData(data) {
     const dateStr = `${savedDate.getMonth()+1}/${savedDate.getDate()} ${savedDate.getHours()}:${String(savedDate.getMinutes()).padStart(2,'0')}`;
     addLog(`📂 セーブデータを読み込みました（保存日時: ${dateStr}）`, 'important');
     showToast('📂 ゲームを再開します！ ターン' + data.turn);
+
+    // トーナメント状態の復元(後方互換: 古いセーブにはこのフィールドがない)
+    if(data._tournamentState){
+      _tournamentState = data._tournamentState;
+      // プレイヤー参加試合中なら中断ボタンを再表示
+      const cfg = _tournamentGetCurrentConfig();
+      if(cfg && cfg.match && cfg.match.players.some(p=>p.isHuman)){
+        if(typeof _tournamentShowExitButton === 'function') _tournamentShowExitButton();
+      }
+      addLog(`🏆 トーナメント進行中: 試合${_tournamentState.currentMatchIdx+1}/7`, 'important');
+    }
 
     setTimeout(() => preRollPhase(), 800);
   } catch(e) {
@@ -5629,6 +5682,7 @@ function _newBgmBus(){
 }
 
 function playBGM(name){
+  if(_fastSimMode)return; // 高速シミュ中はBGM無効
   if(!_audioCtx)return;
   if(_bgmLoop)clearTimeout(_bgmLoop);
   _bgmName=name;
@@ -9750,7 +9804,734 @@ let _cpuSpeedMode=0;  // 0=通常, 1=倍速, 2=3倍速
 let _investGlowNode=null;  // 増資光演出対象ノード
 let _investGlowUntil=0;    // 光演出終了時刻(ms)
 let _investGlowColor='#4ade80'; // 光の色
+// ═══════════════════════════════════════════════════════════════
+// トーナメントモード コアインフラ (Phase 1)
+// ═══════════════════════════════════════════════════════════════
+// 16人制・3回戦・固定シード方式
+// - 1回戦 4試合 (4人×4) → 各試合上位2名通過(8人)
+// - 2回戦 2試合 (4人×2) → 各試合上位2名通過(4人)
+// - 決勝 1試合 (4人×1) → 1位優勝
+// - 固定シード: Match1+Match2勝者→2回戦A、Match3+Match4勝者→2回戦B
+//
+// ノーマル: Aランク以下12人 + サコ・メイ・ネネコ = 15人固定
+// ハード:   Sランク16人から1人ランダム除外 = 15人
+//
+// 試合ごとに目標金額{15000..20000}G、マップは9枚から重複なしで7枚
+// ═══════════════════════════════════════════════════════════════
+
+let _tournamentState = null;
+let _fastSimMode = false; // 高速シミュレーションフラグ(CPUのみ試合用)
+
+// ═══════════════════════════════════════════════════════════════
+// Phase 2: 高速シミュレーション用 setTimeout オーバーライド
+// ═══════════════════════════════════════════════════════════════
+// _fastSimMode=true の間は、setTimeout(fn, ms) を即座に fn() 実行に変換する。
+// これにより既存コードの setTimeout を一切書き換えずに全遅延をゼロ化できる。
+// ネイティブ setTimeout は _origSetTimeout に保存して、通常モード時や
+// イベントループを通したい場合に使える。
+const _origSetTimeout = window.setTimeout.bind(window);
+window.setTimeout = function(fn, ms, ...args){
+  if(_fastSimMode && typeof ms === 'number' && ms > 0){
+    // 高速シミュ中: 時間を1/64に短縮(非同期性は維持)
+    ms = Math.max(1, Math.floor(ms/64));
+  }
+  return _origSetTimeout(fn, ms, ...args);
+};
+
+// setInterval も時間短縮
+const _origSetInterval = window.setInterval.bind(window);
+window.setInterval = function(fn, ms, ...args){
+  if(_fastSimMode && typeof ms === 'number' && ms > 0){
+    ms = Math.max(1, Math.floor(ms/64));
+  }
+  return _origSetInterval(fn, ms, ...args);
+};
+
+// requestAnimationFrame はそのまま(描画タイミング用なので触らない)
+const _origRAF = window.requestAnimationFrame.bind(window);
+window.requestAnimationFrame = function(fn){
+  return _origRAF(fn);
+};
+
+// 高速シミュ時にスキップすべき関数のヘルパー
+// これらは「演出だけの関数」なので、_fastSimMode中は即座にコールバックを呼んで抜ける
+function _fastSimSkip(callback){
+  if(_fastSimMode){
+    if(typeof callback === 'function') callback();
+    return true;
+  }
+  return false;
+}
+
+// トーナメント状態オブジェクトを初期化
+function _tournamentInit(mode, playerName, playerAvatar){
+  const charPool = _tournamentBuildCharPool(mode);
+  const bracket = _tournamentBuildBracket(charPool, playerName, playerAvatar);
+  const {mapQueue, goalQueue} = _tournamentDrawMatchConfigs();
+  _tournamentState = {
+    active: true,
+    mode: mode, // 'normal' | 'hard'
+    playerName: playerName,
+    playerAvatar: playerAvatar, // 'dog' | 'cat'
+    charPool: charPool,
+    bracket: bracket,   // 7試合分の参加者情報
+    currentMatchIdx: 0,
+    results: [],        // 各試合の結果: {matchIdx, ranking:[id1,id2,id3,id4]}
+    mapQueue: mapQueue, // 7枚のマップIDリスト(重複なし)
+    goalQueue: goalQueue, // 7試合分の目標金額
+    playerEliminated: false, // プレイヤーが敗退したか
+  };
+  return _tournamentState;
+}
+
+// キャラプール生成
+// ノーマル: Aランク以下12人 + サコ・メイ・ネネコ
+// ハード:   Sランク16人から1人ランダム除外
+function _tournamentBuildCharPool(mode){
+  if(mode==='hard'){
+    // Sランク全員を収集
+    const sRankKeys = Object.keys(CPU_CHARS).filter(k => CPU_CHARS[k].rank==='S');
+    // 1人ランダム除外
+    const exIdx = Math.floor(Math.random() * sRankKeys.length);
+    sRankKeys.splice(exIdx, 1);
+    return sRankKeys;
+  } else {
+    // ノーマル: Aランク以下全員 + 指定3人
+    const lowRankKeys = Object.keys(CPU_CHARS).filter(k => {
+      const r = CPU_CHARS[k].rank;
+      return r==='A' || r==='B' || r==='C' || r==='D';
+    });
+    const sAdds = ['sako','mei','neneko'].filter(k => CPU_CHARS[k]);
+    return [...lowRankKeys, ...sAdds];
+  }
+}
+
+// ブラケット生成(完全ランダム、固定シード構造)
+// 戻り値: bracket[7] = 各試合の参加者情報
+//   matchIdx 0-3: 1回戦4試合
+//   matchIdx 4-5: 2回戦2試合 (初期状態は空=TBD)
+//   matchIdx 6:   決勝 (初期状態は空)
+function _tournamentBuildBracket(charPool, playerName, playerAvatar){
+  // 16人分のエントリを作成(プレイヤー + 15 CPU)
+  const entries = [];
+  entries.push({
+    isHuman: true,
+    name: playerName,
+    avatar: playerAvatar, // 'dog' | 'cat'
+    cpuChar: null,
+  });
+  charPool.forEach(k => {
+    entries.push({
+      isHuman: false,
+      name: CPU_CHARS[k].name,
+      avatar: null,
+      cpuChar: k,
+    });
+  });
+  // シャッフル
+  for(let i=entries.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [entries[i], entries[j]] = [entries[j], entries[i]];
+  }
+  // 1回戦 4試合に4人ずつ分配
+  const bracket = [];
+  for(let m=0; m<4; m++){
+    bracket.push({
+      round: 1,
+      matchIdx: m,
+      players: entries.slice(m*4, m*4+4),
+      done: false,
+    });
+  }
+  // 2回戦 2試合 (初期は空、1回戦結果から埋める)
+  bracket.push({round:2, matchIdx:4, players:[], done:false, sourceMatches:[0,1]});
+  bracket.push({round:2, matchIdx:5, players:[], done:false, sourceMatches:[2,3]});
+  // 決勝 (初期は空、2回戦結果から埋める)
+  bracket.push({round:3, matchIdx:6, players:[], done:false, sourceMatches:[4,5]});
+  return bracket;
+}
+
+// 試合設定抽選
+// 目標金額: {15000..20000}Gから各試合独立ランダム
+// マップ: 9枚(シサク・ラストヘブン除外)から重複なしで7枚シャッフル
+function _tournamentDrawMatchConfigs(){
+  const goalOptions = [15000, 16000, 17000, 18000, 19000, 20000];
+  const goalQueue = [];
+  for(let i=0; i<7; i++){
+    goalQueue.push(goalOptions[Math.floor(Math.random()*goalOptions.length)]);
+  }
+  // マップ9枚(シサク・ラストヘブン除外)
+  const allMaps = ['hajimari','nightcity','santa','volcano','cathedral',
+                   'victoria','sunsetharbor','casinoourorea','rivera'];
+  // シャッフル
+  for(let i=allMaps.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [allMaps[i], allMaps[j]] = [allMaps[j], allMaps[i]];
+  }
+  // 先頭7枚を採用(2枚余る)
+  const mapQueue = allMaps.slice(0, 7);
+  return {goalQueue, mapQueue};
+}
+
+// 現在の試合設定取得
+function _tournamentGetCurrentConfig(){
+  if(!_tournamentState) return null;
+  const idx = _tournamentState.currentMatchIdx;
+  return {
+    matchIdx: idx,
+    goalAmount: _tournamentState.goalQueue[idx],
+    mapId: _tournamentState.mapQueue[idx],
+    match: _tournamentState.bracket[idx],
+  };
+}
+
+// プレイヤーが現在の試合に参加しているか
+function _tournamentPlayerInCurrentMatch(){
+  if(!_tournamentState) return false;
+  const cfg = _tournamentGetCurrentConfig();
+  if(!cfg || !cfg.match) return false;
+  return cfg.match.players.some(p => p.isHuman);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Phase 3: 試合終了時の順位判定・通過者伝播・次試合遷移
+// ═══════════════════════════════════════════════════════════════
+
+// endGame 内から呼ばれる。sorted は G.players を1-4位順に並べた配列
+// winnerId >= 0 なら通常終了、< 0 なら破産終了
+function _tournamentFinalizeMatch(sorted, winnerId){
+  if(!_tournamentState || !_tournamentState.active) return;
+
+  // 試合終了時のモーダル/オーバーレイ残留クリーンアップ
+  if(typeof closeModal === 'function') closeModal();
+
+  // 同点処理: 同じ総資産のグループ内で人間プレイヤー優先、CPU同士はランダム
+  const finalRanking = _tournamentResolveTies(sorted);
+
+  // 現在試合のエントリ(bracket[currentMatchIdx].players)と G.players を対応付ける
+  // G.players[i] の isCPU/cpuChar/name から元の bracket entry を特定
+  const currentMatch = _tournamentState.bracket[_tournamentState.currentMatchIdx];
+  const rankedEntries = finalRanking.map(gp => {
+    // G.players のプレイヤーオブジェクトから対応する bracket entry を探す
+    return currentMatch.players.find(be =>
+      (be.isHuman && !gp.isCPU && gp.name===be.name) ||
+      (!be.isHuman && gp.isCPU && gp.cpuChar===be.cpuChar)
+    );
+  }).filter(Boolean);
+
+  // 試合結果を保存
+  _tournamentState.results.push({
+    matchIdx: _tournamentState.currentMatchIdx,
+    ranking: rankedEntries, // 1位→4位の entry 配列
+  });
+  currentMatch.done = true;
+  currentMatch.ranking = rankedEntries;
+
+  // プレイヤー敗退判定(決勝以外は上位2名通過、決勝は1位のみ)
+  const isFinal = (_tournamentState.currentMatchIdx === 6);
+  const passCount = isFinal ? 1 : 2;
+  const humanEntry = rankedEntries.find(e => e && e.isHuman);
+  const humanRank = humanEntry ? rankedEntries.indexOf(humanEntry) : -1;
+  if(humanEntry && humanRank >= passCount){
+    _tournamentState.playerEliminated = true;
+  }
+
+  // 通過者を次試合枠に伝播
+  const passers = rankedEntries.slice(0, passCount);
+  if(!isFinal){
+    // 次試合(2回戦 or 決勝)の sourceMatches に自分が含まれているものを探して埋める
+    for(let nextIdx=0; nextIdx<_tournamentState.bracket.length; nextIdx++){
+      const nm = _tournamentState.bracket[nextIdx];
+      if(nm.sourceMatches && nm.sourceMatches.includes(_tournamentState.currentMatchIdx)){
+        nm.players.push(...passers);
+      }
+    }
+  } else {
+    // 決勝終了 → トーナメント全体終了
+    _tournamentState.champion = passers[0];
+    _tournamentState.finished = true;
+  }
+
+  // 次試合へ(UIフェーズは Phase 5 で実装、今は console 通知のみ)
+  _tournamentState.currentMatchIdx++;
+  // 後続処理は Phase 5 の UI 経由で行う想定
+  // 暫定: 次試合開始トリガーをコンソール出力
+  console.log('[Tournament] Match done. Ranking:', rankedEntries.map(e=>e?e.name:'?'));
+  if(_tournamentState.finished){
+    console.log('[Tournament] CHAMPION:', _tournamentState.champion?.name);
+  }
+  // Phase 4: 次試合への遷移トリガー
+  _tournamentAfterFinalize();
+}
+
+// 同点処理: 総資産が同じグループ内で人間プレイヤーを上位に、CPU同士はランダム
+function _tournamentResolveTies(sorted){
+  const result = [];
+  let i = 0;
+  while(i < sorted.length){
+    // 同じ総資産のグループを抽出
+    const curAssets = getPlayerAssets(sorted[i]).total;
+    const curBankrupt = sorted[i].bankrupt;
+    const group = [sorted[i]];
+    let j = i + 1;
+    while(j < sorted.length){
+      const nxt = sorted[j];
+      if(nxt.bankrupt !== curBankrupt) break;
+      if(getPlayerAssets(nxt).total !== curAssets) break;
+      group.push(nxt);
+      j++;
+    }
+    // グループ内で同点処理
+    if(group.length === 1){
+      result.push(group[0]);
+    } else {
+      // 人間プレイヤーを先頭に
+      const humans = group.filter(p => !p.isCPU);
+      const cpus = group.filter(p => p.isCPU);
+      // CPU同士をランダムシャッフル
+      for(let k=cpus.length-1; k>0; k--){
+        const r = Math.floor(Math.random()*(k+1));
+        [cpus[k], cpus[r]] = [cpus[r], cpus[k]];
+      }
+      result.push(...humans, ...cpus);
+    }
+    i = j;
+  }
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Phase 4: 試合開始処理とプレイヤー統合
+// ═══════════════════════════════════════════════════════════════
+
+// 次の試合を開始する
+// プレイヤー参加試合なら showOrderSlot 経由で演出あり
+// CPU試合なら _fastSimMode=true で直接 initGame
+function _tournamentStartNextMatch(){
+  if(!_tournamentState || !_tournamentState.active) return;
+  if(_tournamentState.finished) return;
+  if(_tournamentState.currentMatchIdx >= _tournamentState.bracket.length) return;
+
+  const cfg = _tournamentGetCurrentConfig();
+  if(!cfg) return;
+  const match = cfg.match;
+
+  // マップを設定
+  _selectedMapId = cfg.mapId;
+
+  // プレイヤー定義を構築
+  const playerDefs = match.players.map(be => {
+    if(be.isHuman){
+      return {name: be.name, color: '#ffcc44', isCPU: false, cpuChar: null};
+    } else {
+      const info = CPU_CHARS[be.cpuChar];
+      return {name: info.name, color: info.color, isCPU: true, cpuChar: be.cpuChar};
+    }
+  });
+
+  // 犬/猫アバターをグローバルに設定(getPlayerSVGが参照)
+  _playerAvatar = _tournamentState.playerAvatar;
+
+  // プレイヤー参加試合かどうか
+  const hasHuman = match.players.some(p => p.isHuman);
+
+  if(hasHuman){
+    _fastSimMode = false;
+    document.body.classList.remove('tournament-fast-sim');
+    _tournamentShowExitButton(); // 中断ボタン表示
+    initAudio && initAudio();
+    showOrderSlot(playerDefs, cfg.goalAmount, 1);
+  } else {
+    _fastSimMode = true;
+    document.body.classList.add('tournament-fast-sim');
+    _tournamentHideExitButton(); // CPU試合中は非表示
+    if(typeof closeModal === 'function') closeModal();
+    // ゲーム画面に遷移(裏でタイトル画面に戻らないように)
+    if(typeof showScreen === 'function') showScreen('game-screen');
+    // 順番はランダムシャッフル(showOrderSlotの代わり)
+    for(let i=playerDefs.length-1; i>0; i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [playerDefs[i], playerDefs[j]] = [playerDefs[j], playerDefs[i]];
+    }
+    // 直接 initGame を呼んで試合開始
+    initGame(playerDefs, cfg.goalAmount, 1);
+  }
+}
+
+// _tournamentFinalizeMatch の末尾で呼ばれる次試合遷移トリガー
+// Phase 5 でブラケット画面表示を挟むように拡張予定
+function _tournamentProceedToNext(){
+  if(!_tournamentState || !_tournamentState.active) return;
+  _fastSimMode = false;
+  // 高速シミュ関連の残留クリーンアップ
+  document.body.classList.remove('tournament-fast-sim');
+  if(typeof closeModal === 'function') closeModal();
+  if(_tournamentState.finished){
+    console.log('[Tournament] FINISHED. Champion:',
+      _tournamentState.champion && _tournamentState.champion.name);
+    return;
+  }
+  // 次試合開始(プレイヤー参加試合ならイントロ画面を挟む)
+  _tournamentShowMatchIntro(() => _tournamentStartNextMatch());
+}
+
+// Phase 3 の _tournamentFinalizeMatch 末尾から呼び出されるラッパー
+// (Phase 3 側のコンソールログ直後に setTimeout で次試合遷移)
+// ═══════════════════════════════════════════════════════════════
+// Phase 5b: ブラケット画面
+// ═══════════════════════════════════════════════════════════════
+
+// ブラケット画面を表示する
+// 試合終了後に自動表示、「次の試合へ」ボタンで閉じる
+function _tournamentShowBracket(onDone){
+  if(!_tournamentState) { if(onDone) onDone(); return; }
+
+  let ov = document.getElementById('tournament-bracket-overlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'tournament-bracket-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:flex;flex-direction:column;';
+    document.body.appendChild(ov);
+  }
+
+  const state = _tournamentState;
+  const bracket = state.bracket;
+
+  // 各試合ブロックのHTML生成
+  const renderMatchBox = (match, label) => {
+    const players = match.players || [];
+    const ranking = match.ranking || [];
+    let playersHtml = '';
+    for(let i=0; i<4; i++){
+      const p = players[i];
+      let icon = '?', name = '未定', badge = '';
+      if(p){
+        name = p.name;
+        // アイコン
+        if(p.isHuman){
+          icon = p.avatar === 'dog' ? '🐶' : '🐱';
+        } else if(p.cpuChar && CPU_CHARS[p.cpuChar]){
+          icon = CPU_CHARS[p.cpuChar].name.slice(0, 1);
+        }
+        // 勝ち上がり表示
+        if(match.done && ranking.length > 0){
+          const rankIdx = ranking.indexOf(p);
+          if(rankIdx === 0) badge = '🥇';
+          else if(rankIdx === 1) badge = '🥈';
+          else if(rankIdx === 2) badge = '🥉';
+          else badge = '✗';
+        }
+      }
+      const bgColor = (p && p.isHuman) ? '#3a2e14' : '#1c2338';
+      const borderColor = (p && p.isHuman) ? '#fbbf24' : '#555';
+      playersHtml += `
+        <div style="display:flex;align-items:center;gap:.3rem;padding:.15rem .3rem;background:${bgColor};border:1px solid ${borderColor};border-radius:3px;margin-bottom:.12rem;">
+          <div style="width:18px;height:18px;border-radius:50%;background:#141828;border:1px solid #666;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0;">${icon}</div>
+          <div style="flex:1;font-size:.65rem;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>
+          <div style="font-size:.7rem;flex-shrink:0;">${badge}</div>
+        </div>
+      `;
+    }
+    const cfg = _tournamentGetMatchCfg(match.matchIdx);
+    const mapName = cfg ? ((typeof MAP_DEFS !== 'undefined' && MAP_DEFS.find(m=>m.id===cfg.mapId)?.name) || cfg.mapId) : '';
+    const highlight = (match.matchIdx === state.currentMatchIdx) ? 'box-shadow:0 0 12px #fbbf24;border-color:#fbbf24;' : '';
+    return `
+      <div style="padding:.5rem;background:#0d0f1a;border:2px solid #444;border-radius:6px;min-width:140px;${highlight}">
+        <div style="font-size:.65rem;color:#fca5a5;margin-bottom:.15rem;font-weight:700;">${label}</div>
+        <div style="font-size:.58rem;color:#999;margin-bottom:.3rem;">${cfg?cfg.goalAmount.toLocaleString()+'G':'-'} / ${mapName}</div>
+        ${playersHtml}
+      </div>
+    `;
+  };
+
+  const r1 = [0,1,2,3].map(i=>renderMatchBox(bracket[i], `1回戦 第${i+1}試合`)).join('');
+  const r2 = [4,5].map(i=>renderMatchBox(bracket[i], `2回戦 第${i-3}試合`)).join('');
+  const r3 = renderMatchBox(bracket[6], '🏆 決勝戦');
+
+  ov.innerHTML = `
+    <div style="flex-shrink:0;padding:.6rem;text-align:center;">
+      <h2 style="color:#fca5a5;font-size:1.1rem;">🏆 トーナメント ブラケット</h2>
+    </div>
+    <div style="flex:1;overflow:auto;padding:0 .6rem;">
+      <div style="max-width:920px;margin:0 auto;color:#fff;display:flex;gap:.6rem;justify-content:center;align-items:flex-start;flex-wrap:nowrap;">
+        <div style="display:flex;flex-direction:column;gap:.4rem;">${r1}</div>
+        <div style="display:flex;flex-direction:column;gap:.8rem;justify-content:space-around;padding-top:1.5rem;">${r2}</div>
+        <div style="display:flex;flex-direction:column;justify-content:center;padding-top:3rem;">${r3}</div>
+      </div>
+    </div>
+    <div style="flex-shrink:0;padding:.6rem;text-align:center;background:rgba(0,0,0,.5);">
+      <button id="tn-bracket-next" style="padding:.6rem 1.8rem;background:#6e2a1a;color:#fff;border:2px solid #f87171;border-radius:8px;cursor:pointer;font-weight:700;">▶ 次へ</button>
+    </div>
+  `;
+  ov.style.display = 'flex';
+  document.getElementById('tn-bracket-next').onclick = () => {
+    ov.style.display = 'none';
+    if(onDone) onDone();
+  };
+}
+
+// matchIdx から試合設定を取得(_tournamentGetCurrentConfigの任意idx版)
+function _tournamentGetMatchCfg(idx){
+  if(!_tournamentState) return null;
+  if(idx < 0 || idx >= _tournamentState.bracket.length) return null;
+  return {
+    matchIdx: idx,
+    goalAmount: _tournamentState.goalQueue[idx],
+    mapId: _tournamentState.mapQueue[idx],
+    match: _tournamentState.bracket[idx],
+  };
+}
+
+function _tournamentAfterFinalize(){
+  const lastMatchIdx = _tournamentState.currentMatchIdx - 1;
+  const lastMatch = _tournamentState.bracket[lastMatchIdx];
+  const hasHuman = lastMatch && lastMatch.ranking && lastMatch.ranking.some(p => p && p.isHuman);
+  const isFinished = _tournamentState.finished;
+
+  if(hasHuman || isFinished){
+    setTimeout(() => {
+      _tournamentShowBracket(() => {
+        if(isFinished){
+          _tournamentShowChampionScreen();
+        } else {
+          _tournamentProceedToNext();
+        }
+      });
+    }, 500);
+  } else {
+    setTimeout(() => _tournamentProceedToNext(), 200);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Phase 5c: 優勝演出・タイトル戻りボタン
+// ═══════════════════════════════════════════════════════════════
+
+function _tournamentShowChampionScreen(){
+  if(!_tournamentState) return;
+  const champ = _tournamentState.champion;
+  let ov = document.getElementById('tournament-champion-overlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'tournament-champion-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:radial-gradient(ellipse at center,#3a1f0a 0%,#0d0f1a 70%);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    document.body.appendChild(ov);
+  }
+  // プレイヤー成績の集計
+  let playerRank = '-';
+  for(let i=_tournamentState.results.length-1; i>=0; i--){
+    const r = _tournamentState.results[i];
+    const humanIdx = r.ranking.findIndex(p => p && p.isHuman);
+    if(humanIdx >= 0){
+      // プレイヤーが参加した最後の試合
+      const matchIdx = r.matchIdx;
+      if(matchIdx === 6) playerRank = (humanIdx===0)?'🏆 優勝':(`第${humanIdx+1}位`);
+      else if(matchIdx >= 4) playerRank = (humanIdx<2)?'準優勝・ベスト4':(`2回戦 ${humanIdx+1}位`);
+      else playerRank = (humanIdx<2)?'ベスト8':(`1回戦 ${humanIdx+1}位`);
+      break;
+    }
+  }
+  const isPlayerWin = champ && champ.isHuman;
+  const champIcon = champ ? (champ.isHuman ? (champ.avatar==='dog'?'🐶':'🐱') : '🤖') : '?';
+  const champName = champ ? champ.name : '?';
+  const modeLabel = _tournamentState.mode === 'hard' ? 'ハード' : 'ノーマル';
+
+  ov.innerHTML = `
+    <div style="text-align:center;color:#fff;padding:2rem;max-width:480px;">
+      <div style="font-size:.9rem;color:#fca5a5;margin-bottom:.5rem;">🏆 トーナメント終了 (${modeLabel})</div>
+      <div style="font-size:5rem;margin-bottom:.5rem;animation:pulse 1.5s infinite;">${isPlayerWin?'🏆':'👑'}</div>
+      <div style="font-size:1rem;color:#fbbf24;margin-bottom:.3rem;">優勝</div>
+      <div style="font-size:2.2rem;font-weight:900;color:${isPlayerWin?'#fbbf24':'#fff'};margin-bottom:.5rem;">${champIcon} ${champName}</div>
+      ${isPlayerWin
+        ? '<div style="font-size:1.1rem;color:#4ade80;margin-top:.8rem;">🎉 おめでとうございます! 🎉</div>'
+        : `<div style="font-size:.9rem;color:#aaa;margin-top:.8rem;">あなたの成績: <strong style="color:#fbbf24;">${playerRank}</strong></div>`
+      }
+      <div style="margin-top:1.8rem;display:flex;gap:.5rem;justify-content:center;">
+        <button style="padding:.6rem 1.5rem;background:#1c2338;color:#fff;border:1px solid #666;border-radius:8px;cursor:pointer;" onclick="_tournamentReviewBracket()">📊 ブラケット確認</button>
+        <button style="padding:.6rem 1.5rem;background:#6e2a1a;color:#fff;border:2px solid #f87171;border-radius:8px;cursor:pointer;font-weight:700;" onclick="_tournamentExitToTitle()">🏠 タイトルへ</button>
+      </div>
+    </div>
+  `;
+  ov.style.display = 'flex';
+}
+
+function _tournamentExitToTitle(){
+  ['tournament-select-overlay','tournament-intro-overlay','tournament-bracket-overlay','tournament-champion-overlay'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = 'none';
+  });
+  _tournamentHideExitButton();
+  _tournamentState = null;
+  _fastSimMode = false;
+  document.body.classList.remove('tournament-fast-sim');
+  // タイトル画面へ
+  if(typeof showScreen === 'function') showScreen('title-screen');
+  if(typeof playBGM === 'function') playBGM('title');
+}
+
+// 優勝画面の「ブラケット確認」ボタンから呼ばれる
+// 優勝画面を一旦隠してブラケット表示、戻り時に優勝画面を再表示
+function _tournamentReviewBracket(){
+  const champOv = document.getElementById('tournament-champion-overlay');
+  if(champOv) champOv.style.display = 'none';
+  _tournamentShowBracket(() => {
+    if(champOv) champOv.style.display = 'flex';
+  });
+}
+
+// サイコロ待機時に表示する「タイトルに戻る」ボタン
+// 既存のゲームUI(action-panel等)に追加するのではなく、独立した固定ボタンとして配置
+function _tournamentShowExitButton(){
+  if(!_tournamentState || !_tournamentState.active) return;
+  let btn = document.getElementById('tournament-exit-btn');
+  if(!btn){
+    btn = document.createElement('button');
+    btn.id = 'tournament-exit-btn';
+    btn.textContent = '🏠 タイトル';
+    btn.style.cssText = 'position:fixed;top:.5rem;right:.5rem;padding:.35rem .6rem;background:rgba(110,42,26,.9);color:#fff;border:1px solid #f87171;border-radius:6px;font-size:.7rem;cursor:pointer;z-index:9000;';
+    btn.onclick = () => {
+      if(confirm('トーナメントを中断してタイトルに戻りますか?')){
+        _tournamentExitToTitle();
+      }
+    };
+    document.body.appendChild(btn);
+  }
+  btn.style.display = 'block';
+}
+
+function _tournamentHideExitButton(){
+  const btn = document.getElementById('tournament-exit-btn');
+  if(btn) btn.style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Phase 5a: トーナメント開始画面と試合開始通知
+// ═══════════════════════════════════════════════════════════════
+
+function showTournamentSelect(){
+  // 案A: 最初にトーナメント専用メニュー画面を表示(新規 / 続きから)
+  let ov = document.getElementById('tournament-select-overlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'tournament-select-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    document.body.appendChild(ov);
+  }
+  const hasSave = hasTournamentSave();
+  ov.innerHTML = `
+    <div style="padding:1.5rem;text-align:center;color:#fff;max-width:340px;width:90%;background:#141828;border:2px solid #f87171;border-radius:12px;">
+      <h2 style="color:#fca5a5;margin-bottom:1.2rem;font-size:1.25rem;">🏆 トーナメント</h2>
+      <div style="display:flex;flex-direction:column;gap:.6rem;">
+        <button style="padding:.7rem;background:#6e2a1a;color:#fff;border:2px solid #f87171;border-radius:8px;cursor:pointer;font-weight:700;font-size:.95rem;" onclick="showTournamentNewSelect()">🆕 新規開始</button>
+        <button ${hasSave?'':'disabled'} style="padding:.7rem;background:${hasSave?'#1c2338':'#222'};color:${hasSave?'#fff':'#666'};border:1px solid ${hasSave?'#666':'#444'};border-radius:8px;cursor:${hasSave?'pointer':'not-allowed'};font-weight:700;font-size:.95rem;" onclick="${hasSave?'loadTournamentGame()':''}">📂 続きから ${hasSave?'':'(保存なし)'}</button>
+        <button style="padding:.5rem;background:#333;color:#fff;border:1px solid #666;border-radius:6px;cursor:pointer;margin-top:.4rem;" onclick="closeTournamentSelect()">キャンセル</button>
+      </div>
+    </div>
+  `;
+  ov.style.display = 'flex';
+}
+
+// 「新規開始」を選んだあとに表示する設定画面(モード/アバター/名前入力)
+function showTournamentNewSelect(){
+  let ov = document.getElementById('tournament-select-overlay');
+  if(!ov) return;
+  ov.innerHTML = `
+    <div style="padding:1.2rem;text-align:center;color:#fff;max-width:340px;width:90%;background:#141828;border:2px solid #f87171;border-radius:12px;">
+      <h2 style="color:#fca5a5;margin-bottom:1rem;font-size:1.2rem;">🏆 トーナメント</h2>
+      <div style="margin-bottom:.8rem;">
+        <label style="display:block;margin-bottom:.3rem;font-size:.8rem;">難易度</label>
+        <div style="display:flex;gap:.4rem;">
+          <button id="tn-mode-normal" style="flex:1;padding:.45rem;background:#1a3a1a;color:#fff;border:1px solid #4ade80;border-radius:6px;cursor:pointer;">🟢 ノーマル</button>
+          <button id="tn-mode-hard" style="flex:1;padding:.45rem;background:#3a1a1a;color:#fff;border:1px solid #f87171;border-radius:6px;cursor:pointer;">🔴 ハード</button>
+        </div>
+      </div>
+      <div style="margin-bottom:.8rem;">
+        <label style="display:block;margin-bottom:.3rem;font-size:.8rem;">アバター</label>
+        <div style="display:flex;gap:.4rem;">
+          <button id="tn-av-dog" style="flex:1;padding:.45rem;background:#1c2338;color:#fff;border:1px solid #555;border-radius:6px;cursor:pointer;">🐶 犬</button>
+          <button id="tn-av-cat" style="flex:1;padding:.45rem;background:#1c2338;color:#fff;border:1px solid #555;border-radius:6px;cursor:pointer;">🐱 猫</button>
+        </div>
+      </div>
+      <div style="margin-bottom:1rem;">
+        <label style="display:block;margin-bottom:.3rem;font-size:.8rem;">プレイヤー名</label>
+        <input id="tn-player-name" type="text" maxlength="10" value="プレイヤー" style="width:100%;padding:.4rem;border-radius:4px;border:1px solid #555;background:#222;color:#fff;text-align:center;box-sizing:border-box;"/>
+      </div>
+      <div style="display:flex;gap:.5rem;">
+        <button style="flex:1;padding:.5rem;background:#333;color:#fff;border:1px solid #666;border-radius:6px;cursor:pointer;" onclick="closeTournamentSelect()">キャンセル</button>
+        <button style="flex:1;padding:.5rem;background:#6e2a1a;color:#fff;border:1px solid #f87171;border-radius:6px;cursor:pointer;font-weight:700;" onclick="startTournamentFromSelect()">▶ 開始</button>
+      </div>
+    </div>
+  `;
+  ov.style.display = 'flex';
+  window._tnSelect = {mode:'normal', avatar:'dog'};
+  const upd = ()=>{
+    const n = document.getElementById('tn-mode-normal');
+    const h = document.getElementById('tn-mode-hard');
+    const d = document.getElementById('tn-av-dog');
+    const c = document.getElementById('tn-av-cat');
+    if(n) n.style.outline = window._tnSelect.mode==='normal'?'3px solid #4ade80':'';
+    if(h) h.style.outline = window._tnSelect.mode==='hard'?'3px solid #f87171':'';
+    if(d) d.style.outline = window._tnSelect.avatar==='dog'?'3px solid #fbbf24':'';
+    if(c) c.style.outline = window._tnSelect.avatar==='cat'?'3px solid #fbbf24':'';
+  };
+  document.getElementById('tn-mode-normal').onclick = ()=>{window._tnSelect.mode='normal';upd();};
+  document.getElementById('tn-mode-hard').onclick = ()=>{window._tnSelect.mode='hard';upd();};
+  document.getElementById('tn-av-dog').onclick = ()=>{window._tnSelect.avatar='dog';upd();};
+  document.getElementById('tn-av-cat').onclick = ()=>{window._tnSelect.avatar='cat';upd();};
+  upd();
+}
+
+function closeTournamentSelect(){
+  const ov = document.getElementById('tournament-select-overlay');
+  if(ov) ov.style.display = 'none';
+}
+
+function startTournamentFromSelect(){
+  const sel = window._tnSelect || {mode:'normal', avatar:'dog'};
+  const name = (document.getElementById('tn-player-name')?.value || 'プレイヤー').trim() || 'プレイヤー';
+  closeTournamentSelect();
+  _tournamentInit(sel.mode, name, sel.avatar);
+  _tournamentShowMatchIntro(() => _tournamentStartNextMatch());
+}
+
+// 試合開始前の通知(目標金額・マップ)
+function _tournamentShowMatchIntro(onDone){
+  if(!_tournamentState) { if(onDone) onDone(); return; }
+  const cfg = _tournamentGetCurrentConfig();
+  if(!cfg) { if(onDone) onDone(); return; }
+  // プレイヤー非参加試合はイントロスキップ(高速化)
+  const hasHuman = cfg.match.players.some(p => p.isHuman);
+  if(!hasHuman){ if(onDone) onDone(); return; }
+  const mapName = (typeof MAP_DEFS !== 'undefined')
+    ? (MAP_DEFS.find(m=>m.id===cfg.mapId)?.name || cfg.mapId)
+    : cfg.mapId;
+  const roundLabel = cfg.matchIdx<4 ? `1回戦 第${cfg.matchIdx+1}試合`
+                   : cfg.matchIdx<6 ? `2回戦 第${cfg.matchIdx-3}試合`
+                   : '🏆 決勝戦 🏆';
+  let ov = document.getElementById('tournament-intro-overlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'tournament-intro-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div style="text-align:center;color:#fff;padding:2rem;">
+      <div style="font-size:1.2rem;color:#fca5a5;margin-bottom:.6rem;font-weight:700;">${roundLabel}</div>
+      <div style="font-size:2.2rem;font-weight:900;color:#fbbf24;margin-bottom:.4rem;">目標 ${cfg.goalAmount.toLocaleString()}G</div>
+      <div style="font-size:1.15rem;color:#4ade80;margin-bottom:1.8rem;">🗺️ ${mapName}</div>
+      <button style="padding:.7rem 2rem;background:#6e2a1a;color:#fff;border:2px solid #f87171;border-radius:8px;cursor:pointer;font-weight:700;font-size:1rem;" onclick="_tournamentIntroStart()">▶ 試合開始</button>
+    </div>
+  `;
+  ov.style.display = 'flex';
+  window._tournamentIntroStart = () => {
+    ov.style.display = 'none';
+    if(onDone) onDone();
+  };
+}
+
 function _td(ms){
+  if(_fastSimMode) return Math.max(1, Math.floor(ms/64)); // トーナメント高速シミュ = 64倍速
   if(_cpuSpeedMode===2)return Math.floor(ms/3);
   if(_cpuSpeedMode===1)return Math.floor(ms/2);
   return ms;
@@ -9758,14 +10539,24 @@ function _td(ms){
 let _routeArrowAnim=null;
 
 function toggleCpuSpeed(){
-  _cpuSpeedMode=(_cpuSpeedMode+1)%3;
-  _cpuSpeedX2=(_cpuSpeedMode>=1); // 互換用
+  // CPU観戦モード時のみ4段階(0→1→2→3→0)、それ以外は3段階(0→1→2→0)
+  const maxMode = _spectateMode ? 4 : 3;
+  _cpuSpeedMode = (_cpuSpeedMode + 1) % maxMode;
+  _cpuSpeedX2 = (_cpuSpeedMode >= 1); // 互換用
+  // モード3(64倍速)時のみ高速シミュレーションフラグを発動
+  if(_cpuSpeedMode === 3){
+    _fastSimMode = true;
+    document.body.classList.add('tournament-fast-sim');
+  } else {
+    _fastSimMode = false;
+    document.body.classList.remove('tournament-fast-sim');
+  }
   const btn=document.getElementById('speed-toggle-btn');
   if(btn){
-    const labels=['▶ 通常','⚡ 倍速','⚡⚡ 3倍速'];
-    const bgs=['rgba(255,255,255,.08)','rgba(251,191,36,.25)','rgba(239,68,68,.25)'];
-    const bds=['rgba(255,255,255,.25)','#fbbf24','#f87171'];
-    const cls=['#fff','#fbbf24','#f87171'];
+    const labels=['▶ 通常','⚡ 倍速','⚡⚡ 3倍速','⚡⚡⚡ 64倍速'];
+    const bgs=['rgba(255,255,255,.08)','rgba(251,191,36,.25)','rgba(239,68,68,.25)','rgba(168,85,247,.35)'];
+    const bds=['rgba(255,255,255,.25)','#fbbf24','#f87171','#a855f7'];
+    const cls=['#fff','#fbbf24','#f87171','#c084fc'];
     btn.textContent=labels[_cpuSpeedMode];
     btn.style.background=bgs[_cpuSpeedMode];
     btn.style.borderColor=bds[_cpuSpeedMode];
@@ -11134,7 +11925,10 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
         s += netWinValue / (dist[bankId] + 1);
 
         // 今ターンぴったり銀行に着地 = 即勝利確定（リスクがなければ最大ボーナス）
-        if(isLanding(dist[bankId])){
+        // ポッター予知: 今ターン中に銀行へ到達可能(通過 or 着地)なら勝利確定とみなし最優先
+        if(isPotter && dist[bankId] <= remSteps - 1){
+          s += WIN_VALUE * 100;
+        } else if(isLanding(dist[bankId])){
           s += Math.max(0, WIN_VALUE - fallBelowRisk) * 2.0;
         }
       }
@@ -12281,6 +13075,7 @@ function showEventNotif(icon, title, desc, color, done, isPlayerTurn){
   if(btn&&isPlayerTurn) btn.onclick=()=>{clearTimeout(_tid);close();};
 }
 function showTollNotif(payer, owner, sq, toll, done, extraInfo){
+  if(_fastSimMode){if(done)done();return;}
   const el=document.getElementById('toll-notif');
   if(!el){done();return;}
   document.getElementById('tn-payer').textContent=`${getPlayerIcon(payer)} ${payer.name}`;
@@ -14310,11 +15105,18 @@ function landEvent(player,sq){
         const heldB=player.stocks[b]||0;
         const spA=G.areas[a].stockPrice;
         const spB=G.areas[b].stockPrice;
-        // 利益 = 保有枚数 × 株価の20%上昇分
         const profitA=heldA*Math.floor(spA*0.2);
         const profitB=heldB*Math.floor(spB*0.2);
         return profitA>=profitB?a:b;
       });
+      if(_fastSimMode){
+        // 高速シミュ: 演出スキップ → 直接実行
+        const old97=G.areas[best97].stockPrice;
+        G.areas[best97].stockPrice=Math.max(1,Math.floor(old97*1.2));
+        addLog(`📈 ${player.name} A${best97}エリア株価20%UP ${old97}→${G.areas[best97].stockPrice}G`,'event');
+        endAction();
+        return;
+      }
       showEventNotif('📈','株価20%UP！',`${player.name} A${best97}エリアを選択中…`,'#51cf66',()=>{
         _showStockUp20PickHTML(player,areas97,best97,_doStockUp97);
       },false);
@@ -18202,7 +19004,7 @@ function cpuSay(player,category){
     ||CPU_SPEECH_DEFAULT[category]
     ||CPU_SPEECH_DEFAULT.preRoll;
   const line=pool[Math.floor(Math.random()*pool.length)];
-  if(_cpuSpeedMode===2){
+  if(_cpuSpeedMode>=2){
     addLog(`💬 ${player.name}「${line}」`,'event');
     return;
   }
@@ -20220,8 +21022,39 @@ let _aucCpuTimers=[];     // CPUの入札スケジューラ
 // overrideStartPrice: 省略時は現在店価格、指定時はその値から競売スタート（2倍スタート等のイベント用）
 // 落札時は価格そのまま引き継ぎ、未落札時はbasePriceにリセット（どちらも同じ）
 function startAuction(seller, sq, done, overrideStartPrice=null){
+  // 高速シミュ時: オークション演出をバイパスして直接CPU落札決定
+  if(_fastSimMode){
+    _fastAuction(seller, sq, done, overrideStartPrice);
+    return;
+  }
   // 競売告知アナウンスを4秒表示してから本体へ
   _showAuctionAnnounce(sq, seller.name, false, ()=>_startAuctionBody(seller, sq, done, overrideStartPrice));
+}
+
+// 高速シミュ専用: 演出なしでオークション結果だけを決定する
+function _fastAuction(seller, sq, done, overrideStartPrice){
+  const bidders=G.players.filter(p=>!p.bankrupt && p.id!==seller.id && p.isCPU);
+  const startPrice=overrideStartPrice!=null ? overrideStartPrice : sq.price;
+  // 各CPUの入札上限を計算し、最高額のCPUが落札
+  let winnerId=-1, winBid=0;
+  bidders.forEach(p=>{
+    const lim=_calcCpuAuctionLimit(p, sq, seller);
+    if(lim>winBid && lim>=startPrice){ winBid=lim; winnerId=p.id; }
+  });
+  if(winnerId>=0){
+    // 落札処理: 次点+1 相当の金額で買い取り(簡易版: 上限*0.7 で妥結)
+    const finalPrice=Math.max(startPrice, Math.floor(winBid*0.7));
+    const winner=G.players[winnerId];
+    winner.cash-=finalPrice;
+    seller.cash+=finalPrice;
+    sq.owner=winnerId;
+    sq.price=finalPrice;
+    addLog(`🔨 ${winner.name}が${sq.label}を${finalPrice.toLocaleString()}Gで落札`,'shop');
+  } else {
+    // 誰も入札せず → 銀行管理(seller が売ってやめる)
+    addLog(`🔨 ${sq.label}の競売は不成立`,'shop');
+  }
+  if(done) done();
 }
 function _startAuctionBody(seller, sq, done, overrideStartPrice=null){
   // 参加者（出品者以外の破産していないプレイヤー）
@@ -21466,7 +22299,15 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
           (fiveSq&&s.id===fiveSq.id)
         ));
         const _liqBS=getLiquid(player);
-        if(_chNm==='メイ'||_chNm==='本気きよこ'){
+        const _hsTargets=['はゆう','S・はゆう','ワイズ','S・ワイズ','サコ'];
+        const _anyRich90=(typeof G!=='undefined'&&G.players)?G.players.some(_p=>getPlayerAssets(_p).total>=G.goalAmount*0.9):false;
+        const _zeroPriority=(_chNm==='S・はゆう'||_chNm==='サコ')&&_liqBS>=1000&&myShops<=2&&!_oT;
+        const _hsForce=_hsTargets.includes(_chNm)&&_anyRich90&&myShops>=2&&!_zeroPriority;
+        if(_zeroPriority){
+          minShares=0;
+        } else if(_hsForce){
+          minShares=90;
+        } else if(_chNm==='メイ'||_chNm==='本気きよこ'){
           minShares=myShops===1?(_oT?60:(_liqBS>=1000?0:60)):(_oT?80:(_liqBS>=1000?0:80));
         } else if(_chNm==='覚醒ひろし'){
           minShares=_oT?50:(_liqBS>=1000?0:50);
@@ -21475,7 +22316,7 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
           if(_chNm==='S・ワイズ'&&myShops===1&&!_oT&&_liqBS>=1000){
             minShares=0;
           } else {
-            minShares=_wiseRich?90:(myShops===1?90:(_oT?140:90));
+            minShares=_wiseRich?90:(myShops>=3?140:(myShops===1?90:(_oT?140:90)));
           }
         } else if(_chNm==='クリスティー'){
           minShares=myShops===1?50:(_oT?60:50);
@@ -21493,8 +22334,8 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
       } else {
         minShares=myShops>=2?(((_chNm==='はゆう'||_chNm==='S・はゆう')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin2??50)):(ch?.investMin1??ch?.investMin12??20);
       }
-    } else if(myShops>=4) minShares=(_chNm==='ポッター')?50:((_chNm==='ワイズ'||_chNm==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:((_chNm==='ワイズ'||_chNm==='S・ワイズ')?140:(((['サコ','はゆう','S・はゆう'].includes(_chNm))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin4??90)));
-    else if(myShops>=3) minShares=(_chNm==='ポッター')?50:((_chNm==='ワイズ'||_chNm==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:((_chNm==='ワイズ'||_chNm==='S・ワイズ')?140:(((['サコ','はゆう','S・はゆう'].includes(_chNm))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin3??70)));
+    } else if(myShops>=4) minShares=(_chNm==='ポッター')?60:((_chNm==='ワイズ'||_chNm==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:((_chNm==='ワイズ'||_chNm==='S・ワイズ')?140:(((['サコ','はゆう','S・はゆう'].includes(_chNm))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin4??90)));
+    else if(myShops>=3) minShares=(_chNm==='ポッター')?60:((_chNm==='ワイズ'||_chNm==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:((_chNm==='ワイズ'||_chNm==='S・ワイズ')?140:(((['サコ','はゆう','S・はゆう'].includes(_chNm))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin3??70)));
     else                minShares=ch?.investMin1??ch?.investMin12??20;
     if(score<0.1&&myHeld>=minShares)continue;
 
@@ -21654,8 +22495,8 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     } else {
       minSB=myShopsB>=2?(((_chNm2==='はゆう'||_chNm2==='S・はゆう')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin2??50)):(ch?.investMin1??ch?.investMin12??20);
     }
-  } else if(myShopsB>=4) minSB=(_chNm2==='ポッター')?50:((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')?140:(((['サコ','はゆう','S・はゆう'].includes(_chNm2))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin4??90)));
-  else if(myShopsB>=3) minSB=(_chNm2==='ポッター')?50:((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')?140:(((['サコ','はゆう','S・はゆう'].includes(_chNm2))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin3??70)));
+  } else if(myShopsB>=4) minSB=(_chNm2==='ポッター')?60:((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')?140:(((['サコ','はゆう','S・はゆう'].includes(_chNm2))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin4??90)));
+  else if(myShopsB>=3) minSB=(_chNm2==='ポッター')?60:((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')&&getPlayerAssets(player).total>=G.goalAmount*0.9)?90:((_chNm2==='ワイズ'||_chNm2==='S・ワイズ')?140:(((['サコ','はゆう','S・はゆう'].includes(_chNm2))&&getPlayerAssets(player).total>=G.goalAmount*0.9)?99:(ch?.investMin3??70)));
   else                 minSB=ch?.investMin1??ch?.investMin12??20;
   if((player.stocks[best.a]||0)>=minSB&&best.score<=2){callback();return;}
 
@@ -21716,12 +22557,8 @@ function cpuInvest(player,done){
       if(_nm==='ポッター'){
         if(cnt===1) return _ownsTop?60:(_liqCI>=1000?0:60);
         if(cnt===2) return _ownsTop?70:(_liqCI>=1000?0:70);
-        // 3軒以上: 総資産が目標金額の90%以上なら90枚、それ以外は100枚
-        const _potterRich=(getPlayerAssets(player).total>=G.goalAmount*0.9);
-        if(cnt===3) return _ownsTop?(_potterRich?90:100):90;
-        if(cnt===4) return _ownsTop?(_potterRich?90:100):90;
-        if(cnt===5) return _ownsTop?(_potterRich?90:100):90;
-        if(cnt===6) return _ownsTop?(_potterRich?90:100):90;
+        // 3軒以上: 総資産に関わらず60枚（60-89帯は9枚売却調整、90以上は通常Sランク使い分け）
+        if(cnt>=3) return 60;
       }
       if(_nm==='ワイズ'){
         if(cnt===1) return _ownsTop?90:(_liqCI>=5000?0:(_liqCI>=1000?60:90));
@@ -21761,14 +22598,9 @@ function cpuInvest(player,done){
         return (!_ownsTop&&_liqCI>=1000)?0:_inv;
       }
     }
-    // ポッター: cnt>=3のとき100G増資条件(50枚以上)でもscoredに通す
+    // ポッター: cnt>=3のとき60枚以上でscoredに通す（60-89は9枚売却調整専用、90以上は通常Sランク同様）
     if(_nm==='ポッター'&&cnt>=3){
-      const _pTotal2=getPlayerAssets(player).total;
-      const _pRich2=_pTotal2>=G.goalAmount*0.9;
-      // 通常増資閾値（①②条件外: 90枚以上 or 90%以上で80枚以上）
-      // ただし100G増資条件（50枚〜）でも通すため最低閾値を50に
-      const _pNormalMin=_pRich2?80:90;
-      return Math.min(_pNormalMin,50); // 50枚以上でscoredに通す
+      return 60;
     }
     if(cnt>=4) return ch?.investMin4??90;
     if(cnt>=3) return ch?.investMin3??70;
@@ -21784,8 +22616,10 @@ function cpuInvest(player,done){
     const cnt=getPlayerAreaCount(player.id,sq.area);
     const myHeld=player.stocks[sq.area]||0;
     const minShares=getMinShares(cnt,sq.area);
-    // 自分の保有枚数が閾値未満ならスキップ
-    if(myHeld<minShares)return null;
+    // ポッター: 4軒以上 ∧ 株0-59 ∧ 流動1000以上 ∧ 当該店が400G未満 → 400G底上げ候補としてscoredに通す
+    const _potter400Cand=ch&&ch.name==='ポッター'&&cnt>=4&&myHeld<=59&&liq>=1000&&sq.price<400;
+    // 自分の保有枚数が閾値未満ならスキップ（ただしポッター400G候補は通す）
+    if(myHeld<minShares&&!_potter400Cand)return null;
     // ── Sランク専用: 3軒以上エリアで敵株が自分の1.6倍以上なら増資除外 ──
     if(rank==='S'&&cnt>=3){
       const _maxEnemyHeld=Math.max(0,...G.players
@@ -21833,11 +22667,7 @@ function cpuInvest(player,done){
     return true;
   }
 
-  if(!scored.length){
-    // 通常増資できないとき → ポッターは400G底上げをフォールバックとして試す
-    if(_potterTry400Bottom())return;
-    cpuSay(player,'skipInvest');done();return;
-  }
+  if(!scored.length){cpuSay(player,'skipInvest');done();return;}
 
   // 自分の株保有枚数が多いエリア順に並べる（主ソート）
   // 同一エリアで複数店舗がある場合は増資余りが多い店を先にする（副ソート）
@@ -21850,23 +22680,9 @@ function cpuInvest(player,done){
   const sq=target.sq;
   const rem=target.rem;
 
-  // ===== ポッター専用: 条件次第で100G増資 =====
-  if(ch&&ch.name==='ポッター'&&target.cnt>=3){
-    const _pTotal=getPlayerAssets(player).total;
-    const _pRich=_pTotal>=G.goalAmount*0.9;
-    const _pHeld=target.myHeld;
-    // ① 総資産90%未満 & 株50〜89枚 → 100G増資
-    // ② 総資産90%以上 & 株50〜79枚 → 100G増資
-    const _potter100G=(!_pRich&&_pHeld>=50&&_pHeld<=89)||(_pRich&&_pHeld>=50&&_pHeld<=79);
-    if(_potter100G){
-      const investAmt100=Math.min(100,rem,liq);
-      if(investAmt100>=1){
-        _showInvestHTML(player,done);
-        showCpuInvestThink(player,sq,investAmt100,scored,done);
-        return;
-      }
-    }
-  }
+  // ===== ポッター: Sランク共通の増資ルートに委ねる =====
+  // 3軒以上 ∧ 60-89枚帯では下流の_calcSRankInvestAmt呼び出し後に9枚ちょうど強制を適用予定
+  // (閾値60はgetMinShares側で対応済み。Sランク分岐rank==='S'がそのまま走る)
 
   // 増資額決定
   let investAmt=Math.min(999,rem,Math.floor(liq*0.6)); // 1回の増資上限は999G
@@ -21877,6 +22693,38 @@ function cpuInvest(player,done){
   // ===== Sランク専用: 増資額の最適化テクニック =====
   if(rank==='S'){
     investAmt=_calcSRankInvestAmt(player,sq,investAmt);
+  }
+  // ===== ポッター専用: 3軒以上 ∧ 60-89枚は9枚ちょうど売却となる増資額を強制 =====
+  // ===== ポッター専用: 4軒以上 ∧ 0-59枚 ∧ 流動1000+ ∧ 400G未満店 → 400G底上げ vs 9枚調整の少ない方 =====
+  if(ch&&ch.name==='ポッター'&&target.cnt>=3&&target.myHeld<=89){
+    const _pArea=sq.area;
+    const _pB=G.areas[_pArea].B;
+    const _pShops=getAreaShops(_pArea);
+    const _pN=_pShops.length||1;
+    const _pBaseSum=_pShops.reduce((s,sh)=>s+sh.price,0);
+    const _pSimSp=function(extra){
+      return Math.max(1,Math.floor((_pBaseSum+extra)/_pN/65536*_pB));
+    };
+    // 9枚ちょうど売却となる最大増資額を探索
+    let _pBest9=0;
+    const _pCap=Math.min(999,rem,liq+target.myHeld*_pSimSp(rem));
+    for(let _x=_pCap;_x>=1;_x--){
+      const _sp=_pSimSp(_x);
+      if(_x<=player.cash)continue;
+      const _need=Math.ceil((_x-player.cash)/_sp);
+      if(_need===9&&_need<=target.myHeld){_pBest9=_x;break;}
+    }
+    const _is400Cand=target.cnt>=4&&target.myHeld<=59&&liq>=1000&&sq.price<400;
+    if(_is400Cand){
+      // 400G底上げ額 vs 9枚調整額: 小さい方を採用
+      const _need400=Math.min(400-sq.price,rem,liq);
+      if(_need400>=1&&_pBest9>=1)      investAmt=Math.min(_need400,_pBest9);
+      else if(_pBest9>=1)              investAmt=_pBest9;
+      else if(_need400>=1)             investAmt=_need400;
+    } else if(target.myHeld>=60){
+      // 60-89帯: 9枚調整を強制
+      if(_pBest9>=1)investAmt=_pBest9;
+    }
   }
   if(investAmt<1){done();return;}
 
@@ -22193,6 +23041,21 @@ function showCpuSellThinking(player, sellPlan, shopSell, isSabotage, callback){
 
 // ===== showCpuInvestThink: CPU増資カーソル演出 =====
 function showCpuInvestThink(player, targetSq, investAmt, scored, done){
+  // 高速シミュ: 演出をスキップして増資処理だけを実行
+  if(_fastSimMode){
+    const amt = Math.min(investAmt, getRemainingInvest(targetSq), player.cash);
+    if(amt >= 1){
+      const tollBefore = calcToll(targetSq);
+      targetSq.extraInvest += amt;
+      targetSq.price += amt;
+      player.cash -= amt;
+      const tollAfter = calcToll(targetSq);
+      addLog(`📈 ${player.name}「${targetSq.label}」+${amt.toLocaleString()}G増資 (料:${tollBefore.toLocaleString()}→${tollAfter.toLocaleString()}G)`,'shop');
+      if(typeof updateAreaStockPrices==='function') updateAreaStockPrices(true);
+    }
+    if(done) done();
+    return;
+  }
   // ── Phase1: 店選択画面で上から順にカーソルスキャン → 対象店でハイライト ──
   setTimeout(()=>{
     const mc=document.getElementById('modal-content');
@@ -22457,6 +23320,24 @@ function endGame(winnerId){
   if(!_gameRunning&&G&&G.phase==='ended')return;
   _gameRunning=false;
   if(G)G.phase='ended';
+  // 64倍速/高速シミュ中だった場合は、結果発表BGMを鳴らすため通常モードに戻す
+  // また CPU観戦の64倍速時はボタン表示も通常状態に戻す
+  if(_fastSimMode){
+    _fastSimMode = false;
+    document.body.classList.remove('tournament-fast-sim');
+    // CPU観戦モードの64倍速だった場合、速度モードを通常(0)にリセット
+    if(_cpuSpeedMode === 3){
+      _cpuSpeedMode = 0;
+      _cpuSpeedX2 = false;
+      const _sbtn = document.getElementById('speed-toggle-btn');
+      if(_sbtn){
+        _sbtn.textContent = '▶ 通常';
+        _sbtn.style.background = 'rgba(255,255,255,.08)';
+        _sbtn.style.borderColor = 'rgba(255,255,255,.25)';
+        _sbtn.style.color = '#fff';
+      }
+    }
+  }
   setCpuInputBlock(false); // ゲーム終了時にブロック解除
   if(winnerId>=0){ playBGM('goal'); SFX.win&&SFX.win(); }
   else{ playBGM('goal'); }
@@ -22470,6 +23351,15 @@ function endGame(winnerId){
   const sorted=winnerId>=0
     ?[winner,..._allByAssets.filter(p=>p.id!==winner.id)]
     :_allByAssets;
+
+  // ═══════════════════════════════════════════════════════════
+  // トーナメントモード: 順位判定 → 通過者伝播 → 次試合遷移
+  // ═══════════════════════════════════════════════════════════
+  if(_tournamentState && _tournamentState.active){
+    _tournamentFinalizeMatch(sorted, winnerId);
+    return; // 通常のリザルト画面を表示せず次試合へ
+  }
+
   document.getElementById('result-title').textContent=winnerId>=0?'🏆 GOAL!':'💀 GAME OVER';
   document.getElementById('result-sub').textContent=
     winnerId>=0?`${winner.name} が目標金額 ${G.goalAmount.toLocaleString()}G を達成！`:`${G.bankruptLimit||1}人破産でゲーム終了。総資産で順位を決定。`;
