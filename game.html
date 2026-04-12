@@ -11658,8 +11658,16 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
   // 案B: 敵プレイヤーの未来サイコロも先読み
   // 案E: 危険回避を確率→確定値に
   // ═══════════════════════════════════════════════════════════════
-  const isPotter = ch && ch.name === 'ポッター';
-  const POTTER_PREDICT_TURNS = 5; // 5ターン先まで予知
+  // 出目先読み機能の対象:
+  //   ポッター        → 5ターン先
+  //   他のSランク全員 → 3ターン先
+  //   Aランクのりょう・さくら・はるか・ワイズ → 2ターン先
+  const _lookaheadARank = ch && ch.rank === 'A' &&
+    (ch.name==='りょう' || ch.name==='さくら' || ch.name==='はるか' || ch.name==='ワイズ');
+  const isPotter = ch && (ch.rank === 'S' || _lookaheadARank);
+  const POTTER_PREDICT_TURNS = (ch && ch.name === 'ポッター') ? 5
+                             : _lookaheadARank ? 2
+                             : 3;
   let potterMyFutureDice = null;   // 自分の今後のサイコロ目
   let potterEnemyFutureDice = null;// 敵の今後のサイコロ目
   if(isPotter){
