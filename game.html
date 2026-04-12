@@ -25587,38 +25587,35 @@ function renderMap(){
         // ── オーナーなし：店名＋価格＋baseToll ──
         if(nd.owner===-1){
           ctx.textAlign='center'; ctx.textBaseline='top';
-          // 店名（壁上部）縁取り追加で視認性向上
-          ctx.font=`bold ${S2*.16}px "M PLUS Rounded 1c",sans-serif`;
-          ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2.2; ctx.lineJoin='round';
-          ctx.strokeText(nd.label,cx,wallTop+2);
+          const _isSmall=S2<40; // スマホ等の小画面判定
+          // 店名（壁上部）縁取り付き
+          const nmFs=S2*(_isSmall?.14:.16);
+          ctx.font=`bold ${nmFs}px "M PLUS Rounded 1c",sans-serif`;
+          ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=_isSmall?1.5:2.2; ctx.lineJoin='round';
+          ctx.strokeText(nd.label,cx,wallTop+1);
           ctx.fillStyle=gtxt;
-          ctx.fillText(nd.label,cx,wallTop+2);
-          // 購入価格：白半透明バッジ＋濃紺文字で確実に読めるように
+          ctx.fillText(nd.label,cx,wallTop+1);
+          // 購入価格：背景帯＋濃紺文字
           const priceStr=nd.price.toLocaleString()+'G';
-          ctx.font=`bold ${S2*.18}px "M PLUS Rounded 1c",sans-serif`;
-          const priceW=ctx.measureText(priceStr).width;
-          const priceBx=cx-priceW/2-5, priceBy=wallTop+bh*0.28;
-          const priceBw=priceW+10, priceBh=S2*.21;
-          rrect(ctx,priceBx,priceBy,priceBw,priceBh,4);
-          ctx.fillStyle='rgba(255,255,255,0.94)'; ctx.fill();
-          ctx.strokeStyle='rgba(20,30,80,0.55)'; ctx.lineWidth=1.2;
-          rrect(ctx,priceBx,priceBy,priceBw,priceBh,4); ctx.stroke();
+          const pFs=S2*(_isSmall?.17:.18);
+          ctx.font=`bold ${pFs}px "M PLUS Rounded 1c",sans-serif`;
+          const _py=wallTop+bh*(_isSmall?.25:.28);
+          const _ph=pFs+(_isSmall?2:4);
+          // 壁幅いっぱいの背景帯(角丸なし)で文字が確実に収まる
+          ctx.fillStyle='rgba(255,255,255,0.92)';
+          ctx.fillRect(bx+1,_py,bw-2,_ph);
           ctx.fillStyle='#0a1a4a';
-          ctx.textBaseline='top';
-          ctx.fillText(priceStr,cx,priceBy+2);
-          // baseToll：白背景の角丸バッジで確実に読めるように
+          ctx.fillText(priceStr,cx,_py+(_isSmall?0:1));
+          // baseToll：背景帯＋濃赤文字
           const tollStr='料'+nd.baseToll+'G';
-          ctx.font=`bold ${S2*.14}px "M PLUS Rounded 1c",sans-serif`;
-          const tollW=ctx.measureText(tollStr).width;
-          const tollBx=cx-tollW/2-5, tollBy=wallTop+bh*0.54;
-          const tollBw=tollW+10, tollBh=S2*.17;
-          rrect(ctx,tollBx,tollBy,tollBw,tollBh,3);
-          ctx.fillStyle='rgba(255,255,255,0.94)'; ctx.fill();
-          ctx.strokeStyle='rgba(120,10,40,0.55)'; ctx.lineWidth=1;
-          rrect(ctx,tollBx,tollBy,tollBw,tollBh,3); ctx.stroke();
+          const tFs=S2*(_isSmall?.14:.14);
+          ctx.font=`bold ${tFs}px "M PLUS Rounded 1c",sans-serif`;
+          const _ty=_py+_ph+(_isSmall?1:2);
+          const _th=tFs+(_isSmall?2:3);
+          ctx.fillStyle='rgba(255,255,255,0.88)';
+          ctx.fillRect(bx+1,_ty,bw-2,_th);
           ctx.fillStyle='#881133';
-          ctx.textBaseline='top';
-          ctx.fillText(tollStr,cx,tollBy+1);
+          ctx.fillText(tollStr,cx,_ty+(_isSmall?0:1));
         } else {
           // ── オーナーあり：壁内カラー帯＋名前＋料金 ──
           const oc=G.players[nd.owner]?.color||'#888';
