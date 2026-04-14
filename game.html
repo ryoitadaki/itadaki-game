@@ -1418,23 +1418,13 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
 }
 /* 方向選択中はbottom-sheetを最小化してマップを広く使う */
 #bottom-sheet.dir-compact{
-  max-height:42vh;
+  max-height:58vh;
 }
 #bottom-sheet.dir-compact #action-wrap{
   padding:.35rem .5rem .5rem;
 }
 #bottom-sheet.dir-compact .mm-pad{
-  width:min(240px,62vw);
-  margin:.15rem auto .2rem;
-}
-#bottom-sheet.dir-compact .mm-dir-btn{
-  border-radius:10px;
-}
-#bottom-sheet.dir-compact .mm-arrow{
-  font-size:clamp(1.5rem,5.5vw,2.4rem);
-}
-#bottom-sheet.dir-compact .mm-lbl{
-  font-size:.68rem;
+  margin:.1rem auto .15rem;
 }
 #bottom-sheet.dir-compact .mm-list{
   display:none;
@@ -1464,29 +1454,40 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
 .die.rolling{animation:dieRoll .15s infinite alternate;}
 @keyframes dieRoll{from{transform:rotate(-8deg) scale(.95);}to{transform:rotate(8deg) scale(1.05);}}
 
-/* ===== 手動移動パッド ===== */
+/* ===== 手動移動パッド（十字固定レイアウト） ===== */
 .mm-pad{
-  display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;
-  gap:4px;width:min(260px,66vw);margin:0 auto .35rem;aspect-ratio:1;
+  display:flex;flex-direction:column;align-items:center;
+  gap:4px;width:min(220px,58vw);margin:0 auto .25rem;
+}
+.mm-pad-row{
+  display:flex;flex-direction:row;align-items:center;justify-content:center;
+  gap:4px;width:100%;
 }
 .mm-dir-btn{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.22);
-  border-radius:12px;cursor:pointer;font-family:inherit;color:var(--white);
-  transition:all .12s;padding:3px;min-height:0;
+  border-radius:14px;cursor:pointer;font-family:inherit;color:var(--white);
+  transition:background .1s,border-color .1s;
+  width:min(68px,18vw);height:min(68px,18vw);
+  flex-shrink:0;
+  touch-action:manipulation;
 }
-.mm-dir-btn:hover,.mm-dir-btn:active{background:rgba(240,180,41,.18);border-color:var(--gold);transform:scale(1.06);}
-.mm-arrow{font-size:clamp(1.6rem,5.5vw,2.4rem);line-height:1;}
-.mm-lbl{font-size:.72rem;font-weight:800;opacity:.85;}
-.mm-marks{font-size:.6rem;color:#c084fc;font-weight:700;line-height:1.1;}
+.mm-dir-btn:active{background:rgba(240,180,41,.28);border-color:var(--gold);}
+.mm-pad-spacer{
+  width:min(68px,18vw);height:min(68px,18vw);flex-shrink:0;
+}
+.mm-arrow{font-size:clamp(1.8rem,6vw,2.6rem);line-height:1;}
+.mm-lbl{font-size:.65rem;font-weight:800;opacity:.85;}
+.mm-marks{font-size:.58rem;color:#c084fc;font-weight:700;line-height:1.1;}
 .mm-center{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   background:rgba(240,180,41,.08);border:1.5px solid rgba(240,180,41,.3);
-  border-radius:10px;
+  border-radius:12px;
+  width:min(68px,18vw);height:min(68px,18vw);flex-shrink:0;
 }
-.mm-c-label{font-size:.55rem;font-weight:700;color:var(--gray);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;padding:0 2px;}
-.mm-c-steps{font-size:clamp(1.3rem,5vw,2rem);font-weight:900;color:var(--gold);line-height:1.1;}
-.mm-c-sub{font-size:.5rem;color:var(--gray);}
+.mm-c-label{font-size:.5rem;font-weight:700;color:var(--gray);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;padding:0 2px;}
+.mm-c-steps{font-size:clamp(1.3rem,5vw,1.9rem);font-weight:900;color:var(--gold);line-height:1.1;}
+.mm-c-sub{font-size:.48rem;color:var(--gray);}
 /* 進行先リスト */
 .mm-list{display:flex;flex-direction:column;gap:3px;margin-top:.2rem;}
 .mm-list-btn{
@@ -3344,7 +3345,7 @@ function buildMapNightCity(){
   const a3_2  =N('shop', {label:'屋台横丁',      area:3,basePrice:160,  col:8,row:2});
   const a3_3  =N('shop', {label:'縁日広場',      area:3,basePrice:260,  col:8,row:3});
   const a3_4  =N('shop', {label:'花火台',        area:3,basePrice:400,  col:8,row:4});
-  const mk_hrt=N('mark', {label:'♥',mark:1,                             col:8,row:5});
+  const mk_hrt=N('lucky',{label:'★',                                    col:8,row:5});
   const a4_1  =N('shop', {label:'港の倉庫',      area:4,basePrice:120,  col:8,row:6});
   const a4_2  =N('shop', {label:'夜の波止場',    area:4,basePrice:210,  col:8,row:7});
   const jn_br =N('rest', {label:'休',                                   col:8,row:8});
@@ -3371,9 +3372,11 @@ function buildMapNightCity(){
   // ── 中央横ショートカット (row:4) ──
   const a5_1  =N('shop', {label:'スナックバー',  area:5,basePrice:110,  col:1,row:4});
   const a5_2  =N('shop', {label:'キャバレー',    area:5,basePrice:200,  col:2,row:4});
-  const lk_c  =N('lucky',{label:'★',                                    col:3,row:4});
+  const lk_c  =N('mark', {label:'♥',mark:1,                             col:3,row:4});
   const a5_3  =N('shop', {label:'クラブNight',   area:5,basePrice:360,  col:4,row:4});
   const a5_4  =N('shop', {label:'ネオン街',      area:5,basePrice:500,  col:5,row:4});
+  const a5_5  =N('shop', {label:'ライブハウス',  area:5,basePrice:320,  col:6,row:4});
+  const a5_6  =N('shop', {label:'ナイトクラブ',  area:5,basePrice:380,  col:7,row:4});
 
   // ================================================================
   // 接続
@@ -3409,7 +3412,7 @@ function buildMapNightCity(){
   a3_1.nexts  =[a3_2.id, jn_ur.id];
   a3_2.nexts  =[a3_3.id, a3_1.id];
   a3_3.nexts  =[a3_4.id, a3_2.id];
-  a3_4.nexts  =[mk_hrt.id, a3_3.id, a5_4.id];
+  a3_4.nexts  =[mk_hrt.id, a3_3.id, a5_6.id];
   mk_hrt.nexts=[a4_1.id, a3_4.id];
   a4_1.nexts  =[a4_2.id, mk_hrt.id];
   a4_2.nexts  =[jn_br.id, a4_1.id];
@@ -3443,7 +3446,9 @@ function buildMapNightCity(){
   a5_2.nexts  =[lk_c.id, a5_1.id];
   lk_c.nexts  =[a5_3.id, a5_2.id];
   a5_3.nexts  =[a5_4.id, lk_c.id];
-  a5_4.nexts  =[a3_4.id, a5_3.id];  // 花火台合流 / 中央横戻り
+  a5_4.nexts  =[a5_5.id, a5_3.id];  // ライブハウスへ / 中央横戻り
+  a5_5.nexts  =[a5_6.id, a5_4.id];
+  a5_6.nexts  =[a3_4.id, a5_5.id];  // 花火台合流 / 中央横戻り
 
   const stopJunctionIds=new Set([jn_ur.id, jn_bl.id]);
 
@@ -11104,7 +11109,10 @@ function movePlayer(player,steps,callback){
 
     function showManualMoveUI(){
       // 移動UI表示中はdir-compactを常に維持
-      document.getElementById('bottom-sheet')?.classList.add('dir-compact');
+      // transitionを無効化してパッドが動かないようにする（連打中にズレ防止）
+      const bs=document.getElementById('bottom-sheet');
+      if(bs){ bs.style.transition='none'; }
+      bs?.classList.add('dir-compact');
       _camSnap=true;player.pos=curId;renderMap();
       focusOnPlayer(player);
 
@@ -11179,43 +11187,48 @@ function movePlayer(player,steps,callback){
         return{nid,...d,marks,ndLabel};
       });
 
-      // 3x3グリッド配置
-      const posMap={'\u2196':0,'\u2191':1,'\u2197':2,'\u2190':3,'\u2192':5,'\u2199':6,'\u2193':7,'\u2198':8};
-      const cells=Array(9).fill('');
-
+      // 十字固定レイアウト：上下左右に正規化してボタンを配置
+      // 斜め方向も上下左右のいずれかに丸める
+      function normalizeTo4(arrow){
+        const map={
+          '\u2191':'U','\u2197':'U','\u2196':'U',
+          '\u2193':'D','\u2198':'D','\u2199':'D',
+          '\u2192':'R',
+          '\u2190':'L',
+          '\u25b6':'D'
+        };
+        return map[arrow]||'D';
+      }
+      const slot={U:null,D:null,L:null,R:null};
       dirs.forEach(d=>{
-        const idx=posMap[d.arrow];
-        if(idx==null)return;
-        const markBit=d.marks.length>0
-          ?'<span class="mm-marks">\u2728'+d.marks.join('')+'</span>':'';
-        cells[idx]='<button class="mm-dir-btn" data-nid="'+d.nid+'">'
-          +'<span class="mm-arrow">'+d.arrow+'</span>'
-          +'<span class="mm-lbl">'+d.label+'</span>'
-          +markBit
-          +'</button>';
+        const key=normalizeTo4(d.arrow);
+        if(!slot[key]) slot[key]=d;
       });
 
+      function mkBtn(d){
+        if(!d) return '<div class="mm-pad-spacer"></div>';
+        const markBit=d.marks.length>0?'<span class="mm-marks">\u2728'+d.marks.join('')+'</span>':'';
+        const dispArrow={U:'\u2191',D:'\u2193',L:'\u2190',R:'\u2192'}[normalizeTo4(d.arrow)];
+        const dispLabel={U:'\u4e0a',D:'\u4e0b',L:'\u5de6',R:'\u53f3'}[normalizeTo4(d.arrow)];
+        return '<button class="mm-dir-btn" data-nid="'+d.nid+'">'
+          +'<span class="mm-arrow">'+dispArrow+'</span>'
+          +'<span class="mm-lbl">'+dispLabel+'</span>'
+          +markBit
+          +'</button>';
+      }
+
       const centerLabel=curNd?(curNd.label||''):'';
-      cells[4]='<div class="mm-center">'
+      const centerCell='<div class="mm-center">'
         +'<div class="mm-c-label">'+centerLabel+'</div>'
         +'<div class="mm-c-steps">'+stepsLeft+'</div>'
         +'<div class="mm-c-sub">\u6b8b\u308a</div>'
         +'</div>';
 
-      // 進行先リスト（パッドの下に）
-      let listHtml='';
-      if(dirs.length>0){
-        listHtml='<div class="mm-list">'+dirs.map((d,i)=>{
-          const markBit2=d.marks.length>0?'<span class="mm-list-mark">\u2728'+d.marks.join('')+'</span>':'';
-          return '<button class="mm-list-btn" data-nid="'+d.nid+'">'
-            +'<span class="mm-list-arrow" style="color:var(--gold);">'+d.arrow+'</span>'
-            +'<span class="mm-list-label">'+d.label+'</span>'
-            +'<span class="mm-list-name">'+d.ndLabel+'</span>'
-            +markBit2
-            +'<span class="mm-list-key">['+(i+1)+']</span>'
-            +'</button>';
-        }).join('')+'</div>';
-      }
+      const padHtml='<div class="mm-pad">'
+        +'<div class="mm-pad-row">'+mkBtn(slot.U)+'</div>'
+        +'<div class="mm-pad-row">'+mkBtn(slot.L)+centerCell+mkBtn(slot.R)+'</div>'
+        +'<div class="mm-pad-row">'+mkBtn(slot.D)+'</div>'
+        +'</div>';
 
       // やり直しボタン（1歩以上進んでいる場合のみ、パッドの上・左寄せに表示）
       const hasMovedOnce = curId !== startPos;
@@ -11228,7 +11241,7 @@ function movePlayer(player,steps,callback){
           +'">↩ やり直す（出目: '+steps+'）</button>'
         : '';
 
-      el.innerHTML=retryBtnHtml+'<div class="mm-pad">'+cells.join('')+'</div>'+listHtml;
+      el.innerHTML=retryBtnHtml+padHtml;
       // bottom-sheetをコンパクトにしてマップを広く見せる
       document.getElementById('bottom-sheet')?.classList.add('dir-compact');
 
@@ -11265,11 +11278,10 @@ function movePlayer(player,steps,callback){
         };
       }
 
-      // イベント
-      el.querySelectorAll('.mm-dir-btn,.mm-list-btn').forEach(btn=>{
+      // イベント（mm-dir-btnのみ）
+      el.querySelectorAll('.mm-dir-btn').forEach(btn=>{
         btn.onclick=()=>{
-          // 押した瞬間に全方向ボタンを無効化（連打・誤タップ防止）
-          el.querySelectorAll('.mm-dir-btn,.mm-list-btn').forEach(b=>{
+          el.querySelectorAll('.mm-dir-btn').forEach(b=>{
             b.disabled=true; b.style.opacity='.4'; b.style.pointerEvents='none';
           });
           const nid=parseInt(btn.dataset.nid);
@@ -11279,10 +11291,9 @@ function movePlayer(player,steps,callback){
       });
 
       _manualKeyHandler=e=>{
-        const keyMap={'ArrowUp':'\u2191','ArrowDown':'\u2193','ArrowLeft':'\u2190','ArrowRight':'\u2192'};
-        const arrow=keyMap[e.key];
-        if(arrow){e.preventDefault();const m=dirs.find(d=>d.arrow===arrow);if(m){_cleanManualKeys();moveToNext(m.nid);}}
-        if(e.key>='1'&&e.key<=String(dirs.length)){e.preventDefault();const idx=parseInt(e.key)-1;if(dirs[idx]){_cleanManualKeys();moveToNext(dirs[idx].nid);}}
+        const keyDirMap={'ArrowUp':'U','ArrowDown':'D','ArrowLeft':'L','ArrowRight':'R'};
+        const key=keyDirMap[e.key];
+        if(key&&slot[key]){e.preventDefault();_cleanManualKeys();moveToNext(slot[key].nid);}
         if(e.key==='Backspace'&&curId!==startPos){e.preventDefault();document.getElementById('mm-retry')?.click();}
       };
       document.addEventListener('keydown',_manualKeyHandler);
@@ -11290,8 +11301,10 @@ function movePlayer(player,steps,callback){
 
     let _manualKeyHandler=null;
     function _cleanManualKeys(){
-      // 方向選択終了→bottom-sheetを通常サイズに戻す
-      document.getElementById('bottom-sheet')?.classList.remove('dir-compact');
+      // 方向選択終了→bottom-sheetを通常サイズに戻す（transitionも復元）
+      const bs=document.getElementById('bottom-sheet');
+      if(bs){ bs.style.transition=''; }
+      bs?.classList.remove('dir-compact');
       if(_manualKeyHandler){document.removeEventListener('keydown',_manualKeyHandler);_manualKeyHandler=null;}
     }
 
@@ -22631,16 +22644,16 @@ function cpuInvest(player,done){
       const _ownsTop=_aShops.some(s=>s.owner===player.id&&calcToll(s)===_maxToll);
       const _liqCI=getLiquid(player);
       if(_nm==='りょう'){
-        if(cnt===1) return _ownsTop?80:(_liqCI>=5000?0:(_liqCI>=1000?60:80));
-        if(cnt===2) return _ownsTop?90:(_liqCI>=5000?0:(_liqCI>=1000?60:90));
+        if(cnt===1) return _ownsTop?80:(_liqCI>=2000?0:(_liqCI>=1000?60:80));
+        if(cnt===2) return _ownsTop?90:(_liqCI>=4000?0:(_liqCI>=1000?60:90));
       }
       if(_nm==='はるか'){
-        if(cnt===1) return _ownsTop?80:(_liqCI>=5000?0:(_liqCI>=1000?60:80));
-        if(cnt===2) return _ownsTop?90:(_liqCI>=5000?0:(_liqCI>=1000?60:90));
+        if(cnt===1) return _ownsTop?80:(_liqCI>=2000?0:(_liqCI>=1000?60:80));
+        if(cnt===2) return _ownsTop?90:(_liqCI>=4000?0:(_liqCI>=1000?60:90));
       }
       if(_nm==='さくら'){
-        if(cnt===1) return _ownsTop?99:(_liqCI>=5000?0:(_liqCI>=1000?60:99));
-        if(cnt===2) return _ownsTop?99:(_liqCI>=5000?0:(_liqCI>=1000?60:99));
+        if(cnt===1) return _ownsTop?99:(_liqCI>=2000?0:(_liqCI>=1000?60:99));
+        if(cnt===2) return _ownsTop?99:(_liqCI>=4000?0:(_liqCI>=1000?60:99));
       }
       if(_nm==='メイ'||_nm==='本気きよこ'){
         if(cnt===1) return _ownsTop?60:(_liqCI>=1000?0:60);
@@ -22666,11 +22679,11 @@ function cpuInvest(player,done){
       }
       if(_nm==='エナ'){
         if(cnt===1) return _ownsTop?50:(_liqCI>=2000?0:50);
-        if(cnt===2) return _ownsTop?50:(_liqCI>=2000?0:50);
+        if(cnt===2) return _ownsTop?50:(_liqCI>=4000?0:50);
       }
       if(_nm==='クリスティー'){
         if(cnt===1) return _ownsTop?50:(_liqCI>=2000?0:50);
-        if(cnt===2) return _ownsTop?50:(_liqCI>=2000?0:50);
+        if(cnt===2) return _ownsTop?50:(_liqCI>=4000?0:50);
       }
       if(_nm==='そうま'){
         if(cnt===1) return _ownsTop?40:(_liqCI>=2000?0:40);
