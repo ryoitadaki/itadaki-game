@@ -20204,7 +20204,7 @@ function _endActionProceed(){
       turn:G.turn,
       assets:G.players.map(p=>({pid:p.id,total:Math.max(0,getPlayerAssets(p).total)}))
     });
-    G.players.forEach(p=>{if(!p.bankrupt&&getPlayerAssets(p).total<0)bankrupt(p);});
+    G.players.forEach(p=>{if(!p.bankrupt&&getPlayerAssets(p).total<0)bankrupt(p,true);});
     // キューに残った演出（株価変動カード等）が全部終わってからnextTurnへ
     const _waitAndNext=()=>{
       if(_dispRunning||_dispQueue.length>0){setTimeout(_waitAndNext,200);return;}
@@ -20216,7 +20216,7 @@ function _endActionProceed(){
         addLog(`💸 ${_cur.name} 負債${_debt.toLocaleString()}Gを解消します`,'pay');
         if(_cur.isCPU){
           cpuRaiseCash(_cur,_debt,()=>{
-            if(_cur.cash>=_debt){_cur.cash-=_debt;}else bankrupt(_cur);
+            if(_cur.cash>=_debt){_cur.cash-=_debt;}else bankrupt(_cur,true);
             renderStatus();setTimeout(()=>nextTurn(),400);
           });
         } else {
@@ -20232,7 +20232,7 @@ function _endActionProceed(){
         addLog(`💸 ${_cur.name} 現金不足（${_cur.cash.toLocaleString()}G）を解消します`,'pay');
         if(_cur.isCPU){
           cpuRaiseCash(_cur,_shortage,()=>{
-            if(_cur.cash<0) bankrupt(_cur);
+            if(_cur.cash<0) bankrupt(_cur,true);
             renderStatus();setTimeout(()=>nextTurn(),400);
           });
         } else {
@@ -20475,7 +20475,7 @@ function preRollPhase(){
 }
 
 // ===== bankrupt =====
-function bankrupt(player){
+function bankrupt(player, _skipEndAction){
   if(player.bankrupt)return;
   player.bankrupt=true;
   // 破産順を記録（小さいほど先に破産）
@@ -20488,6 +20488,9 @@ function bankrupt(player){
     renderStatus();
     if(bankruptCount>=limit){
       setTimeout(()=>endGame(-1),400);
+    } else if(!_skipEndAction){
+      // 破産人数未達かつ endAction 呼び出しが許可されている場合のみゲーム続行
+      setTimeout(()=>endAction(),400);
     }
   };
   // CPUの場合: 破産セリフを出してからshowBustFlash
@@ -22669,12 +22672,12 @@ function cpuInvest(player,done){
       }
       if(_nm==='ポッター'){
         if(cnt===1) return _ownsTop?60:(_liqCI>=1000?0:60);
-        if(cnt===2) return _ownsTop?70:(_liqCI>=1000?0:70);
+        if(cnt===2) return _ownsTop?60:(_liqCI>=1000?0:60);
         // 3軒以上: 総資産に関わらず60枚（60-89帯は9枚売却調整、90以上は通常Sランク使い分け）
         if(cnt>=3) return 60;
       }
       if(_nm==='ワイズ'){
-        if(cnt===1) return _ownsTop?90:(_liqCI>=5000?0:(_liqCI>=1000?60:90));
+        if(cnt===1) return _ownsTop?90:(_liqCI>=2000?0:(_liqCI>=1000?60:90));
         if(cnt===2) return _ownsTop?140:90;
       }
       if(_nm==='エナ'){
