@@ -13532,6 +13532,8 @@ function _cpuRaiseCashWithAnim(player,needed,callback){
   }
   // Sランク: 35枚残し対象エリアを事前計算（meiSmartStockSwapと同じロジック）
   const hold35Areas_rc=new Set();
+  // サコ・S・はゆう・S・ワイズは45枚残し、それ以外は35枚残し
+  const _keepN_rc=(isSrank_rc&&ch_rc&&(ch_rc.name==='サコ'||ch_rc.name==='S・はゆう'||ch_rc.name==='S・ワイズ'))?45:35;
   if(isSrank_rc){
     const sorted_rc=[...G.players].filter(p=>!p.bankrupt)
       .sort((a,b)=>getPlayerAssets(b).total-getPlayerAssets(a).total);
@@ -13541,10 +13543,10 @@ function _cpuRaiseCashWithAnim(player,needed,callback){
     if(upperTargets_rc.length>0){
       for(let a=1;a<=16;a++){
         const myHeld_rc=player.stocks[a]||0;
-        if(myHeld_rc<=35)continue;
+        if(myHeld_rc<=_keepN_rc)continue;
         const sp_rc=G.areas[a].stockPrice;
         if(!sp_rc)continue;
-        const sellN_rc=myHeld_rc-35;
+        const sellN_rc=myHeld_rc-_keepN_rc;
         const estSP_rc=sellN_rc>=10?Math.max(1,Math.floor(sp_rc*0.93)):sp_rc;
         for(const tgt of upperTargets_rc){
           const tgtHeld=tgt.stocks[a]||0;
@@ -13565,8 +13567,8 @@ function _cpuRaiseCashWithAnim(player,needed,callback){
     const isUnnec=isUnnecessaryStock(a);
     // 35枚残し猶予中のエリアは不要株扱いを無効化(10枚売り優先のため)
     const isUnnecEff=isUnnec&&!(player._hold35SkipSell&&player._hold35SkipSell[a]>0);
-    // Sランクは35枚残し対象なら35枚、それ以外の不要株なら5枚、不要株でなければ0枚残す
-    const minKeep=isUnnecEff?(isSrank_rc&&hold35Areas_rc.has(a)?35:5):0;
+    // Sランクは35枚残し対象なら_keepN_rc枚、それ以外の不要株なら5枚、不要株でなければ0枚残す
+    const minKeep=isUnnecEff?(isSrank_rc&&hold35Areas_rc.has(a)?_keepN_rc:5):0;
     // 不要株でなく既に必要額が集まっていればスキップ
     if(!isUnnecEff&&simCash>=needed)continue;
     const needN=Math.ceil((needed-simCash)/sp);
@@ -19606,6 +19608,10 @@ function _checkSabotageCounter(player, callback){
     if(total3>=threshold) attackerTriggered.add(Number(atkId));
   }
 
+  // サコ・S・はゆう・S・ワイズは45枚残し、それ以外は35枚残し
+  const _ch_sc=getCpuChar(player);
+  const _keepN_sc=(_ch_sc&&(_ch_sc.name==='サコ'||_ch_sc.name==='S・はゆう'||_ch_sc.name==='S・ワイズ'))?45:35;
+
   // 閾値を超えたエリアを抽出（保有株があるもの）
   // 判定1: 従来のエリア別累積ダメージ
   // 判定2: 加害者別3巡合計がthresholdを超えた場合、そのプレイヤーの全保有エリアを対象に
@@ -19615,18 +19621,18 @@ function _checkSabotageCounter(player, callback){
   for(let a=1;a<=16;a++){
     const dmg = damaged[a]||0;
     const held = player.stocks[a]||0;
-    if(dmg>=threshold&&held>35&&!targetSet.has(a)){
+    if(dmg>=threshold&&held>_keepN_sc&&!targetSet.has(a)){
       targets.push({a, dmg, held});
       targetSet.add(a);
     }
   }
 
-  // 加害者別3巡トリガー：そのエリアに保有株が36枚以上あれば追加
+  // 加害者別3巡トリガー：そのエリアに保有株が(_keepN_sc+1)枚以上あれば追加
   if(attackerTriggered.size>0){
     for(let a=1;a<=16;a++){
       if(targetSet.has(a))continue;
       const held = player.stocks[a]||0;
-      if(held>35){
+      if(held>_keepN_sc){
         // このエリアが攻撃されていたか確認（累積ダメージ>0）
         // 攻撃されていたエリアのみ対策対象（無関係エリアは売らない）
         const dmg = damaged[a]||0;
@@ -19652,7 +19658,7 @@ function _checkSabotageCounter(player, callback){
   // sellPlanを構築（showCpuSellThinkingに渡す形式）
   const _counterSellPlan = [];
   for(const{a, held} of targets){
-    const sellN = held - 35;
+    const sellN = held - _keepN_sc;
     if(sellN <= 0) continue;
     const sp = G.areas[a].stockPrice;
     _counterSellPlan.push({a, n: sellN, sp});
@@ -19706,6 +19712,8 @@ function meiSmartStockSwap(player, callback){
   // 条件: Sランク かつ 総資産2位以下
   const ch_ss=getCpuChar(player);
   const isSrank=ch_ss&&ch_ss.rank==='S';
+  // サコ・S・はゆう・S・ワイズは45枚残し、それ以外は35枚残し
+  const _keepN_ss=(isSrank&&ch_ss&&(ch_ss.name==='サコ'||ch_ss.name==='S・はゆう'||ch_ss.name==='S・ワイズ'))?45:35;
   // 自分より上位の敵を特定（破産除く）
   const sorted_ss=[...G.players].filter(p=>!p.bankrupt)
     .sort((a,b)=>getPlayerAssets(b).total-getPlayerAssets(a).total);
@@ -19720,13 +19728,13 @@ function meiSmartStockSwap(player, callback){
   if(upperTargets.length>0){
     for(let a=1;a<=16;a++){
       const myHeld=player.stocks[a]||0;
-      if(myHeld<=35)continue; // 35枚以下なら対象外
+      if(myHeld<=_keepN_ss)continue; // keepN枚以下なら対象外
       const sp_now=G.areas[a].stockPrice;
       if(!sp_now)continue;
 
-      // 自分が(myHeld-35)枚売却した後の株価を簡易推計
+      // 自分が(myHeld-keepN)枚売却した後の株価を簡易推計
       // pendingStockDown相当の計算: 10枚以上純売却でstockPrice *= 0.93
-      const sellN=myHeld-35;
+      const sellN=myHeld-_keepN_ss;
       const estSP=sellN>=10 ? Math.max(1,Math.floor(sp_now*0.93)) : sp_now;
 
       // 売却後の株価で敵の10枚売り条件を判定
@@ -19769,8 +19777,8 @@ function meiSmartStockSwap(player, callback){
     }
     const sp=G.areas[a].stockPrice;
 
-    // Sランク35枚残しテクニック: hold35Areasに含まれるエリアは35枚残す
-    const minKeep=hold35Areas.has(a)?35:5;
+    // Sランク35枚残しテクニック: hold35Areasに含まれるエリアはkeepN枚残す
+    const minKeep=hold35Areas.has(a)?_keepN_ss:5;
     const n=held-minKeep;
     if(n<=0)continue;
     sellPlan.push({a,n,sp,is35Hold:hold35Areas.has(a)});
@@ -22507,7 +22515,7 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
       else if(ch.name==='そうま') _myMul=0.7;
       else if(ch.name==='はるか') _myMul=(ch._harukabuyMode||'all')==='all'?3.0:4.0;
       else if(ch.name==='ひかり') _myMul=(ch._hikaribuyMode||'all')==='all'?0.9:1.2;
-      else if(ch.name==='ネネコ') _myMul=2.0;
+      else if(ch.name==='ネネコ') _myMul=1.8;
       else if(ch.name==='りょう') _myMul=0.8;
       else if(ch.name==='ポッター'){
         const _pCount=myShops;
