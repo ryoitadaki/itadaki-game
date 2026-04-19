@@ -19009,11 +19009,11 @@ s_souma:{...CPU_CHARS['souma'], name:'S・そうま', color:'#93c5fd', rank:'S',
     speech:{...CPU_CHARS['souma'].speech, gameStart:['今日は相乗りだけじゃない。全力で行くぞ！', 'Cランクのそうまだと思ったら大間違いだ']}},
   s_christie:{...CPU_CHARS['christie'], name:'S・クリスティー', rank:'S', routeSharp:true, spreadStock:true, insiderMul:1.0,
     speech:{...CPU_CHARS['christie'].speech, gameStart:['お姉ちゃんを超えるために本気出すわ！', 'Cランクだと思って油断しないでね']}},
-  s_ena:{...CPU_CHARS['ena'], name:'S・エナ', color:'#7dd3fc', rank:'S', routeSharp:true, spreadStock:true, insiderMul:1.8,
+  s_ena:{...CPU_CHARS['ena'], name:'S・エナ', color:'#7dd3fc', rank:'S', routeSharp:true, spreadStock:true, insiderMul:1.4,
     speech:{...CPU_CHARS['ena'].speech, gameStart:['今日は本気よ♡ 全エリアが私のフィールド', 'Cランクだと思ったら…うふふ、後悔するわよ♡']}},
   s_orika:{...CPU_CHARS['orika'], name:'S・おりか', color:'#bef264', rank:'S', routeSharp:true, spreadStock:true, insiderMul:1.3,
     speech:{...CPU_CHARS['orika'].speech, gameStart:['今日は本気出すよ！覚悟してね？', 'Bランクのおりかとは違うよ。全開でいく！']}},
-  s_hayuu:{...CPU_CHARS['hayuu'], name:'S・はゆう', color:'#fca5a5', rank:'S', routeSharp:true, spreadStock:true, insiderMul:1.5,
+  s_hayuu:{...CPU_CHARS['hayuu'], name:'S・はゆう', color:'#fca5a5', rank:'S', routeSharp:true, spreadStock:true, insiderMul:2.0,
     speech:{...CPU_CHARS['hayuu'].speech, gameStart:['今日は全エリア視野に入れて動く', 'Bランクの俺とは次元が違うぞ'],
       sabotageCounted:['株にかなりの損が出ている…10枚売りか。整理する','これだけ損をさせられたら動かざるを得ない','10枚売りをされたな。俺は見逃さないぞ','損失が積み上がった。今すぐ対策に動く'],
     }},
@@ -20058,10 +20058,63 @@ function cpuTurn(player){
         // メイより上位のキャラ全員を妨害対象にする
         const targets=sorted.slice(0,myRank).filter(p=>p.id!==player.id);
         if(targets.length>0){
+          // ── 35枚残し予定エリアを事前計算し、10枚売りから除外する ──
+          // 銀行まで6マス以内なら、このターンmeiSmartStockSwapで35枚残しが発動しうる
+          // そのエリアに対しては同一ターン内で10枚売りを行わない
+          const _sabotage_hold35Areas=new Set();
+          {
+            function _stepsToBank_sab(startId,prevId,maxDepth){
+              let q=[{id:startId,prev:prevId,steps:0}],visited=new Set();
+              while(q.length){
+                const{id,prev,steps}=q.shift();
+                if(steps>maxDepth||visited.has(id))continue;
+                visited.add(id);
+                const nd=G.map.find(n=>n.id===id);
+                if(!nd)continue;
+                if(nd.type==='bank'&&steps>0)return steps;
+                const fwd=(nd.nexts||[]).filter(nid=>nid!==prev);
+                const candidates=fwd.length>0?fwd:(nd.nexts||[]);
+                candidates.forEach(nid=>q.push({id:nid,prev:id,steps:steps+1}));
+              }
+              return 999;
+            }
+            const _bankDist_sab=_stepsToBank_sab(player.pos,player._prevPos,10);
+            if(_bankDist_sab<=6){
+              const _sorted_sab=[...G.players].filter(p=>!p.bankrupt)
+                .sort((a,b)=>getPlayerAssets(b).total-getPlayerAssets(a).total);
+              const _myRank_sab=_sorted_sab.findIndex(p=>p.id===player.id);
+              const _upperTargets_sab=_myRank_sab>0
+                ? _sorted_sab.slice(0,_myRank_sab).filter(p=>p.id!==player.id)
+                : [];
+              if(_upperTargets_sab.length>0){
+                for(let a=1;a<=16;a++){
+                  const myHeld_sab=player.stocks[a]||0;
+                  if(myHeld_sab<=35)continue;
+                  const sp_sab=G.areas[a].stockPrice;
+                  if(!sp_sab)continue;
+                  const sellN_sab=myHeld_sab-35;
+                  const estSP_sab=sellN_sab>=10?Math.max(1,Math.floor(sp_sab*0.93)):sp_sab;
+                  for(const tgt_sab of _upperTargets_sab){
+                    const tgtHeld_sab=tgt_sab.stocks[a]||0;
+                    if(tgtHeld_sab<=0)continue;
+                    const tgtStockVal_sab=tgtHeld_sab*estSP_sab;
+                    const tgtAssets_sab=getPlayerAssets(tgt_sab);
+                    const nearGoal_sab=tgtAssets_sab.total>=G.goalAmount*0.9;
+                    if(tgtStockVal_sab>4000||(nearGoal_sab&&tgtStockVal_sab>=1000)){
+                      _sabotage_hold35Areas.add(a);
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
           const sabotagePlan=[];
           for(let a=1;a<=16;a++){
             const myHeld=player.stocks[a]||0;
             if(myHeld<10) continue;
+            // 35枚残し予定エリアは同一ターンの10枚売りを行わない
+            if(_sabotage_hold35Areas.has(a)) continue;
             const sp=G.areas[a].stockPrice;
             // 対象者のうち誰か1人でも条件を満たすエリアを妨害対象に
             for(const tgt of targets){
@@ -22338,8 +22391,8 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
       const _hkMode=ch._hikaribuyMode||'all';
       score=(_hkMode==='all'?(myRem*0.9+enemyRem*1.0):(myRem*1.2+enemyRem*1.0))/Math.max(1,sp);
     } else if(ch&&ch.name==='ネネコ'){
-      // ネネコ専用: (自店増資余り×2.0 + 敵店増資余り×1.0) / 株価・全エリアモード100%
-      score=(myRem*2.0+enemyRem*1.0)/Math.max(1,sp);
+      // ネネコ専用: (自店増資余り×1.8 + 敵店増資余り×1.0) / 株価・全エリアモード100%
+      score=(myRem*1.8+enemyRem*1.0)/Math.max(1,sp);
     } else if(ch&&ch.name==='りょう'){
       // りょう専用: (自分の増資余り×0.8 + 敵の増資余り×1.0) / 株価
       score=(myRem*0.8+enemyRem*1.0)/Math.max(1,sp);
@@ -22492,9 +22545,9 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     if(_areaLord!==null){
       let _threshold;
       if(ch&&ch.name==='ポッター'){
-        // 主が1〜2軒=50%、主が3軒以上=100%
+        // 主が1〜2軒=50%、主が3軒以上=55%
         const _lordCnt=getPlayerAreaCount(_areaLord.id,a);
-        _threshold=_lordCnt>=3?1.00:0.50;
+        _threshold=_lordCnt>=3?0.55:0.50;
       } else {
         _threshold=(ch&&ch.name==='りょう')?0.50:0.75;
       }
@@ -22677,7 +22730,7 @@ function cpuInvest(player,done){
         if(cnt>=3) return 60;
       }
       if(_nm==='ワイズ'){
-        if(cnt===1) return _ownsTop?90:(_liqCI>=2000?0:(_liqCI>=1000?60:90));
+        if(cnt===1) return _ownsTop?90:(_liqCI>=5000?0:(_liqCI>=1000?60:90));
         if(cnt===2) return _ownsTop?140:90;
       }
       if(_nm==='エナ'){
