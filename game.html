@@ -17084,21 +17084,99 @@ function showPaymentModal(player,amount,callback){
 }
 
 function showSellShopForDebt(player,done){
-  const shops=G.map.filter(s=>s.type==='shop'&&s.owner===player.id);
-  if(!shops.length){showToast('売れる店がありません');done();return;}
-  // 店売却は強制競売（銀行買取75%→銀行主催競売）
-  const btns=shops.map(sq=>({
-    label:`${sq.label} → 銀行に${Math.floor(sq.price*.75).toLocaleString()}G（75%）で売却→銀行競売`,
-    action:()=>{
+  const myShops=G.map.filter(s=>s.type==='shop'&&s.owner===player.id);
+  if(!myShops.length){showToast('売れる店がありません');done();return;}
+  const liq=getLiquid(player);
+  const AREA_CLR=['','#22c55e','#818cf8','#38bdf8','#f87171','#fb7185','#fbbf24','#4ade80','#c084fc','#f472b6','#fb923c','#2dd4bf','#a3e635','#f59e0b','#06b6d4','#ec4899','#84cc16'];
+  const allAreaNums=[...new Set(G.map.filter(s=>s.type==='shop').map(s=>s.area))].sort((a,b)=>a-b);
+  const allPlayers=G.players.filter(p=>!p.bankrupt);
+
+  let rows='';
+  allAreaNums.forEach(aNum=>{
+    const areaColor=AREA_CLR[aNum]||'#5a7090';
+    const allAreaShops=getAreaShops(aNum);
+    const sp=G.areas[aNum].stockPrice;
+    const myCount=getPlayerAreaCount(player.id,aNum);
+    const hasMyShop=allAreaShops.some(s=>s.owner===player.id);
+
+    const holdersHtml=allPlayers.map(p=>{
+      const h=p.stocks[aNum]||0;
+      return '<div class="sh-holder '+(p.id===player.id?'me':'')+'" style="--pc:'+p.color+'">'
+        +'<span class="sh-hname">'+p.name+'</span>'
+        +'<span class="sh-hcount">'+h+'枚</span>'
+        +'</div>';
+    }).join('');
+
+    const shopRows=allAreaShops.map(sq=>{
+      const toll=calcToll(sq);
+      const rem=getRemainingInvest(sq);
+      const maxInv=getMaxExtraInvest(sq);
+      const remPct=maxInv>0?Math.round(rem/maxInv*100):0;
+      const isOwn=sq.owner===player.id;
+      const ownerP=sq.owner>=0?G.players.find(p=>p.id===sq.owner):null;
+      const ownerColor=ownerP?ownerP.color:'#6b7280';
+      const ownerName=ownerP?ownerP.name:'空き';
+      const sellPrice=Math.floor(sq.price*.75);
+      const myIdx=isOwn?myShops.indexOf(sq):-1;
+      const rowAttr=isOwn?' data-idx="'+myIdx+'" style="cursor:pointer;" tabindex="0"':' style="opacity:.75;"';
+      return '<div class="sh-shoprow'+(isOwn?' mine':'')+'"'+rowAttr+'>'
+        +'<span class="sh-label">'+sq.label+'</span>'
+        +'<span class="sh-owner" style="color:'+ownerColor+'">'+ownerName+'</span>'
+        +'<span class="sh-val"><span class="sh-lbl">店価格</span>💰'+sq.price.toLocaleString()+'G</span>'
+        +'<span class="sh-val pink"><span class="sh-lbl">買い物料</span>🛒'+toll.toLocaleString()+'G</span>'
+        +'<span class="sh-val '+(rem>0?'cyan':'dim')+'"><span class="sh-lbl">増資余り</span>📈'+rem.toLocaleString()+'G('+remPct+'%)</span>'
+        +(isOwn
+          ?'<button class="isc-invest-btn-sm auc-sel-btn" data-idx="'+myIdx+'" style="background:#e05252;color:#fff;">競売(75%)</button>'
+          :'<span style="font-size:.6rem;color:var(--gray);white-space:nowrap;flex-shrink:0;">－</span>')
+        +'</div>';
+    }).join('');
+
+    rows+='<div class="sh-area">'
+      +'<div class="sh-area-head" style="--ac:'+areaColor+'">'
+      +'<span class="sh-a-num">A'+aNum+' <span style="font-size:.72rem;font-weight:400">'+getAreaName(aNum)+'</span></span>'
+      +'<span class="sh-a-price">'+sp.toLocaleString()+'G/枚</span>'
+      +'<span class="sh-a-self">自分: <b>'+myCount+'軒</b></span>'
+      +(hasMyShop?'':'<span class="sh-ng">自分の店なし</span>')
+      +'</div>'
+      +'<div class="sh-holders">'+holdersHtml+'</div>'
+      +'<div class="sh-shops">'+shopRows+'</div>'
+      +'</div>';
+  });
+
+  const mc=document.getElementById('modal-content');
+  mc.innerHTML='<div class="modal-drag"></div>'
+    +'<div class="sh-header">'
+    +'<span>🏦 店を競売に出す（銀行買取75%）</span>'
+    +'<span class="sh-cash">流動 '+liq.toLocaleString()+'G</span>'
+    +'</div>'
+    +'<p style="font-size:.72rem;color:var(--gray);margin:.1rem 0 .4rem">銀行が現在価格の75%で買取後、初期価格から競売を開きます。落札金は銀行へ（あなたには入りません）。</p>'
+    +'<div class="sh-scroll">'+rows+'</div>'
+    +'<div class="modal-buttons" style="margin-top:.5rem;">'
+    +'<button class="action-btn" id="debt-shop-back">戻る<span class="key-hint">Backspace</span></button>'
+    +'</div>';
+  document.getElementById('modal-overlay').classList.add('active');
+  G._modalButtons=null; G._numModal=null;
+
+  const backBtn=document.getElementById('debt-shop-back');
+  if(backBtn) backBtn.onclick=()=>{closeModal();done();};
+
+  mc.querySelectorAll('.auc-sel-btn[data-idx]').forEach(btn=>{
+    btn.onclick=(e)=>{
+      e.stopPropagation();
+      const sq=myShops[parseInt(btn.dataset.idx)];
       closeModal();
       _forcedAuctionSell(player, sq, done);
-    },
-  }));
-  btns.push({label:'戻る',key:'Backspace',action:done});
-  showModal('🏦 店を競売に出す（銀行買取75%→強制競売）',[
-    '銀行が現在価格の75%で買取後、初期価格から競売を開きます',
-    '落札金は銀行へ（あなたには入りません）',
-  ],btns);
+    };
+  });
+  mc.querySelectorAll('.sh-shoprow.mine[data-idx]').forEach(row=>{
+    row.onclick=(e)=>{
+      if(e.target.classList.contains('auc-sel-btn'))return;
+      const sq=myShops[parseInt(row.dataset.idx)];
+      closeModal();
+      _forcedAuctionSell(player, sq, done);
+    };
+  });
+  G._stockCloseCb=done;
 }
 
 // ===== STOCK =====
