@@ -2387,7 +2387,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
         <span id="tour-extra-icon" style="font-size:1.5rem;">🔒</span>
         <div>
           <div id="tour-extra-title" style="font-weight:700;font-size:1.05rem;color:rgba(240,180,41,.5);">エクストラモード</div>
-          <div id="tour-extra-sub" style="font-size:.72rem;color:rgba(255,255,255,.6);">ノーマル全10章クリアで解放</div>
+          <div id="tour-extra-sub" style="font-size:.72rem;color:rgba(255,255,255,.6);">ハード全10章クリアで解放</div>
         </div>
       </div>
       <div id="tour-extra-progress" style="font-size:.75rem;color:rgba(255,255,255,.5);">新マップ・新CPUの解放に挑戦！</div>
@@ -11390,6 +11390,9 @@ function movePlayer(player,steps,callback){
     }
 
     function findMarksAhead(fromId,fromPrev){
+      // 次の分岐点（前進方向が2以上のマス）までに存在する未取得マークのみ返す
+      // ※ _ensureBidirectionalで全ノードが双方向リンク済みのため
+      //    前進方向 = nexts から来た方向(prev)を除いたもの
       const MN=['\u2660','\u2665','\u2666','\u2663'];
       const found=[];
       const vis=new Set();
@@ -11401,8 +11404,10 @@ function movePlayer(player,steps,callback){
         if(!nd)continue;
         if(nd.type==='bank'&&id!==fromId)continue;
         if(isMarkType(nd)&&!player.marks[nd.mark]) found.push(MN[nd.mark]);
-        const fwd2=(nd.nexts||[]).filter(nid=>nid!==prev);
-        const cands=fwd2.length>0?fwd2:(nd.nexts||[]);
+        const fwd=(nd.nexts||[]).filter(nid=>nid!==prev);
+        const cands=fwd.length>0?fwd:(nd.nexts||[]);
+        // 前進方向が2以上 = 次の分岐点に到達 → このノードで探索打ち切り
+        if(cands.length>1) continue;
         cands.forEach(nid=>{if(!vis.has(nid)){vis.add(nid);q.push({id:nid,prev:id});}});
       }
       return[...new Set(found)];
@@ -11745,10 +11750,12 @@ function showRouteSelectModal(player,nextIds,remSteps,onChoose){
         else opp+=5;
       }
     });
-    // マーク検出: 進行方向のみ探索（来た道には戻らない）
+    // マーク検出: 次の分岐点（前進方向が2以上のマス）までに限定
+    // ※ _ensureBidirectionalで全ノードが双方向リンク済みのため
+    //    「前進方向 = nexts から来た方向を除いたもの」で判定する
     (function(){
       const visited=new Set();
-      // {id, prevId} のペアで探索（filterNextsと同じ逆走防止）
+      // 開始: nid は既に選んだ方向の最初のノード
       const q=[{id:nid, prev:player.pos}];
       visited.add(nid);
       while(q.length){
@@ -11756,13 +11763,16 @@ function showRouteSelectModal(player,nextIds,remSteps,onChoose){
         const bnd=G.map.find(n=>n.id===id);
         if(!bnd)continue;
         if(bnd.type==='bank')continue; // 銀行で探索打ち切り
+        // マーク取得判定（分岐点自身のマークも拾う）
         if(isMarkType(bnd)&&!player.marks[bnd.mark]){
           marks++;
           missingMarkNames.push(MARK_NAMES_[bnd.mark]);
         }
-        // 来た方向を除外して前進方向のみ探索
+        // 来た方向を除外した前進方向を計算
         const fwd=(bnd.nexts||[]).filter(nxt=>nxt!==prev);
         const nextsToVisit=fwd.length>0?fwd:(bnd.nexts||[]);
+        // 前進方向が2以上 = 次の分岐点に到達 → このノードで探索打ち切り
+        if(nextsToVisit.length>1) continue;
         nextsToVisit.forEach(nxt=>{
           if(!visited.has(nxt)){
             visited.add(nxt);
@@ -24292,7 +24302,9 @@ function endGame(winnerId){
     // クリア条件: TOUR_CLEAR_RANK[mapIdx] === 0 なら1位必須、1なら2位以上OK、2なら3位以上OK
     const reqRank = _tourState.mode==='extra'
       ? (TOUR_EXTRA_CLEAR_RANK[_tourState.mapIdx] ?? 0)
-      : (TOUR_CLEAR_RANK[_tourState.mapIdx] ?? 0);
+      : _tourState.mode==='hard'
+        ? (TOUR_HARD_CLEAR_RANK[_tourState.mapIdx] ?? 0)
+        : (TOUR_CLEAR_RANK[_tourState.mapIdx] ?? 0);
     _tourPlayerWon = _tourHumanRank !== -1 && _tourHumanRank <= reqRank;
     // クリア成功なら結果画面表示前に clearedStages を確定記録
     if(_tourPlayerWon){
@@ -24300,14 +24312,14 @@ function endGame(winnerId){
       if(!_tourState.clearedStages.includes(_tourState.mapIdx)){
         _tourState.clearedStages.push(_tourState.mapIdx);
       }
-      // ノーマル9章（lastheaven=idx9）クリアでハードモード解放 + エクストラ解放
+      // ノーマル9章（lastheaven=idx9）クリアでハードモード解放
       if(_tourState.mode==='normal' && _tourState.clearedStages.includes(9)){
         try{ localStorage.setItem('tour_hard_unlocked','1'); }catch(e){}
-        try{ localStorage.setItem('tour_extra_unlocked','1'); }catch(e){}
       }
-      // ハード9章クリアでBGMシアター解放フラグを保存（結果画面表示前に確定）
+      // ハード9章クリアでBGMシアター解放 + エクストラモード解放フラグを保存（結果画面表示前に確定）
       if(_tourState.mode==='hard' && _tourState.clearedStages.includes(9)){
         try{ localStorage.setItem('bgm_theater_unlocked','1'); }catch(e){}
+        try{ localStorage.setItem('tour_extra_unlocked','1'); }catch(e){}
       }
       // エクストラクリア → 対応コンテンツ（マップ・CPU）を解放
       if(_tourState.mode==='extra'){
@@ -28294,6 +28306,9 @@ const TOUR_NORMAL_CONFIG = [
 // クリア条件: 0=1位, 1=2位以上, 2=3位以上 (stageIdx 0-9)
 const TOUR_CLEAR_RANK = [2,2,1,1,1,0,0,0,0,0]; // 0〜1章:3位以上, 2〜4章:2位以上, 5〜9章:1位
 
+// ハードモードクリア条件: 1章(idx0)・2章(idx1)=2位以上, 5章(idx4)〜=1位
+const TOUR_HARD_CLEAR_RANK = [1,1,0,0,0,0,0,0,0,0]; // 0〜1章:2位以上, 2〜9章:1位
+
 // ハードモード各マップの設定
 const TOUR_HARD_CONFIG = [
   {mapId:'hajimari',     goal:10000, cpus:['honkikiyoko','s_christie','s_souma']},
@@ -28310,7 +28325,7 @@ const TOUR_HARD_CONFIG = [
 
 // ──────────────────────────────────────────────────────────────
 // エクストラモード
-// 解放条件：ノーマルモード全10章（lastheaven）クリア
+// 解放条件：ハードモード全10章（lastheaven）クリア
 // クリア報酬：飛空艇マップ + 忍者・シロマ・クロマ が解放される
 // ──────────────────────────────────────────────────────────────
 const TOUR_EXTRA_CONFIG = [
@@ -28455,7 +28470,7 @@ function _updateTourProgressUI(){
   }
   if(extraIcon)  extraIcon.textContent  = extraUnlocked ? '✨' : '🔒';
   if(extraTitle) extraTitle.style.color = extraUnlocked ? '#f0b429' : 'rgba(240,180,41,.5)';
-  if(extraSub)   extraSub.textContent   = extraUnlocked ? '新マップ・新CPUの解放に挑戦！' : 'ノーマル全10章クリアで解放';
+  if(extraSub)   extraSub.textContent   = extraUnlocked ? '新マップ・新CPUの解放に挑戦！' : 'ハード全10章クリアで解放';
   if(elE){
     if(!extraUnlocked){
       elE.innerHTML = `<span style="color:rgba(240,180,41,.6)">ノーマルモードを全章クリアせよ</span>`;
@@ -28484,7 +28499,9 @@ function showTourStageSelect(mode){
   const config  = mode==='extra' ? TOUR_EXTRA_CONFIG
                 : mode==='hard'  ? TOUR_HARD_CONFIG
                 : TOUR_NORMAL_CONFIG;
-  const clearRanks = mode==='extra' ? TOUR_EXTRA_CLEAR_RANK : TOUR_CLEAR_RANK;
+  const clearRanks = mode==='extra' ? TOUR_EXTRA_CLEAR_RANK
+                   : mode==='hard'  ? TOUR_HARD_CLEAR_RANK
+                   : TOUR_CLEAR_RANK;
 
   const save    = _loadTourSave(mode) || {clearedStages:[]};
   const urlCleared = save.clearedStages || [];
@@ -28562,7 +28579,7 @@ function showTourStageSelect(mode){
       card.onclick = ()=>{
         if((mode==='hard' && !_isHardModeUnlocked()) || (mode==='extra' && !_isExtraModeUnlocked())){
           const msg = mode==='extra'
-            ? 'ノーマルモード全10章をクリアすると解放されます'
+            ? 'ハードモード全10章をクリアすると解放されます'
             : 'ノーマルモード全10章をクリアすると解放されます';
           showModal('🔒 未解放',[msg],[{label:'OK',key:'Enter',action:()=>{}}]);
           return;
@@ -28832,7 +28849,9 @@ function showTourComplete(){
 
 function showTourGameOver(stageIdx, playerRank){
   const mode = _tourState ? _tourState.mode : 'normal';
-  const clearRanks = mode==='extra' ? TOUR_EXTRA_CLEAR_RANK : TOUR_CLEAR_RANK;
+  const clearRanks = mode==='extra' ? TOUR_EXTRA_CLEAR_RANK
+                   : mode==='hard'  ? TOUR_HARD_CLEAR_RANK
+                   : TOUR_CLEAR_RANK;
   const req = clearRanks[stageIdx||0] ?? 0;
   const reqStr = req===0?'1位が必要':req===1?'2位以上が必要':'3位以上が必要';
   const rankStr = playerRank===0?'1位':playerRank===1?'2位':playerRank>=0?`${playerRank+1}位`:'圏外';
@@ -28879,10 +28898,10 @@ function _isHardModeUnlocked(){
   return !!(save && (save.clearedStages||[]).includes(9));
 }
 
-// エクストラモード解放チェック（ノーマル全10章クリア）
+// エクストラモード解放チェック（ハード全10章クリア）
 function _isExtraModeUnlocked(){
   try{ if(localStorage.getItem('tour_extra_unlocked')==='1') return true; }catch(e){}
-  const save = _loadTourSave('normal');
+  const save = _loadTourSave('hard');
   return !!(save && (save.clearedStages||[]).includes(9));
 }
 
