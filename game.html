@@ -22905,7 +22905,7 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     // 本気きよこ: 100%全エリア対象（スキップなし）
     // 覚醒ひろし: 100%全エリア対象（スキップなし）
     // はゆう: 自分の店がないエリアは40%の確率でスキップ（60%で全エリア対象）
-    if(ch?.name==='はゆう'&&myShops===0){if(Math.random()>0.60)continue;}
+    // はゆう: 両モードとも全エリア対象（フィルタなし）
     // さくら: 自分の店がないエリアは25%の確率でスキップ（75%で全エリア対象）
     if(ch?.name==='さくら'&&myShops===0){if(Math.random()>0.75)continue;}
     // エナ: 自分の店がないエリアは20%の確率でスキップ（80%で全エリア対象）
@@ -22913,9 +22913,36 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     // ポッター/シロマ/クロマ/忍者: 100%全エリア対象（スキップなし・Sランクはそもそもこのif外）
 
     // 宅建士りょう: 常に全エリア対象（モード廃止）
+    // りょうのモード決定（ターン最初に1回）: 80%スタンダード / 20%インサイダー
+    if(ch&&ch.name==='りょう'&&a===1){
+      ch._ryoubuyMode=Math.random()<0.80?'standard':'insider';
+    }
+    // さくらのモード決定（ターン最初に1回）: 80%スタンダード / 20%インサイダー
+    if(ch&&ch.name==='さくら'&&a===1){
+      ch._sakurabuyMode=Math.random()<0.80?'standard':'insider';
+    }
+    // ひろしのモード決定（ターン最初に1回）: 60%スタンダード / 40%インサイダー
+    if(ch&&ch.name==='ひろし'&&a===1){
+      ch._hiroshiMode=Math.random()<0.60?'standard':'insider';
+    }
+    // おりかのモード決定（ターン最初に1回）: 60%スタンダード / 40%インサイダー
+    if(ch&&ch.name==='おりか'&&a===1){
+      ch._orikaMode=Math.random()<0.60?'standard':'insider';
+    }
+    // はゆうのモード決定（ターン最初に1回）: 60%スタンダード / 40%インサイダー
+    if(ch&&ch.name==='はゆう'&&a===1){
+      ch._hayuuMode=Math.random()<0.60?'standard':'insider';
+    }
+    // そうまのモード決定（ターン最初に1回）: 50%スタンダード / 50%インサイダー
+    if(ch&&ch.name==='そうま'&&a===1){
+      ch._soumaMode=Math.random()<0.50?'standard':'insider';
+    }
     // wise/christieのモード決定（ターン最初に1回）
-    if(ch&&(ch.name==='ワイズ'||ch.name==='クリスティー')&&a===1){
-      ch._wisebuyMode=(ch.name==='ワイズ'?Math.random()<0.75:Math.random()<0.5)?'all':'insider';
+    if(ch&&ch.name==='ワイズ'&&a===1){
+      ch._wisebuyMode=Math.random()<0.80?'standard':'insider';
+    }
+    if(ch&&ch.name==='クリスティー'&&a===1){
+      ch._wisebuyMode=Math.random()<0.5?'all':'insider';
     }
     // S・ワイズ / S・はゆう / サコ: 常に全エリア対象（モード固定='all'）
     if(ch&&(ch.name==='S・ワイズ'||ch.name==='S・はゆう'||ch.name==='サコ')&&a===1){
@@ -22924,35 +22951,24 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     }
     // はるかのモード決定（ターン最初に1回）
     if(ch&&ch.name==='はるか'&&a===1){
-      ch._harukabuyMode=Math.random()<0.75?'all':'insider';
+      ch._harukabuyMode=Math.random()<0.80?'standard':'insider';
     }
     // ひかりのモード決定（ターン最初に1回）
     if(ch&&ch.name==='ひかり'&&a===1){
-      ch._hikaribuyMode=Math.random()<0.75?'all':'insider';
+      ch._hikaribuyMode=Math.random()<0.60?'standard':'insider';
     }
     // 宅建士りょう: 全エリア対象（フィルタなし）
-    // wise/christieのエリアフィルタ（ワイズ: 25%でinsiderモード時は自店エリアのみ）
-    if(ch&&(ch.name==='ワイズ'||ch.name==='クリスティー')){
+    // クリスティーのエリアフィルタ（insiderモード時は自店エリアのみ）
+    if(ch&&ch.name==='クリスティー'){
       const mode=ch._wisebuyMode||'all';
       if(mode==='insider'){
         if(myShops===0)continue;
       }
     }
+    // ワイズ: 両モードとも全エリア対象（フィルタなし）
     // S・ワイズ / S・はゆう / サコ: 常に全エリア対象（フィルタなし）
-    // はるかのエリアフィルタ
-    if(ch&&ch.name==='はるか'){
-      const mode=ch._harukabuyMode||'all';
-      if(mode==='insider'){
-        if(myShops===0)continue; // 仮想所有軒数で判定
-      }
-    }
-    // ひかりのエリアフィルタ
-    if(ch&&ch.name==='ひかり'){
-      const mode=ch._hikaribuyMode||'all';
-      if(mode==='insider'){
-        if(myShops===0)continue; // 仮想所有軒数で判定
-      }
-    }
+    // はるか: 両モードとも全エリア対象（フィルタなし）
+    // ひかり: 両モードとも全エリア対象（フィルタなし）
     // ============================================================
 
     // スコア計算
@@ -22974,18 +22990,20 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
       // 宅建士りょう新スコア式: x: 1軒=1.0, 2軒=2.5, 3軒=5.0, 4軒以上=10.0
       const _tkX=myShops>=4?10.0:myShops>=3?5.0:myShops>=2?2.5:1.0;
       score=(myRem*_tkX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
-    } else if(ch&&(ch.name==='ワイズ'||ch.name==='クリスティー')){
+    } else if(ch&&ch.name==='ワイズ'){
+      // ワイズ新スコア式
+      // スタンダード: x: 1軒=1.5, 2軒=1.875, 3軒=6.25, 4軒以上=12.5
+      // インサイダー: x: 1軒=3.0, 2軒=3.75, 3軒=12.5, 4軒以上=25.0
+      const _wiseMode=ch._wisebuyMode||'standard';
+      const _wX=_wiseMode==='insider'
+        ?(myShops>=4?25.0:myShops>=3?12.5:myShops>=2?3.75:3.0)
+        :(myShops>=4?12.5:myShops>=3?6.25:myShops>=2?1.875:1.5);
+      score=(myRem*_wX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
+    } else if(ch&&ch.name==='クリスティー'){
+      // クリスティー (既存式を維持)
       const _wMode=ch._wisebuyMode||'all';
-      if(ch.name==='ワイズ'){
-        // ワイズ新スコア式: {(自myRem×x) + 敵ごと(enemyRem_i×y_i)} / sp
-        // x: 1軒=1.5, 2軒=1.875, 3軒=6.25, 4軒以上=12.5
-        const _wX=myShops>=4?12.5:myShops>=3?6.25:myShops>=2?1.875:1.5;
-        score=(myRem*_wX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
-      } else {
-        // クリスティー (既存式を維持)
-        score=_wMode==='all'?(myRem*6.0+enemyRem*1.0)/Math.max(1,sp)+0.5
-                            :(myRem*7.0+enemyRem*1.0)/Math.max(1,sp)+0.5;
-      }
+      score=_wMode==='all'?(myRem*6.0+enemyRem*1.0)/Math.max(1,sp)+0.5
+                          :(myRem*7.0+enemyRem*1.0)/Math.max(1,sp)+0.5;
     } else if(ch&&ch.name==='S・クリスティー'){
       // S・クリスティー新スコア式: x: 1軒=1.1, 2軒=1.375, 3軒=2.75, 4軒以上=5.5
       const _scX=myShops>=4?5.5:myShops>=3?2.75:myShops>=2?1.375:1.1;
@@ -23031,32 +23049,81 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
       const _srX=myShops>=4?4.0:myShops>=3?2.0:myShops>=2?1.0:0.8;
       score=(myRem*_srX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
     } else if(ch&&ch.name==='さくら'){
-      // さくら専用: (自分の増資余り×1.5 + 敵の増資余り×1.0) / 株価
-      score=(myRem*1.5+enemyRem*1.0)/Math.max(1,sp);
+      // さくら新スコア式
+      // スタンダード: x: 1軒=1.5, 2軒=1.875, 3軒=3.75, 4軒以上=7.5
+      // インサイダー: x: 1軒=3.0, 2軒=3.75, 3軒=7.5, 4軒以上=15.0
+      const _sakuraMode=ch._sakurabuyMode||'standard';
+      const _sakuraX=_sakuraMode==='insider'
+        ?(myShops>=4?15.0:myShops>=3?7.5:myShops>=2?3.75:3.0)
+        :(myShops>=4?7.5:myShops>=3?3.75:myShops>=2?1.875:1.5);
+      score=(myRem*_sakuraX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
     } else if(ch&&ch.name==='はゆう'){
-      // はゆう専用: (自分の増資余り×5.0 + 敵の増資余り×1.0) / 株価
-      // 全エリア対象・自分のエリアを強く優先するインサイダー型
-      score=(myRem*5.0+enemyRem*1.0)/Math.max(1,sp);
+      // はゆう新スコア式
+      // スタンダード: x: 1軒=5.0, 2軒=6.25, 3軒=12.5, 4軒以上=25.0
+      // インサイダー: x: 1軒=10.0, 2軒=12.5, 3軒=25.0, 4軒以上=50.0
+      const _hayuuMode=ch._hayuuMode||'standard';
+      const _hayuuX=_hayuuMode==='insider'
+        ?(myShops>=4?50.0:myShops>=3?25.0:myShops>=2?12.5:10.0)
+        :(myShops>=4?25.0:myShops>=3?12.5:myShops>=2?6.25:5.0);
+      score=(myRem*_hayuuX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
     } else if(ch&&ch.name==='そうま'){
-      // そうま専用: (自分の増資余り×0.7 + 敵の増資余り×1.0) / 株価
-      score=(myRem*0.7+enemyRem*1.0)/Math.max(1,sp);
+      // そうま新スコア式
+      // スタンダード: x: 1軒=0.7, 2軒=0.875, 3軒=1.75, 4軒以上=3.5
+      // インサイダー: x: 1軒=1.4, 2軒=1.75, 3軒=3.5, 4軒以上=7.0
+      const _soumaMode=ch._soumaMode||'standard';
+      const _soumaX=_soumaMode==='insider'
+        ?(myShops>=4?7.0:myShops>=3?3.5:myShops>=2?1.75:1.4)
+        :(myShops>=4?3.5:myShops>=3?1.75:myShops>=2?0.875:0.7);
+      score=(myRem*_soumaX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
     } else if(ch&&ch.name==='はるか'){
-      // はるか専用: (自店増資余り×3.0 + 敵店増資余り×1.0) / 株価
-      const _hMode=ch._harukabuyMode||'all';
-      score=(_hMode==='all'?(myRem*3.0+enemyRem*1.0):(myRem*4.0+enemyRem*1.0))/Math.max(1,sp);
+      // はるか新スコア式
+      // スタンダード: x: 1軒=1.5, 2軒=3.75, 3軒=7.5, 4軒以上=15.0
+      // インサイダー: x: 1軒=3.0, 2軒=7.5, 3軒=15.0, 4軒以上=30.0
+      const _harukaMode=ch._harukabuyMode||'standard';
+      const _harukaX=_harukaMode==='insider'
+        ?(myShops>=4?30.0:myShops>=3?15.0:myShops>=2?7.5:3.0)
+        :(myShops>=4?15.0:myShops>=3?7.5:myShops>=2?3.75:1.5);
+      score=(myRem*_harukaX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
     } else if(ch&&ch.name==='ひかり'){
-      // ひかり専用: (自店増資余り×0.9 + 敵店増資余り×1.0) / 株価
-      const _hkMode=ch._hikaribuyMode||'all';
-      score=(_hkMode==='all'?(myRem*0.9+enemyRem*1.0):(myRem*1.2+enemyRem*1.0))/Math.max(1,sp);
+      // ひかり新スコア式
+      // スタンダード: x: 1軒=0.9, 2軒=1.125, 3軒=2.25, 4軒以上=4.5
+      // インサイダー: x: 1軒=1.8, 2軒=2.25, 3軒=4.5, 4軒以上=9.0
+      const _hikariMode=ch._hikaribuyMode||'standard';
+      const _hikariX=_hikariMode==='insider'
+        ?(myShops>=4?9.0:myShops>=3?4.5:myShops>=2?2.25:1.8)
+        :(myShops>=4?4.5:myShops>=3?2.25:myShops>=2?1.125:0.9);
+      score=(myRem*_hikariX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
     } else if(ch&&ch.name==='ネネコ'){
       // ネネコ新スコア式: x: 1軒=1.1, 2軒=2.25, 3軒=4.5, 4軒以上=9.0
       const _nnX=myShops>=4?9.0:myShops>=3?4.5:myShops>=2?2.25:1.1;
       score=(myRem*_nnX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
     } else if(ch&&ch.name==='りょう'){
-      // りょう専用: (自分の増資余り×0.8 + 敵の増資余り×1.0) / 株価
-      score=(myRem*0.8+enemyRem*1.0)/Math.max(1,sp);
-      // 相乗りエリア（敵の方が増資余りが多い）は分散購入するためスコアを均等化
-      if(enemyRem>myRem) score*=(0.7+Math.random()*0.6);
+      // りょう新スコア式
+      // スタンダード: x: 1軒=0.8, 2軒=1.0, 3軒=2.0, 4軒以上=4.0
+      // インサイダー: x: 1軒=1.6, 2軒=2.0, 3軒=4.0, 4軒以上=8.0
+      const _ryouMode=ch._ryoubuyMode||'standard';
+      const _ryouX=_ryouMode==='insider'
+        ?(myShops>=4?8.0:myShops>=3?4.0:myShops>=2?2.0:1.6)
+        :(myShops>=4?4.0:myShops>=3?2.0:myShops>=2?1.0:0.8);
+      score=(myRem*_ryouX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
+    } else if(ch&&ch.name==='ひろし'){
+      // ひろし新スコア式
+      // スタンダード: x: 1軒=4.0, 2軒=5.0, 3軒=10.0, 4軒以上=20.0
+      // インサイダー: x: 1軒=8.0, 2軒=10.0, 3軒=20.0, 4軒以上=40.0
+      const _hiroshiMode=ch._hiroshiMode||'standard';
+      const _hiroshiX=_hiroshiMode==='insider'
+        ?(myShops>=4?40.0:myShops>=3?20.0:myShops>=2?10.0:8.0)
+        :(myShops>=4?20.0:myShops>=3?10.0:myShops>=2?5.0:4.0);
+      score=(myRem*_hiroshiX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
+    } else if(ch&&ch.name==='おりか'){
+      // おりか新スコア式
+      // スタンダード: x: 1軒=3.0, 2軒=3.75, 3軒=7.5, 4軒以上=15.0
+      // インサイダー: x: 1軒=6.0, 2軒=7.5, 3軒=15.0, 4軒以上=30.0
+      const _orikaMode=ch._orikaMode||'standard';
+      const _orikaX=_orikaMode==='insider'
+        ?(myShops>=4?30.0:myShops>=3?15.0:myShops>=2?7.5:6.0)
+        :(myShops>=4?15.0:myShops>=3?7.5:myShops>=2?3.75:3.0);
+      score=(myRem*_orikaX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
     } else if(ch&&ch.name==='ポッター'){
       // ポッター専用: 自軒数によるx倍 + 敵プレイヤーごとの軒数によるy/w/z倍
       // x: 1軒=1.5, 2軒=1.875, 3軒=3.75, 4軒以上=7.5
@@ -23228,7 +23295,19 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     // スコア式の自分の増資余り倍率（myMul）を取得
     let _myMul=1.0;
     if(ch){
-      if(ch.name==='メイ'){
+      if(ch.name==='ひろし'){
+        const _hiroshiModeM=ch._hiroshiMode||'standard';
+        _myMul=_hiroshiModeM==='insider'
+          ?(myShops>=4?40.0:myShops>=3?20.0:myShops>=2?10.0:8.0)
+          :(myShops>=4?20.0:myShops>=3?10.0:myShops>=2?5.0:4.0);
+      }
+      else if(ch.name==='おりか'){
+        const _orikaModeM=ch._orikaMode||'standard';
+        _myMul=_orikaModeM==='insider'
+          ?(myShops>=4?30.0:myShops>=3?15.0:myShops>=2?7.5:6.0)
+          :(myShops>=4?15.0:myShops>=3?7.5:myShops>=2?3.75:3.0);
+      }
+      else if(ch.name==='メイ'){
         _myMul=myShops>=4?5.0:myShops>=3?2.5:myShops>=2?1.25:1.0;
       }
       else if(ch.name==='覚醒ひろし'){
@@ -23241,7 +23320,10 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
         _myMul=myShops>=4?10.0:myShops>=3?5.0:myShops>=2?2.5:1.0;
       }
       else if(ch.name==='ワイズ'){
-        _myMul=myShops>=4?12.5:myShops>=3?6.25:myShops>=2?1.875:1.5;
+        const _wiseModeM=ch._wisebuyMode||'standard';
+        _myMul=_wiseModeM==='insider'
+          ?(myShops>=4?25.0:myShops>=3?12.5:myShops>=2?3.75:3.0)
+          :(myShops>=4?12.5:myShops>=3?6.25:myShops>=2?1.875:1.5);
       }
       else if(ch.name==='S・ワイズ'){
         _myMul=myShops>=4?12.5:myShops>=3?6.25:myShops>=2?1.875:1.0;
@@ -23274,15 +23356,45 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
       else if(ch.name==='S・はるか'){
         _myMul=myShops>=4?15.0:myShops>=3?7.5:myShops>=2?1.375:1.1;
       }
-      else if(ch.name==='さくら') _myMul=1.5;
-      else if(ch.name==='はゆう') _myMul=5.0;
-      else if(ch.name==='そうま') _myMul=0.7;
-      else if(ch.name==='はるか') _myMul=(ch._harukabuyMode||'all')==='all'?3.0:4.0;
-      else if(ch.name==='ひかり') _myMul=(ch._hikaribuyMode||'all')==='all'?0.9:1.2;
+      else if(ch.name==='さくら'){
+        const _sakuraModeM=ch._sakurabuyMode||'standard';
+        _myMul=_sakuraModeM==='insider'
+          ?(myShops>=4?15.0:myShops>=3?7.5:myShops>=2?3.75:3.0)
+          :(myShops>=4?7.5:myShops>=3?3.75:myShops>=2?1.875:1.5);
+      }
+      else if(ch.name==='はゆう'){
+        const _hayuuModeM=ch._hayuuMode||'standard';
+        _myMul=_hayuuModeM==='insider'
+          ?(myShops>=4?50.0:myShops>=3?25.0:myShops>=2?12.5:10.0)
+          :(myShops>=4?25.0:myShops>=3?12.5:myShops>=2?6.25:5.0);
+      }
+      else if(ch.name==='そうま'){
+        const _soumaModeM=ch._soumaMode||'standard';
+        _myMul=_soumaModeM==='insider'
+          ?(myShops>=4?7.0:myShops>=3?3.5:myShops>=2?1.75:1.4)
+          :(myShops>=4?3.5:myShops>=3?1.75:myShops>=2?0.875:0.7);
+      }
+      else if(ch.name==='はるか'){
+        const _harukaModeM=ch._harukabuyMode||'standard';
+        _myMul=_harukaModeM==='insider'
+          ?(myShops>=4?30.0:myShops>=3?15.0:myShops>=2?7.5:3.0)
+          :(myShops>=4?15.0:myShops>=3?7.5:myShops>=2?3.75:1.5);
+      }
+      else if(ch.name==='ひかり'){
+        const _hikariModeM=ch._hikaribuyMode||'standard';
+        _myMul=_hikariModeM==='insider'
+          ?(myShops>=4?9.0:myShops>=3?4.5:myShops>=2?2.25:1.8)
+          :(myShops>=4?4.5:myShops>=3?2.25:myShops>=2?1.125:0.9);
+      }
       else if(ch.name==='ネネコ'){
         _myMul=myShops>=4?9.0:myShops>=3?4.5:myShops>=2?2.25:1.1;
       }
-      else if(ch.name==='りょう') _myMul=0.8;
+      else if(ch.name==='りょう'){
+        const _ryouModeM=ch._ryoubuyMode||'standard';
+        _myMul=_ryouModeM==='insider'
+          ?(myShops>=4?8.0:myShops>=3?4.0:myShops>=2?2.0:1.6)
+          :(myShops>=4?4.0:myShops>=3?2.0:myShops>=2?1.0:0.8);
+      }
       else if(ch.name==='りょう・S'){
         _myMul=myShops>=4?4.0:myShops>=3?2.0:myShops>=2?1.0:0.8;
       }
@@ -23301,7 +23413,7 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
       }
       else if(ch.insiderMul) _myMul=ch.insiderMul;
     }
-    const _myScore=(ch&&(ch.name==='ポッター'||ch.name==='シロマ'||ch.name==='クロマ'||ch.name==='忍者'||ch.name==='ワイズ'||ch.name==='S・ワイズ'||ch.name==='S・はゆう'||ch.name==='サコ'||ch.name==='りょう・S'||ch.name==='宅建士りょう'||ch.name==='本気きよこ'||ch.name==='S・クリスティー'||ch.name==='S・エナ'||ch.name==='S・そうま'||ch.name==='覚醒ひろし'||ch.name==='S・おりか'||ch.name==='S・ひかり'||ch.name==='S・さくら'||ch.name==='S・はるか'||ch.name==='メイ'||ch.name==='ネネコ'))?(myRem*_myMul)/Math.max(1,sp):myRem*_myMul;
+    const _myScore=(ch&&(ch.name==='ポッター'||ch.name==='シロマ'||ch.name==='クロマ'||ch.name==='忍者'||ch.name==='ワイズ'||ch.name==='S・ワイズ'||ch.name==='S・はゆう'||ch.name==='サコ'||ch.name==='りょう・S'||ch.name==='宅建士りょう'||ch.name==='本気きよこ'||ch.name==='S・クリスティー'||ch.name==='S・エナ'||ch.name==='S・そうま'||ch.name==='覚醒ひろし'||ch.name==='S・おりか'||ch.name==='S・ひかり'||ch.name==='S・さくら'||ch.name==='S・はるか'||ch.name==='メイ'||ch.name==='ネネコ'||ch.name==='りょう'||ch.name==='さくら'||ch.name==='ワイズ'||ch.name==='はるか'||ch.name==='ひろし'||ch.name==='おりか'||ch.name==='はゆう'||ch.name==='ひかり'||ch.name==='そうま'))?(myRem*_myMul)/Math.max(1,sp):myRem*_myMul;
     // 自分の店が十分ある場合（myScore > 全敵合算）は主判定不要
     const _enemyMul=1.0; // 全キャラ共通
     // 各敵プレイヤーの増資余り×1.0 のうち最大値を持つ敵を「エリアの主」候補とする
@@ -23329,7 +23441,7 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
           const _opMul2=_opCnt2>=4?5.0:_opCnt2>=3?2.5:_opCnt2>=2?1.25:1.0;
           opScore=(_opRem2*_opMul2)/Math.max(1,sp);
         }
-      } else if(ch&&(ch.name==='ワイズ'||ch.name==='S・ワイズ'||ch.name==='S・はゆう'||ch.name==='サコ'||ch.name==='りょう・S'||ch.name==='宅建士りょう'||ch.name==='本気きよこ'||ch.name==='S・クリスティー'||ch.name==='S・エナ'||ch.name==='S・そうま'||ch.name==='覚醒ひろし'||ch.name==='S・おりか'||ch.name==='S・ひかり'||ch.name==='S・さくら'||ch.name==='S・はるか'||ch.name==='メイ'||ch.name==='ネネコ')){
+      } else if(ch&&(ch.name==='ワイズ'||ch.name==='S・ワイズ'||ch.name==='S・はゆう'||ch.name==='サコ'||ch.name==='りょう・S'||ch.name==='宅建士りょう'||ch.name==='本気きよこ'||ch.name==='S・クリスティー'||ch.name==='S・エナ'||ch.name==='S・そうま'||ch.name==='覚醒ひろし'||ch.name==='S・おりか'||ch.name==='S・ひかり'||ch.name==='S・さくら'||ch.name==='S・はるか'||ch.name==='メイ'||ch.name==='ネネコ'||ch.name==='りょう'||ch.name==='さくら'||ch.name==='ワイズ'||ch.name==='はるか'||ch.name==='ひろし'||ch.name==='おりか'||ch.name==='はゆう'||ch.name==='ひかり'||ch.name==='そうま')){
         // 新4キャラ + りょう・S + 宅建士りょう + 本気きよこ + S・クリスティー: 敵も軒数別倍率で算出
         const _opShopsN=getAreaShops(a).filter(s=>s.owner===op.id
           &&!(shopSq&&s.id===shopSq.id)&&!(fiveSq&&s.id===fiveSq.id));
@@ -23358,8 +23470,10 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
         _threshold=0.50; // 主の50%以上持ったら除外
       } else if(ch&&(ch.name==='ワイズ'||ch.name==='S・ワイズ'||ch.name==='S・はゆう'||ch.name==='サコ'||ch.name==='りょう・S')){
         _threshold=0.50;
-      } else if(ch&&(ch.name==='宅建士りょう'||ch.name==='覚醒ひろし')){
-        _threshold=1.0; // 主と同枚数以上持てば相乗り十分
+      } else if(ch&&(ch.name==='宅建士りょう'||ch.name==='覚醒ひろし'||ch.name==='ひろし'||ch.name==='おりか'||ch.name==='はゆう')){
+        _threshold=1.0;
+      } else if(ch&&ch.name==='そうま'){
+        _threshold=1.2; // 主の120%以上持てば相乗り十分
       } else if(ch&&ch.name==='メイ'){
         _threshold=0.50;
       } else if(ch&&ch.name==='ネネコ'){
