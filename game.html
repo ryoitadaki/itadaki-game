@@ -20323,6 +20323,200 @@ function _checkSabotageCounter(player, callback){
   });
 }
 
+// ===== Sランク専用: 銀行2巡以内確定時の株購入資金確保テクニック =====
+// 条件:
+//   ① 銀行から6マス以内
+//   ② 出目先読みで今後2ターン以内に銀行に到達できる経路が存在する
+//   ③ 最高スコアエリアの株を99枚買うのに現金（＋LvUp賞金）が足りない
+// 満たす場合、不要株（bestArea以外）を不要度順に売却して資金確保する。
+// 全部売っても足りない場合はできる限り売る。
+// 5枚残し条件とは無関係に必要枚数だけ売る。
+function _sRankBankPreBuy(player, callback){
+  if(!_gameRunning){if(callback)callback();return;}
+  const ch=getCpuChar(player);
+  if(!ch||ch.rank!=='S'){if(callback)callback();return;}
+
+  // ① 銀行から6マス以内チェック（前進方向BFS）
+  const _bankDistPre=_cpuBankDist(player);
+  if(_bankDistPre>6){if(callback)callback();return;}
+
+  // ② 出目先読みで2ターン以内に銀行到達可能か判定
+  // preRoll時点: peekPlayerDice(id,0)=今ターンの出目, (id,1)=次ターンの出目
+  function _canReachBankInSteps(startId, prevId, steps){
+    // BFSで ちょうど steps歩 or 通過（銀行を踏み越える）で銀行に到達できるか
+    const q=[{id:startId,prev:prevId,rem:steps}];
+    const visited=new Set();
+    while(q.length){
+      const{id,prev,rem}=q.shift();
+      const key=id+'_'+prev+'_'+rem;
+      if(visited.has(key))continue;
+      visited.add(key);
+      const nd=G.map.find(n=>n.id===id);
+      if(!nd)continue;
+      // 銀行到達（スタート地点以外）
+      if(nd.type==='bank'&&id!==startId) return true;
+      if(rem<=0)continue;
+      const fwd=(nd.nexts||[]).filter(nid=>nid!==prev);
+      const nexts=fwd.length>0?fwd:(nd.nexts||[]);
+      nexts.forEach(nid=>q.push({id:nid,prev:id,rem:rem-1}));
+    }
+    return false;
+  }
+
+  const dice0=peekPlayerDice(player.id,0); // 今ターンの出目
+  const dice1=peekPlayerDice(player.id,1); // 次ターンの出目
+  if(dice0==null){if(callback)callback();return;}
+
+  let willReachBank=false;
+
+  // 今ターンで銀行に到達できるか
+  if(_canReachBankInSteps(player.pos, player._prevPos, dice0)){
+    willReachBank=true;
+  }
+  // 次ターン（dice0歩後の全着地点からdice1歩で銀行に到達できるか）
+  if(!willReachBank&&dice1!=null){
+    // dice0歩後の全着地候補を列挙（銀行以外）
+    const afterT1=[];
+    {
+      const q2=[{id:player.pos,prev:player._prevPos,rem:dice0}];
+      const vis2=new Set();
+      while(q2.length){
+        const{id,prev,rem}=q2.shift();
+        const k=id+'_'+prev+'_'+rem;
+        if(vis2.has(k))continue;
+        vis2.add(k);
+        const nd=G.map.find(n=>n.id===id);
+        if(!nd)continue;
+        if(nd.type==='bank'&&id!==player.pos)continue; // 今ターン銀行到達は上で処理済み
+        if(rem===0){afterT1.push({id,prev});continue;}
+        const fwd=(nd.nexts||[]).filter(nid=>nid!==prev);
+        const nexts=fwd.length>0?fwd:(nd.nexts||[]);
+        nexts.forEach(nid=>q2.push({id:nid,prev:id,rem:rem-1}));
+      }
+    }
+    for(const{id,prev} of afterT1){
+      if(_canReachBankInSteps(id,prev,dice1)){willReachBank=true;break;}
+    }
+  }
+
+  if(!willReachBank){if(callback)callback();return;}
+
+  // ③ 最高スコアエリアを特定
+  let bestArea=null,bestScore=-Infinity,bestSP=0;
+  for(let a=1;a<=16;a++){
+    if(!isTradeableArea(a))continue;
+    const sp=G.areas[a].stockPrice;
+    if(!sp||sp<=0)continue;
+    const myShops=getAreaShops(a).filter(s=>s.owner===player.id).length;
+    // 増資余り計算
+    const shops_a=getAreaShops(a);
+    let myRem=0;
+    {
+      const actualMine=myShops;
+      if(actualMine>0){
+        const idxKey=Math.min(actualMine,6);
+        const INV_MULS=[0,.5,1,3,9,11,13];
+        shops_a.forEach(sq2=>{
+          if(sq2.owner===player.id){
+            const maxInv=Math.floor(sq2.basePrice*INV_MULS[idxKey]);
+            myRem+=Math.max(0,maxInv-sq2.extraInvest);
+          }
+        });
+      }
+    }
+    const enemies=G.players.filter(p=>!p.bankrupt&&p.id!==player.id);
+    let enemyRemPP=enemies.reduce((sum,ep)=>{
+      const eshops=shops_a.filter(s=>s.owner===ep.id);
+      if(!eshops.length)return sum;
+      const erem=eshops.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
+      const cnt=eshops.length;
+      const mul=cnt>=4?5.0:cnt>=3?2.5:cnt>=2?1.25:1.0;
+      return sum+erem*mul;
+    },0);
+    // キャラごとのスコア式（各キャラのモードを考慮）
+    let score=0;
+    const nm=ch.name;
+    if(nm==='メイ'){const x=myShops>=4?5.0:myShops>=3?2.5:myShops>=2?1.25:1.0;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='本気きよこ'){const x=myShops>=4?6.0:myShops>=3?3.0:myShops>=2?1.5:1.2;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='覚醒ひろし'){const x=myShops>=4?20.0:myShops>=3?10.0:myShops>=2?1.375:1.1;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='宅建士りょう'){const x=myShops>=4?10.0:myShops>=3?5.0:myShops>=2?2.5:1.0;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='ワイズ'){const md=ch._wisebuyMode||'standard';const x=md==='insider'?(myShops>=4?25.0:myShops>=3?12.5:myShops>=2?3.75:3.0):(myShops>=4?12.5:myShops>=3?6.25:myShops>=2?1.875:1.5);score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='S・クリスティー'){const x=myShops>=4?5.5:myShops>=3?2.75:myShops>=2?1.375:1.1;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='S・エナ'){const x=myShops>=4?9.0:myShops>=3?4.5:myShops>=2?1.375:1.1;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='S・そうま'){const x=myShops>=4?3.5:myShops>=3?1.75:myShops>=2?0.875:0.7;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='S・おりか'){const x=myShops>=4?6.5:myShops>=3?3.25:myShops>=2?1.625:1.1;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='S・ひかり'){const x=myShops>=4?4.5:myShops>=3?2.25:myShops>=2?1.125:0.9;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='S・さくら'){const x=myShops>=4?6.0:myShops>=3?3.0:myShops>=2?1.5:1.1;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='S・はるか'){const x=myShops>=4?15.0:myShops>=3?7.5:myShops>=2?1.375:1.1;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='S・ワイズ'){const x=myShops>=4?12.5:myShops>=3?6.25:myShops>=2?1.875:1.0;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='S・はゆう'){const x=myShops>=4?12.5:myShops>=3?6.25:myShops>=2?2.5:1.0;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='サコ'){const x=myShops>=4?12.5:myShops>=3?6.25:myShops>=2?1.25:1.0;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='りょう・S'){const x=myShops>=4?4.0:myShops>=3?2.0:myShops>=2?1.0:0.8;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='ネネコ'){const x=myShops>=4?9.0:myShops>=3?4.5:myShops>=2?2.25:1.1;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='ポッター'){const x=myShops>=4?7.5:myShops>=3?3.75:myShops>=2?1.875:1.5;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else if(nm==='シロマ'||nm==='クロマ'||nm==='忍者'){const x=myShops>=4?10.0:myShops>=3?2.5:myShops>=2?1.25:1.0;score=(myRem*x+enemyRemPP)/Math.max(1,sp);}
+    else{score=(myRem*1.0+enemyRemPP)/Math.max(1,sp);}
+    if(score>bestScore){bestScore=score;bestArea=a;bestSP=sp;}
+  }
+  if(!bestArea||bestSP<=0){if(callback)callback();return;}
+
+  // ③ 不足額計算（レベルアップ賞金を考慮）
+  const liq=getLiquid(player);
+  const need99=bestSP*99;
+  const _lvBonus=_hasFullMarks(player)?getLvBonus(player.level,player):0;
+  const effectiveLiq=liq+_lvBonus;
+  if(effectiveLiq>=need99){if(callback)callback();return;} // 既に買える
+
+  let shortage=need99-effectiveLiq; // 不足額（賞金込み）
+
+  // ④ 不要エリア選定: (自分の店の増資余り×4.25 + 敵の店の増資余り×1.0) が最低のエリアから売る
+  // 5枚残し条件に関係なく必要枚数を売る。全部売っても足りなければ全部売る。
+  const sellCands=[];
+  for(let a=1;a<=16;a++){
+    if(a===bestArea)continue; // 買いたいエリアは売らない
+    const held=player.stocks[a]||0;
+    if(held<=0)continue;
+    const sp2=G.areas[a].stockPrice;
+    if(!sp2)continue;
+    const shops2=G.map.filter(s=>s.type==='shop'&&s.area===a);
+    const myRem2=shops2.filter(s=>s.owner===player.id).reduce((s,sq)=>s+getRemainingInvest(sq),0);
+    const enemyRem2=shops2.filter(s=>s.owner>=0&&s.owner!==player.id).reduce((s,sq)=>s+getRemainingInvest(sq),0);
+    const unnecessaryScore=myRem2*4.25+enemyRem2*1.0;
+    sellCands.push({a,held,sp:sp2,unnecessaryScore});
+  }
+  sellCands.sort((x,y)=>x.unnecessaryScore-y.unnecessaryScore);
+
+  // 不足分を埋めるか全部売るかのプラン作成
+  const sellPlan=[];
+  for(const{a,held,sp:sp2} of sellCands){
+    if(shortage<=0)break;
+    // 必要枚数（足りなければ全枚数売る）
+    const sellN=shortage>0?Math.min(held,Math.ceil(shortage/sp2)):0;
+    if(sellN<=0)continue;
+    sellPlan.push({a,n:sellN,sp:sp2});
+    shortage-=sellN*sp2;
+  }
+
+  if(!sellPlan.length){if(callback)callback();return;}
+
+  // 売却実行（showCpuSellThinkingで画面表示あり）
+  addLog(`💡 ${player.name}(S) 銀行着地前: A${bestArea}株99枚買い資金確保売却`,'event');
+  showCpuSellThinking(player, sellPlan, [], false, ()=>{
+    for(const{a,n,sp:sp2} of sellPlan){
+      const actualHeld=player.stocks[a]||0;
+      const actualSell=Math.min(actualHeld,n);
+      if(actualSell<=0)continue;
+      player.stocks[a]-=actualSell;
+      player.cash+=actualSell*sp2;
+      pendingStockDown(a,actualSell);
+      pendingStockSoldForUp(a,actualSell);
+      addLog(`💰 ${player.name} A${a}株×${actualSell}枚売却(銀行前資金確保) +${(actualSell*sp2).toLocaleString()}G`,'pay');
+    }
+    renderStatus();
+    if(callback)callback();
+  });
+}
+
 function meiSmartStockSwap(player, callback){
   // 銀行までの最短距離を計算（来た方向には戻らないBFS）
   function stepsToBank(startId,prevId,maxDepth){
@@ -20809,7 +21003,9 @@ function cpuTurn(player){
               // 妨害売り完了後に次フェーズ（株入れ替え・防御増資・サイコロ）へ
               if(ch&&ch.rank==='S'){
                 meiSmartStockSwap(player,()=>{
-                  _queueDisp((_next)=>{ doRoll(); _next(); });
+                  _sRankBankPreBuy(player, ()=>{
+                    _queueDisp((_next)=>{ doRoll(); _next(); });
+                  });
                 });
               } else {
                 _queueDisp((_next)=>{ doRoll(); _next(); });
@@ -20823,7 +21019,14 @@ function cpuTurn(player){
     // ── S/Aランク専用：銀行手前の不要株売却 ──
     if(ch&&(ch.rank==='S'||ch.rank==='A')){
       meiSmartStockSwap(player,()=>{
-        _queueDisp((_next)=>{ doRoll(); _next(); });
+        // Sランク専用: 銀行2巡以内確定時の株購入資金確保テクニック
+        if(ch.rank==='S'){
+          _sRankBankPreBuy(player, ()=>{
+            _queueDisp((_next)=>{ doRoll(); _next(); });
+          });
+        } else {
+          _queueDisp((_next)=>{ doRoll(); _next(); });
+        }
       });
     } else {
       // セリフ演出(キュー)が終わってからdoRollを実行
