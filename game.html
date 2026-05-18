@@ -28982,14 +28982,14 @@ function _updateTourProgressUI(){
     extraCard.style.cursor       = extraUnlocked ? 'pointer' : 'not-allowed';
     extraCard.onclick = extraUnlocked
       ? ()=>showTourCharaSelect('extra')
-      : ()=>showModal('🔒 未解放',['ツアーノーマルモードの全10章をクリアすると解放されます'],[{label:'OK',key:'Enter',action:()=>{}}]);
+      : ()=>showModal('🔒 未解放',['ツアーハードモードの全10章をクリアすると解放されます'],[{label:'OK',key:'Enter',action:()=>{}}]);
   }
   if(extraIcon)  extraIcon.textContent  = extraUnlocked ? '✨' : '🔒';
   if(extraTitle) extraTitle.style.color = extraUnlocked ? '#f0b429' : 'rgba(240,180,41,.5)';
   if(extraSub)   extraSub.textContent   = extraUnlocked ? '新マップ・新CPUの解放に挑戦！' : 'ハード全10章クリアで解放';
   if(elE){
     if(!extraUnlocked){
-      elE.innerHTML = `<span style="color:rgba(240,180,41,.6)">ノーマルモードを全章クリアせよ</span>`;
+      elE.innerHTML = `<span style="color:rgba(240,180,41,.6)">ハードモードを全章クリアせよ</span>`;
     } else {
       const saveE = _loadTourSave('extra');
       const nE = saveE ? (saveE.clearedStages||[]).length : 0;
