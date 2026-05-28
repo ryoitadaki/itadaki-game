@@ -5311,7 +5311,11 @@ function exportSaveAsText(saveKey) {
   try {
     const raw = localStorage.getItem(saveKey);
     if (!raw) return null;
-    return 'ITADAKI:' + btoa(unescape(encodeURIComponent(raw)));
+    // TextEncoder で日本語・特殊文字を安全にBase64エンコード
+    const bytes = new TextEncoder().encode(raw);
+    let binary = '';
+    bytes.forEach(b => binary += String.fromCharCode(b));
+    return 'ITADAKI:' + btoa(binary);
   } catch(e) { return null; }
 }
 
@@ -5321,7 +5325,11 @@ function importSaveFromText(text, saveKey) {
     const trimmed = text.trim();
     const prefix = 'ITADAKI:';
     const b64 = trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
-    const json = decodeURIComponent(escape(atob(b64)));
+    // TextDecoder で安全にBase64デコード
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const json = new TextDecoder().decode(bytes);
     JSON.parse(json); // パース確認
     _saveToAllStorages(saveKey, json);
     return true;
@@ -5343,36 +5351,52 @@ function showSaveExportModal() {
 
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  overlay.className = 'se-overlay';
 
-  let html = `<div style="background:#1c2338;border:1px solid #2d3a52;border-radius:14px;padding:1.3rem;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;">
-    <div style="font-size:1.05rem;font-weight:700;color:#ffcc44;margin-bottom:.4rem;">💾 セーブデータのエクスポート</div>
-    <div style="font-size:.78rem;color:#7a8aaa;margin-bottom:1rem;">テキストをコピーして、LINEのトークやメモ帳に貼り付けておくと安全です。次回「インポート」から復元できます。</div>`;
+  let html = '<div style="background:#1c2338;border:1px solid #2d3a52;border-radius:14px;padding:1.3rem;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;">'
+    + '<div style="font-size:1.05rem;font-weight:700;color:#ffcc44;margin-bottom:.4rem;">💾 セーブデータのエクスポート</div>'
+    + '<div style="font-size:.78rem;color:#7a8aaa;margin-bottom:1rem;">テキストをコピーして、LINEのトークやメモ帳に貼り付けておくと安全です。次回「インポート」から復元できます。</div>';
 
   if (freeRaw) {
-    html += `<div style="margin-bottom:1rem;">
-      <div style="font-size:.82rem;font-weight:700;color:#4da6ff;margin-bottom:.35rem;">📂 フリープレイ / CPU観戦データ</div>
-      <textarea readonly style="width:100%;height:72px;background:#0d0f1a;color:#aaf0d1;border:1px solid #2d3a52;border-radius:7px;padding:.5rem;font-size:.62rem;font-family:monospace;resize:none;word-break:break-all;" onclick="this.select()">${freeRaw}</textarea>
-      <button onclick="_copyText('${freeRaw.replace(/'/g,"\\'")}',this)" style="margin-top:.4rem;width:100%;padding:.5rem;background:#1a4a7a;color:#fff;border:1px solid #4da6ff;border-radius:7px;font-size:.85rem;cursor:pointer;">📋 フリーデータをコピー</button>
-    </div>`;
+    html += '<div style="margin-bottom:1rem;">'
+      + '<div style="font-size:.82rem;font-weight:700;color:#4da6ff;margin-bottom:.35rem;">📂 フリープレイ / CPU観戦データ</div>'
+      + '<textarea id="se-free-ta" readonly style="width:100%;height:72px;background:#0d0f1a;color:#aaf0d1;border:1px solid #2d3a52;border-radius:7px;padding:.5rem;font-size:.62rem;font-family:monospace;resize:none;word-break:break-all;"></textarea>'
+      + '<button id="se-free-btn" style="margin-top:.4rem;width:100%;padding:.5rem;background:#1a4a7a;color:#fff;border:1px solid #4da6ff;border-radius:7px;font-size:.85rem;cursor:pointer;">📋 フリーデータをコピー</button>'
+      + '</div>';
   }
 
   if (tourRaw) {
-    html += `<div style="margin-bottom:1rem;">
-      <div style="font-size:.82rem;font-weight:700;color:#4ade80;margin-bottom:.35rem;">🗺️ ツアーモードデータ</div>
-      <textarea readonly style="width:100%;height:72px;background:#0d0f1a;color:#aaf0d1;border:1px solid #2d3a52;border-radius:7px;padding:.5rem;font-size:.62rem;font-family:monospace;resize:none;word-break:break-all;" onclick="this.select()">${tourRaw}</textarea>
-      <button onclick="_copyText('${tourRaw.replace(/'/g,"\\'")}',this)" style="margin-top:.4rem;width:100%;padding:.5rem;background:#1a4a1a;color:#fff;border:1px solid #4ade80;border-radius:7px;font-size:.85rem;cursor:pointer;">📋 ツアーデータをコピー</button>
-    </div>`;
+    html += '<div style="margin-bottom:1rem;">'
+      + '<div style="font-size:.82rem;font-weight:700;color:#4ade80;margin-bottom:.35rem;">🗺️ ツアーモードデータ</div>'
+      + '<textarea id="se-tour-ta" readonly style="width:100%;height:72px;background:#0d0f1a;color:#aaf0d1;border:1px solid #2d3a52;border-radius:7px;padding:.5rem;font-size:.62rem;font-family:monospace;resize:none;word-break:break-all;"></textarea>'
+      + '<button id="se-tour-btn" style="margin-top:.4rem;width:100%;padding:.5rem;background:#1a4a1a;color:#fff;border:1px solid #4ade80;border-radius:7px;font-size:.85rem;cursor:pointer;">📋 ツアーデータをコピー</button>'
+      + '</div>';
   }
 
-  html += `<button onclick="this.closest('.se-overlay').remove()" style="width:100%;padding:.5rem;background:#2d3a52;color:#eef2ff;border:none;border-radius:7px;font-size:.88rem;cursor:pointer;margin-top:.2rem;">閉じる</button>
-  </div>`;
+  html += '<button id="se-close-btn" style="width:100%;padding:.5rem;background:#2d3a52;color:#eef2ff;border:none;border-radius:7px;font-size:.88rem;cursor:pointer;margin-top:.2rem;">閉じる</button>'
+    + '</div>';
 
   overlay.innerHTML = html;
-  overlay.className = 'se-overlay';
+
+  // データをJSで安全にセット（onclick属性への埋め込みを避ける）
+  if (freeRaw) {
+    const ta = overlay.querySelector('#se-free-ta');
+    const btn = overlay.querySelector('#se-free-btn');
+    if (ta) { ta.value = freeRaw; ta.addEventListener('click', () => ta.select()); }
+    if (btn) btn.addEventListener('click', () => _copyText(freeRaw, btn));
+  }
+  if (tourRaw) {
+    const ta = overlay.querySelector('#se-tour-ta');
+    const btn = overlay.querySelector('#se-tour-btn');
+    if (ta) { ta.value = tourRaw; ta.addEventListener('click', () => ta.select()); }
+    if (btn) btn.addEventListener('click', () => _copyText(tourRaw, btn));
+  }
+  const closeBtn = overlay.querySelector('#se-close-btn');
+  if (closeBtn) closeBtn.addEventListener('click', () => overlay.remove());
+
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
   document.body.appendChild(overlay);
 }
-
 function _copyText(text, btn) {
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(() => {
@@ -5426,7 +5450,11 @@ function _doImport() {
   try {
     const prefix = 'ITADAKI:';
     const b64 = text.startsWith(prefix) ? text.slice(prefix.length) : text;
-    const json = decodeURIComponent(escape(atob(b64)));
+    // TextDecoder で安全にBase64デコード
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const json = new TextDecoder().decode(bytes);
     const parsed = JSON.parse(json);
     if (parsed._tourState) {
       _saveToAllStorages(TOUR_SAVE_KEY, json);
