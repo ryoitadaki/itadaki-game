@@ -5582,6 +5582,10 @@ function showSaveImportModal() {
     } else if (parsed.players) {
       type = 'フリー/CPU観戦';
       _saveToAllStorages(SAVE_KEY, json);
+    } else if (parsed.mode && parsed.clearedStages) {
+      const m = parsed.mode;
+      type = (m === 'hard' ? 'ハード' : m === 'extra' ? 'エクストラ' : 'ノーマル') + 'モード実績';
+      _saveToAllStorages('tour_save_' + m, json);
     } else {
       statusEl.style.color = '#ff6b6b';
       statusEl.textContent = '⚠️ 不明なデータ形式です（players/tourStateが見つかりません）';
