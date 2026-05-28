@@ -2195,8 +2195,11 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
         <button id="bgm-theater-btn" class="menu-btn secondary title-menu-btn" style="flex:1;max-width:72px;padding:.45rem .2rem !important;font-size:.68rem !important;line-height:1.4;text-align:center;touch-action:manipulation;opacity:.4;cursor:not-allowed;" onclick="_onBgmTheaterBtnClick()">
           🎵<br>BGM<br><span id="bgm-theater-badge" style="font-size:.52rem;color:#fbbf24;">????</span>
         </button>
-        <button class="menu-btn secondary title-menu-btn" style="flex:1;max-width:72px;padding:.45rem .2rem !important;font-size:.68rem !important;line-height:1.4;text-align:center;" onclick="_titleSaveBtn()">
-          💾<br><span id="t-save-label">セーブ</span>
+        <button class="menu-btn secondary title-menu-btn" style="flex:1;max-width:72px;padding:.45rem .2rem !important;font-size:.68rem !important;line-height:1.4;text-align:center;" onclick="showSaveExportModal()">
+          📤<br>エクスポート
+        </button>
+        <button class="menu-btn secondary title-menu-btn" style="flex:1;max-width:72px;padding:.45rem .2rem !important;font-size:.68rem !important;line-height:1.4;text-align:center;" onclick="showSaveImportModal()">
+          📥<br>インポート
         </button>
       </div>
 
@@ -5173,6 +5176,279 @@ const SAVE_KEY = 'itadaki_save_v1';
 const TOUR_SAVE_KEY = 'itadaki_tour_save_v1';
 const TOURNAMENT_SAVE_KEY = 'itadaki_tournament_save_v1';
 
+// ===== 多重セーブシステム =====
+// localStorage が壊れたときのフォールバック用 IndexedDB ラッパー
+const _IDB = (() => {
+  const DB_NAME = 'itadaki_db';
+  const STORE = 'saves';
+  let _db = null;
+  function open() {
+    return new Promise((res, rej) => {
+      if (_db) { res(_db); return; }
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore(STORE);
+      req.onsuccess = e => { _db = e.target.result; res(_db); };
+      req.onerror = () => rej(req.error);
+    });
+  }
+  return {
+    set(key, value) {
+      return open().then(db => new Promise((res, rej) => {
+        const tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).put(value, key);
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
+      }));
+    },
+    get(key) {
+      return open().then(db => new Promise((res, rej) => {
+        const tx = db.transaction(STORE, 'readonly');
+        const req = tx.objectStore(STORE).get(key);
+        req.onsuccess = () => res(req.result ?? null);
+        req.onerror = () => rej(req.error);
+      }));
+    },
+    del(key) {
+      return open().then(db => new Promise((res, rej) => {
+        const tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).delete(key);
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
+      }));
+    }
+  };
+})();
+
+// localStorage + IndexedDB の両方に書く
+function _saveToAllStorages(key, json) {
+  // 1. localStorage (従来)
+  try { localStorage.setItem(key, json); } catch(e) { console.warn('localStorage write failed:', e); }
+  // 2. IndexedDB (バックアップ)
+  try { _IDB.set(key, json).catch(e => console.warn('IDB write failed:', e)); } catch(e) {}
+}
+
+// localStorage → IndexedDB の優先順でロード
+async function _loadFromAnyStorage(key) {
+  // まず localStorage
+  try {
+    const v = localStorage.getItem(key);
+    if (v) return v;
+  } catch(e) {}
+  // フォールバック: IndexedDB
+  try {
+    const v = await _IDB.get(key);
+    if (v) {
+      // 復旧: localStorage にも書き直す
+      try { localStorage.setItem(key, v); } catch(e) {}
+      return v;
+    }
+  } catch(e) {}
+  return null;
+}
+
+// 同期版ロード（起動時チェック用）- IndexedDBは非同期なので別途 _syncIdbToLocalStorage() で補完
+function _loadFromStorageSync(key) {
+  try {
+    const v = localStorage.getItem(key);
+    if (v) return v;
+  } catch(e) {}
+  return null;
+}
+
+// 起動時: IndexedDB → localStorage へ復元を試みる（非同期でバックグラウンド実行）
+async function _syncIdbToLocalStorage() {
+  for (const key of [SAVE_KEY, TOUR_SAVE_KEY, TOURNAMENT_SAVE_KEY]) {
+    try {
+      const lsVal = localStorage.getItem(key);
+      if (lsVal) continue; // localStorage にあればスキップ
+      const idbVal = await _IDB.get(key);
+      if (idbVal) {
+        localStorage.setItem(key, idbVal);
+        console.log('[Save] Restored from IndexedDB:', key);
+      }
+    } catch(e) {}
+  }
+  // 復元後にタイトルボタンを再評価
+  try { _refreshTitleContinueBtns(); } catch(e) {}
+}
+
+// 起動時にバックグラウンドで同期を実行
+if (typeof indexedDB !== 'undefined') {
+  _syncIdbToLocalStorage();
+}
+
+// タイトルの「続きから」ボタンを更新するヘルパー
+function _refreshTitleContinueBtns() {
+  const btn = document.getElementById('continue-btn');
+  if (btn) {
+    const save = hasSaveData();
+    if (save) {
+      const d = new Date(save.savedAt);
+      const ds = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+      btn.style.display = '';
+      btn.textContent = `📂 続きから遊ぶ（${t('turn')}${save.turn} / ${ds}）`;
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+  const tBtn = document.getElementById('tour-continue-btn');
+  if (tBtn) {
+    const tourSave = hasTourSaveData();
+    if (tourSave && tourSave._tourState) {
+      const ts = tourSave._tourState;
+      const mode = ts.mode === 'hard' ? '🔥ハード' : '🌿ノーマル';
+      const cleared = (ts.clearedStages || []).length;
+      tBtn.style.display = '';
+      tBtn.textContent = `🗺️ ツアーを再開（${mode} ${cleared}/10章クリア済）`;
+    } else {
+      tBtn.style.display = 'none';
+    }
+  }
+}
+
+// セーブデータをBase64テキストにエクスポート（LINEに貼れる形式）
+function exportSaveAsText(saveKey) {
+  try {
+    const raw = localStorage.getItem(saveKey);
+    if (!raw) return null;
+    return 'ITADAKI:' + btoa(unescape(encodeURIComponent(raw)));
+  } catch(e) { return null; }
+}
+
+// Base64テキストからセーブデータをインポート
+function importSaveFromText(text, saveKey) {
+  try {
+    const trimmed = text.trim();
+    const prefix = 'ITADAKI:';
+    const b64 = trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
+    const json = decodeURIComponent(escape(atob(b64)));
+    JSON.parse(json); // パース確認
+    _saveToAllStorages(saveKey, json);
+    return true;
+  } catch(e) {
+    console.warn('importSaveFromText failed:', e);
+    return false;
+  }
+}
+
+// セーブデータエクスポートUIを表示
+function showSaveExportModal() {
+  const freeRaw = exportSaveAsText(SAVE_KEY);
+  const tourRaw = exportSaveAsText(TOUR_SAVE_KEY);
+
+  if (!freeRaw && !tourRaw) {
+    showToast('⚠️ エクスポートできるセーブデータがありません');
+    return;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+  let html = `<div style="background:#1c2338;border:1px solid #2d3a52;border-radius:14px;padding:1.3rem;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;">
+    <div style="font-size:1.05rem;font-weight:700;color:#ffcc44;margin-bottom:.4rem;">💾 セーブデータのエクスポート</div>
+    <div style="font-size:.78rem;color:#7a8aaa;margin-bottom:1rem;">テキストをコピーして、LINEのトークやメモ帳に貼り付けておくと安全です。次回「インポート」から復元できます。</div>`;
+
+  if (freeRaw) {
+    html += `<div style="margin-bottom:1rem;">
+      <div style="font-size:.82rem;font-weight:700;color:#4da6ff;margin-bottom:.35rem;">📂 フリープレイ / CPU観戦データ</div>
+      <textarea readonly style="width:100%;height:72px;background:#0d0f1a;color:#aaf0d1;border:1px solid #2d3a52;border-radius:7px;padding:.5rem;font-size:.62rem;font-family:monospace;resize:none;word-break:break-all;" onclick="this.select()">${freeRaw}</textarea>
+      <button onclick="_copyText('${freeRaw.replace(/'/g,"\\'")}',this)" style="margin-top:.4rem;width:100%;padding:.5rem;background:#1a4a7a;color:#fff;border:1px solid #4da6ff;border-radius:7px;font-size:.85rem;cursor:pointer;">📋 フリーデータをコピー</button>
+    </div>`;
+  }
+
+  if (tourRaw) {
+    html += `<div style="margin-bottom:1rem;">
+      <div style="font-size:.82rem;font-weight:700;color:#4ade80;margin-bottom:.35rem;">🗺️ ツアーモードデータ</div>
+      <textarea readonly style="width:100%;height:72px;background:#0d0f1a;color:#aaf0d1;border:1px solid #2d3a52;border-radius:7px;padding:.5rem;font-size:.62rem;font-family:monospace;resize:none;word-break:break-all;" onclick="this.select()">${tourRaw}</textarea>
+      <button onclick="_copyText('${tourRaw.replace(/'/g,"\\'")}',this)" style="margin-top:.4rem;width:100%;padding:.5rem;background:#1a4a1a;color:#fff;border:1px solid #4ade80;border-radius:7px;font-size:.85rem;cursor:pointer;">📋 ツアーデータをコピー</button>
+    </div>`;
+  }
+
+  html += `<button onclick="this.closest('.se-overlay').remove()" style="width:100%;padding:.5rem;background:#2d3a52;color:#eef2ff;border:none;border-radius:7px;font-size:.88rem;cursor:pointer;margin-top:.2rem;">閉じる</button>
+  </div>`;
+
+  overlay.innerHTML = html;
+  overlay.className = 'se-overlay';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+function _copyText(text, btn) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✅ コピーしました！';
+      btn.style.background = '#166534';
+      setTimeout(() => { btn.textContent = btn.textContent.replace('✅ コピーしました！', btn.dataset.orig || '📋 コピー'); }, 2000);
+    }).catch(() => _fallbackCopyText(text, btn));
+  } else {
+    _fallbackCopyText(text, btn);
+  }
+}
+function _fallbackCopyText(text, btn) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try {
+    document.execCommand('copy');
+    if (btn) { btn.textContent = '✅ コピーしました！'; btn.style.background = '#166534'; }
+    showToast('📋 コピーしました！LINEのトークに貼り付けて保存してください');
+  } catch(e) { showToast('⚠️ テキストを手動で選択・コピーしてください'); }
+  ta.remove();
+}
+
+// インポートUI表示
+function showSaveImportModal() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  overlay.className = 'si-overlay';
+
+  overlay.innerHTML = `<div style="background:#1c2338;border:1px solid #2d3a52;border-radius:14px;padding:1.3rem;width:100%;max-width:420px;">
+    <div style="font-size:1.05rem;font-weight:700;color:#ffcc44;margin-bottom:.4rem;">📥 セーブデータのインポート</div>
+    <div style="font-size:.78rem;color:#7a8aaa;margin-bottom:.8rem;">エクスポートしたテキスト（ITADAKI: で始まる文字列）を貼り付けてください。</div>
+    <textarea id="import-ta" placeholder="ITADAKI:..." style="width:100%;height:90px;background:#0d0f1a;color:#eef2ff;border:1px solid #2d3a52;border-radius:7px;padding:.5rem;font-size:.72rem;font-family:monospace;resize:none;margin-bottom:.7rem;"></textarea>
+    <button onclick="_doImport()" style="width:100%;padding:.55rem;background:linear-gradient(135deg,#1a4a7a,#0d3a5a);color:#fff;border:1px solid #4da6ff;border-radius:7px;font-size:.9rem;cursor:pointer;margin-bottom:.5rem;">📥 インポートして復元</button>
+    <button onclick="this.closest('.si-overlay').remove()" style="width:100%;padding:.5rem;background:#2d3a52;color:#eef2ff;border:none;border-radius:7px;font-size:.88rem;cursor:pointer;">キャンセル</button>
+  </div>`;
+
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+function _doImport() {
+  const ta = document.getElementById('import-ta');
+  if (!ta) return;
+  const text = ta.value.trim();
+  if (!text) { showToast('⚠️ テキストを貼り付けてください'); return; }
+
+  // データ種別を自動判定してインポート
+  let success = false;
+  let type = '';
+  try {
+    const prefix = 'ITADAKI:';
+    const b64 = text.startsWith(prefix) ? text.slice(prefix.length) : text;
+    const json = decodeURIComponent(escape(atob(b64)));
+    const parsed = JSON.parse(json);
+    if (parsed._tourState) {
+      _saveToAllStorages(TOUR_SAVE_KEY, json);
+      success = true; type = 'ツアーモード';
+    } else if (parsed._tournamentState) {
+      _saveToAllStorages(TOURNAMENT_SAVE_KEY, json);
+      success = true; type = 'トーナメント';
+    } else {
+      _saveToAllStorages(SAVE_KEY, json);
+      success = true; type = 'フリー/CPU観戦';
+    }
+  } catch(e) { success = false; }
+
+  if (success) {
+    showToast(`✅ ${type}のデータを復元しました！`);
+    document.querySelector('.si-overlay')?.remove();
+    _refreshTitleContinueBtns();
+  } else {
+    showToast('⚠️ 無効なデータです。正しいテキストを貼り付けてください');
+  }
+}
+
 function saveGame(silent) {
   if (!G || !G.players || !_gameRunning) {
     showToast('⚠️ ゲーム中のみ保存できます');
@@ -5253,7 +5529,7 @@ function saveGame(silent) {
     if(_tournamentState && _tournamentState.active){
       data._tournamentState = JSON.parse(JSON.stringify(_tournamentState));
     }
-    localStorage.setItem(_saveKey, JSON.stringify(data));
+    _saveToAllStorages(_saveKey, JSON.stringify(data));
     if(!silent){
       showToast('💾 保存しました！続きから遊ぶボタンで再開できます');
       addLog('💾 ゲームを保存しました', 'important');
@@ -5290,7 +5566,7 @@ function _fallbackCopyURL(url){
 
 function hasTourSaveData() {
   try {
-    const raw = localStorage.getItem(TOUR_SAVE_KEY);
+    const raw = _loadFromStorageSync(TOUR_SAVE_KEY);
     if (!raw) return null;
     const d = JSON.parse(raw);
     return (d && d._tourState) ? d : null;
@@ -5298,12 +5574,13 @@ function hasTourSaveData() {
 }
 
 function deleteTourSaveData() {
-  localStorage.removeItem(TOUR_SAVE_KEY);
+  try { localStorage.removeItem(TOUR_SAVE_KEY); } catch(e) {}
+  try { _IDB.del(TOUR_SAVE_KEY); } catch(e) {}
 }
 
 function hasSaveData() {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = _loadFromStorageSync(SAVE_KEY);
     if (!raw) return null;
     const d = JSON.parse(raw);
     // ツアーデータが混入していた場合は無視（ツアーはTOUR_SAVE_KEY専用）
@@ -5313,7 +5590,8 @@ function hasSaveData() {
 }
 
 function deleteSaveData() {
-  localStorage.removeItem(SAVE_KEY);
+  try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
+  try { _IDB.del(SAVE_KEY); } catch(e) {}
 }
 
 function loadTourGame() {
@@ -5341,7 +5619,7 @@ function loadGame() {
 
 // トーナメント専用ロード: TOURNAMENT_SAVE_KEY からのみ読み込む
 function loadTournamentGame() {
-  const raw = localStorage.getItem(TOURNAMENT_SAVE_KEY);
+  const raw = _loadFromStorageSync(TOURNAMENT_SAVE_KEY);
   if(!raw){ showToast('⚠️ トーナメントのセーブデータがありません'); return; }
   try {
     const data = JSON.parse(raw);
@@ -5357,7 +5635,7 @@ function loadTournamentGame() {
 
 // トーナメントセーブの存在チェック
 function hasTournamentSave(){
-  try { return !!localStorage.getItem(TOURNAMENT_SAVE_KEY); }
+  try { return !!_loadFromStorageSync(TOURNAMENT_SAVE_KEY); }
   catch(e){ return false; }
 }
 
@@ -24829,12 +25107,12 @@ function endGame(winnerId){
       }
       // ノーマル9章（lastheaven=idx9）クリアでハードモード解放
       if(_tourState.mode==='normal' && _tourState.clearedStages.includes(9)){
-        try{ localStorage.setItem('tour_hard_unlocked','1'); }catch(e){}
+        try{ _saveToAllStorages('tour_hard_unlocked','1'); }catch(e){}
       }
       // ハード9章クリアでBGMシアター解放 + エクストラモード解放フラグを保存（結果画面表示前に確定）
       if(_tourState.mode==='hard' && _tourState.clearedStages.includes(9)){
-        try{ localStorage.setItem('bgm_theater_unlocked','1'); }catch(e){}
-        try{ localStorage.setItem('tour_extra_unlocked','1'); }catch(e){}
+        try{ _saveToAllStorages('bgm_theater_unlocked','1'); }catch(e){}
+        try{ _saveToAllStorages('tour_extra_unlocked','1'); }catch(e){}
       }
       // エクストラクリア → 対応コンテンツ（マップ・CPU）を解放
       if(_tourState.mode==='extra'){
@@ -24843,11 +25121,11 @@ function endGame(winnerId){
           // 解放マップをlocalStorageに蓄積
           const unlockedMaps = _getExtraUnlockedMaps();
           (cfg.unlockMaps||[]).forEach(id=>{ if(!unlockedMaps.includes(id)) unlockedMaps.push(id); });
-          try{ localStorage.setItem('extra_unlocked_maps', JSON.stringify(unlockedMaps)); }catch(e){}
+          try{ _saveToAllStorages('extra_unlocked_maps', JSON.stringify(unlockedMaps)); }catch(e){}
           // 解放CPUをlocalStorageに蓄積
           const unlockedCpus = _getExtraUnlockedCpus();
           (cfg.unlockCpus||[]).forEach(k=>{ if(!unlockedCpus.includes(k)) unlockedCpus.push(k); });
-          try{ localStorage.setItem('extra_unlocked_cpus', JSON.stringify(unlockedCpus)); }catch(e){}
+          try{ _saveToAllStorages('extra_unlocked_cpus', JSON.stringify(unlockedCpus)); }catch(e){}
         }
       }
       _saveTourState(); // 結果画面表示前にセーブ確定
@@ -25403,7 +25681,7 @@ function renderActionPanel(){
           <button class="action-btn" onclick="showStockStatusModal(cp(),()=>renderActionPanel())">${t('viewStocks')}<span class="key-hint">S</span></button>
           <button class="action-btn" onclick="showVoluntaryAuction(cp(),()=>renderActionPanel())">${t('auction')}<span class="key-hint">A</span></button>
           <button class="action-btn" onclick="confirmReturnToTitle()" style="color:var(--gray);font-size:.8rem;">${t('toTitle')}</button>
-          <button class="action-btn save-btn" onclick="copyGameURL()" style="font-size:.8rem;">${t('copyUrl')}</button>
+          <button class="action-btn save-btn" onclick="showSaveExportModal()" style="font-size:.8rem;">📤 エクスポート</button>
         </div>`;
     if(existingBubble){
       // 吹き出しを残してボタン部分だけ更新
@@ -29286,7 +29564,7 @@ function onTourMapEnd(playerWon, playerRank){
   if(playerWon){
     // ハード9章クリアでBGMシアター解放
     if(_tourState.mode==='hard' && _tourState.clearedStages.includes(9)){
-      try{ localStorage.setItem('bgm_theater_unlocked','1'); }catch(e){}
+      try{ _saveToAllStorages('bgm_theater_unlocked','1'); }catch(e){}
       showModal('🎵 BGMシアター解放！',
         ['おめでとうございます！','ハードモード全10章制覇の証として','タイトル画面のBGMシアターが解放されました！'],
         [{label:'🎵 今すぐ聴く',key:'Enter',action:()=>{ _updateBgmTheaterBtn(); showBgmTheater(); initAudio(); }},
@@ -29404,7 +29682,7 @@ function _saveTourState(){
       charaKey: _tourState.charaKey||null,
       charaName: _tourState.charaName||'',
     };
-    localStorage.setItem('tour_save_'+_tourState.mode, JSON.stringify(save));
+    _saveToAllStorages('tour_save_'+_tourState.mode, JSON.stringify(save));
   }catch(e){}
 }
 
@@ -29452,9 +29730,9 @@ function _isExtraCpuHidden(key){
 }
 
 function _loadTourSave(mode){
-  // localStorageから読む
+  // localStorage → IndexedDB フォールバック
   try{
-    const s = localStorage.getItem('tour_save_'+mode);
+    const s = _loadFromStorageSync('tour_save_'+mode);
     return s ? JSON.parse(s) : null;
   }catch(e){ return null; }
 }
@@ -29463,6 +29741,7 @@ function _clearTourSave(mode){
   const param = mode === 'hard' ? 'th' : 'tn';
   _removeUrlParam(param);
   try{ localStorage.removeItem('tour_save_'+mode); }catch(e){}
+  try{ _IDB.del('tour_save_'+mode); }catch(e){}
 }
 
 // URL操作ユーティリティ
