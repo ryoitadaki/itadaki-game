@@ -5324,7 +5324,8 @@ function importSaveFromText(text, saveKey) {
   try {
     const trimmed = text.trim();
     const prefix = 'ITADAKI:';
-    const b64 = trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
+    const upper = trimmed.toUpperCase();
+    const b64 = upper.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
     // TextDecoder で安全にBase64デコード
     const binary = atob(b64);
     const bytes = new Uint8Array(binary.length);
@@ -5508,7 +5509,7 @@ function showSaveImportModal() {
   function checkInput() {
     const val = ta.value.trim();
     if (!val) { statusEl.textContent = ''; return; }
-    if (val.startsWith('ITADAKI:')) {
+    if (val.toUpperCase().startsWith('ITADAKI:')) {
       const b64 = val.slice('ITADAKI:'.length);
       // Base64として妥当か簡易チェック
       if (/^[A-Za-z0-9+/]+=*$/.test(b64) && b64.length > 20) {
@@ -5551,7 +5552,7 @@ function showSaveImportModal() {
     let type = '', json = '';
     try {
       const prefix = 'ITADAKI:';
-      const b64 = text.startsWith(prefix) ? text.slice(prefix.length) : text;
+      const b64 = text.toUpperCase().startsWith(prefix) ? text.slice(prefix.length) : text;
       // Base64デコード（TextDecoder使用）
       const binary = atob(b64);
       const bytes = new Uint8Array(binary.length);
