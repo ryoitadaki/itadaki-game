@@ -5308,10 +5308,13 @@ function _refreshTitleContinueBtns() {
 
 // セーブデータをBase64テキストにエクスポート（LINEに貼れる形式）
 function exportSaveAsText(saveKey) {
+  return _encodeToItadaki(localStorage.getItem(saveKey));
+}
+
+// 任意の生JSONをITADAKI:文字列にエンコード
+function _encodeToItadaki(raw) {
   try {
-    const raw = localStorage.getItem(saveKey);
     if (!raw) return null;
-    // TextEncoder で日本語・特殊文字を安全にBase64エンコード
     const bytes = new TextEncoder().encode(raw);
     let binary = '';
     bytes.forEach(b => binary += String.fromCharCode(b));
@@ -5342,10 +5345,23 @@ function importSaveFromText(text, saveKey) {
 
 // セーブデータエクスポートUIを表示
 function showSaveExportModal() {
-  const freeRaw = exportSaveAsText(SAVE_KEY);
-  const tourRaw = exportSaveAsText(TOUR_SAVE_KEY);
+  // エクスポート前にゲーム中なら自動セーブ
+  try { if (typeof saveGame === 'function' && _gameRunning) saveGame(true); } catch(e) {}
 
-  if (!freeRaw && !tourRaw) {
+  // 全セーブキーを収集
+  const entries = [];
+  const addEntry = (label, color, border, key) => {
+    const raw = localStorage.getItem(key);
+    if (raw) entries.push({label, color, border, key, raw});
+  };
+  addEntry('📂 フリープレイ / CPU観戦', '#4da6ff', '#4da6ff', SAVE_KEY);
+  addEntry('🗺️ ツアー進行データ', '#4ade80', '#4ade80', TOUR_SAVE_KEY);
+  addEntry('🗺️ ノーマルモード実績', '#a3e635', '#a3e635', 'tour_save_normal');
+  addEntry('🔥 ハードモード実績',   '#fb923c', '#fb923c', 'tour_save_hard');
+  addEntry('⭐ エクストラモード実績','#facc15', '#facc15', 'tour_save_extra');
+  addEntry('🏆 トーナメント', '#c084fc', '#c084fc', TOURNAMENT_SAVE_KEY);
+
+  if (!entries.length) {
     showToast('⚠️ エクスポートできるセーブデータがありません');
     return;
   }
@@ -5361,52 +5377,36 @@ function showSaveExportModal() {
     '<div style="font-size:1.05rem;font-weight:700;color:#ffcc44;margin-bottom:.3rem;">💾 セーブデータのエクスポート</div>'
     + '<div style="font-size:.76rem;color:#7a8aaa;margin-bottom:.8rem;">①「コピー」ボタンを押す → ②LINEのKeepメモや自分宛トークに貼り付けて保存。<br>コピーできない場合はテキストを<b style="color:#eef2ff">長押し→すべて選択→コピー</b>してください。</div>';
 
-  if (freeRaw) {
+  entries.forEach((e, i) => {
     innerHtml +=
-      '<div style="margin-bottom:1rem;">'
-      + '<div style="font-size:.82rem;font-weight:700;color:#4da6ff;margin-bottom:.3rem;">📂 フリープレイ / CPU観戦データ</div>'
-      + '<textarea id="se-free-ta" readonly style="width:100%;height:80px;background:#0d0f1a;color:#aaf0d1;border:1.5px solid #4da6ff;border-radius:7px;padding:.5rem;font-size:.6rem;font-family:monospace;resize:none;word-break:break-all;-webkit-user-select:text;user-select:text;"></textarea>'
-      + '<button id="se-free-btn" style="margin-top:.35rem;width:100%;padding:.55rem;background:#1a4a7a;color:#fff;border:1px solid #4da6ff;border-radius:7px;font-size:.88rem;cursor:pointer;font-family:inherit;">📋 コピー</button>'
+      '<div style="margin-bottom:.8rem;">'
+      + `<div style="font-size:.8rem;font-weight:700;color:${e.color};margin-bottom:.25rem;">${e.label}</div>`
+      + `<textarea id="se-ta-${i}" readonly style="width:100%;height:64px;background:#0d0f1a;color:#aaf0d1;border:1.5px solid ${e.border};border-radius:7px;padding:.4rem;font-size:.58rem;font-family:monospace;resize:none;word-break:break-all;-webkit-user-select:text;user-select:text;"></textarea>`
+      + `<button id="se-btn-${i}" style="margin-top:.25rem;width:100%;padding:.5rem;background:#0d1a2e;color:#fff;border:1px solid ${e.border};border-radius:7px;font-size:.86rem;cursor:pointer;font-family:inherit;">📋 コピー</button>`
       + '</div>';
-  }
-
-  if (tourRaw) {
-    innerHtml +=
-      '<div style="margin-bottom:1rem;">'
-      + '<div style="font-size:.82rem;font-weight:700;color:#4ade80;margin-bottom:.3rem;">🗺️ ツアーモードデータ</div>'
-      + '<textarea id="se-tour-ta" readonly style="width:100%;height:80px;background:#0d0f1a;color:#aaf0d1;border:1.5px solid #4ade80;border-radius:7px;padding:.5rem;font-size:.6rem;font-family:monospace;resize:none;word-break:break-all;-webkit-user-select:text;user-select:text;"></textarea>'
-      + '<button id="se-tour-btn" style="margin-top:.35rem;width:100%;padding:.55rem;background:#1a4a1a;color:#fff;border:1px solid #4ade80;border-radius:7px;font-size:.88rem;cursor:pointer;font-family:inherit;">📋 コピー</button>'
-      + '</div>';
-  }
+  });
 
   innerHtml += '<button id="se-close-btn" style="width:100%;padding:.5rem;background:#2d3a52;color:#eef2ff;border:none;border-radius:7px;font-size:.88rem;cursor:pointer;margin-top:.1rem;font-family:inherit;">閉じる</button>';
-
   panel.innerHTML = innerHtml;
 
-  // データをJSで安全にセット
-  function setupTa(taId, btnId, data) {
-    const ta = panel.querySelector('#' + taId);
-    const btn = panel.querySelector('#' + btnId);
-    if (!ta || !btn) return;
-    ta.value = data;
-    // タップで全選択（LINE WebViewでの手動コピー補助）
-    ta.addEventListener('focus', () => { try { ta.setSelectionRange(0, ta.value.length); } catch(e) {} });
-    ta.addEventListener('touchstart', () => { setTimeout(() => { try { ta.select(); } catch(e) {} }, 50); }, {passive:true});
+  entries.forEach((e, i) => {
+    const encoded = _encodeToItadaki(e.raw);
+    const ta  = panel.querySelector(`#se-ta-${i}`);
+    const btn = panel.querySelector(`#se-btn-${i}`);
+    if (!ta || !btn || !encoded) return;
+    ta.value = encoded;
+    ta.addEventListener('focus', () => { try { ta.setSelectionRange(0, ta.value.length); } catch(_) {} });
+    ta.addEventListener('touchstart', () => { setTimeout(() => { try { ta.select(); } catch(_) {} }, 50); }, {passive:true});
     btn.addEventListener('click', () => {
-      // まずtextareaを選択状態にする
-      try { ta.select(); ta.setSelectionRange(0, ta.value.length); } catch(e) {}
-      _copyText(data, btn);
+      try { ta.select(); ta.setSelectionRange(0, ta.value.length); } catch(_) {}
+      _copyText(encoded, btn);
     });
-  }
-
-  if (freeRaw) setupTa('se-free-ta', 'se-free-btn', freeRaw);
-  if (tourRaw) setupTa('se-tour-ta', 'se-tour-btn', tourRaw);
+  });
 
   const closeBtn = panel.querySelector('#se-close-btn');
   if (closeBtn) closeBtn.addEventListener('click', () => overlay.remove());
-
   overlay.appendChild(panel);
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.addEventListener('click', ev => { if (ev.target === overlay) overlay.remove(); });
   document.body.appendChild(overlay);
 }
 
@@ -5608,6 +5608,108 @@ function showSaveImportModal() {
 function _doImport() {
   // showSaveImportModal 内で処理されるので、外部から呼ばれた場合のフォールバック
   showSaveImportModal();
+}
+
+function saveGame(silent) {
+  if (!G || !G.players || !_gameRunning) {
+    if (!silent) showToast('⚠️ ゲーム中のみ保存できます');
+    return;
+  }
+  try {
+    const data = {
+      version: 1,
+      savedAt: Date.now(),
+      turn: G.turn,
+      currentPlayerIdx: G.currentPlayerIdx,
+      goalAmount: G.goalAmount,
+      bankruptLimit: G.bankruptLimit||1,
+      phase: 'pre-roll',
+      players: G.players.map(p => ({
+        id: p.id, name: p.name, color: p.color,
+        isCPU: p.isCPU, cpuChar: p.cpuChar,
+        cash: p.cash,
+        stocks: Object.assign({}, p.stocks),
+        marks: p.marks.slice(),
+        level: p.level,
+        pos: p.pos,
+        resting: p.resting,
+        lucky: p.lucky,
+        bankrupt: p.bankrupt,
+        _needExtraLap: p._needExtraLap||false,
+        _prevPos: p._prevPos!=null?p._prevPos:null,
+        _canReverse: p._canReverse||false,
+        anyCards: p.anyCards||0,
+        _cashDebt: p._cashDebt||0,
+        _eventLandCount: p._eventLandCount||0,
+        stat: Object.assign({}, p.stat || {}),
+      })),
+      mapShops: G.map.filter(sq => sq.type === 'shop').map(sq => ({
+        id: sq.id,
+        owner: sq.owner,
+        price: sq.price,
+        extraInvest: sq.extraInvest,
+        baseToll: sq.baseToll,
+      })),
+      areasB: (() => {
+        const ab = {};
+        for (let a = 1; a <= 16; a++) ab[a] = G.areas[a].B;
+        return ab;
+      })(),
+      _allTollBoost30: G._allTollBoost30||false,
+      _tollBoost30ExpireIdx: G._tollBoost30ExpireIdx??null,
+      _allRestExpireIdx: G._allRestExpireIdx??null,
+      _tollHalfAllExpireIdx: G._tollHalfAllExpireIdx??null,
+      _toll100AllExpireIdx: G._toll100AllExpireIdx??null,
+      eventDeck: G.eventDeck||[],
+      _allTollBoost30ExpireIdx: G._allTollBoost30ExpireIdx??null,
+      log: G.log.slice(-80),
+      _diceRngSeed: G._diceRngSeed||1,
+      _diceRngCount: G._diceRngCount||0,
+      history: G.history.slice(),
+      _mapId: G._mapId || 'shisaku',
+      _spectateMode: !!_spectateMode,
+      _tourState: _tourState ? {
+        mode: _tourState.mode,
+        mapIdx: _tourState.mapIdx,
+        clearedStages: _tourState.clearedStages||[],
+        charaKey: _tourState.charaKey||(_playerAvatar||'dog'),
+        charaName: _tourState.charaName||''
+      } : null,
+    };
+    data.changeMarks = G.map.filter(n=>n.type==='changemark').map(n=>({id:n.id,mark:n.mark}));
+    const _isTourSave = !!(_tourState && _tourState.mapIdx !== undefined);
+    const _isTournamentSave = !!(_tournamentState && _tournamentState.active);
+    const _saveKey = _isTournamentSave ? TOURNAMENT_SAVE_KEY
+                   : _isTourSave ? TOUR_SAVE_KEY : SAVE_KEY;
+    if (_isTourSave) {
+      data._spectateMode = false;
+      // ツアー実績キー（tour_save_normal 等）も同時に更新する
+      const ts = data._tourState;
+      if (ts) {
+        const tourSaveData = {
+          mode: ts.mode,
+          clearedStages: ts.clearedStages,
+          maps: TOUR_NORMAL_MAPS,
+          mapIdx: ts.mapIdx,
+          charaKey: ts.charaKey,
+          charaName: ts.charaName,
+        };
+        _saveToAllStorages('tour_save_' + ts.mode, JSON.stringify(tourSaveData));
+      }
+    } else {
+      delete data._tourState;
+    }
+    if (_isTournamentSave && _tournamentState && _tournamentState.active) {
+      data._tournamentState = JSON.parse(JSON.stringify(_tournamentState));
+    }
+    _saveToAllStorages(_saveKey, JSON.stringify(data));
+    if (!silent) {
+      showToast('💾 保存しました！続きから遊ぶボタンで再開できます');
+      addLog('💾 ゲームを保存しました', 'important');
+    }
+  } catch(e) {
+    showToast('⚠️ 保存に失敗しました: ' + e.message);
+  }
 }
 
 // URLをクリップボードにコピー（スマホのブックマーク保存の代替）
