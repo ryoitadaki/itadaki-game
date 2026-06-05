@@ -169,14 +169,14 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
 /* .p-chip replaced by new design */
 
 .p-chip.bankrupt{opacity:.45;filter:grayscale(.8);}
-.p-chip-head{display:flex;align-items:center;gap:.3rem;margin-bottom:.2rem;}
+.p-chip-head{display:flex;align-items:center;gap:.25rem;margin-bottom:.15rem;}
 .p-icon{font-size:1.1rem;width:26px;height:26px;display:flex;align-items:center;
   justify-content:center;border-radius:50%;border:2px solid;flex-shrink:0;}
 .p-chip-info{flex:1;min-width:0;}
-.p-chip-nameline{display:flex;align-items:center;gap:.25rem;flex-wrap:nowrap;}
-.p-chip-name{font-size:.75rem;font-weight:700;white-space:nowrap;overflow:visible;text-overflow:clip;flex-shrink:1;}
-.p-chip-total{font-size:.75rem;font-weight:700;color:var(--gold);}
-.badge-lv{font-size:.6rem;font-weight:700;padding:.1rem .3rem;border-radius:4px;white-space:nowrap;}
+.p-chip-nameline{display:flex;align-items:center;gap:.2rem;flex-wrap:nowrap;}
+.p-chip-name{font-size:.68rem;font-weight:700;white-space:nowrap;overflow:visible;text-overflow:clip;flex-shrink:0;}
+.p-chip-total{font-size:.72rem;font-weight:700;color:var(--gold);}
+.badge-lv{font-size:.56rem;font-weight:700;padding:.05rem .25rem;border-radius:4px;white-space:nowrap;flex-shrink:0;}
 .p-chip-detail{display:flex;flex-wrap:wrap;gap:.15rem .3rem;margin-bottom:.15rem;}
 .p-chip-stat{font-size:.62rem;color:var(--gray);}
 .p-chip-marks{display:flex;align-items:center;flex-wrap:wrap;gap:.1rem;}
@@ -1130,7 +1130,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
 .p-chip{
   background:linear-gradient(135deg,var(--panel),var(--bg2));
   border:2px solid transparent;border-radius:14px;
-  padding:.38rem .45rem;min-width:155px;max-width:200px;
+  padding:.32rem .4rem;min-width:130px;max-width:185px;
   flex-shrink:0;transition:all .2s;
   box-shadow:0 2px 12px rgba(0,0,0,.4);
 }
@@ -1386,7 +1386,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
   box-shadow:0 0 0 2px var(--chip-col,#fff), 0 4px 16px rgba(240,180,41,.25);
 }
 .p-icon.svg-icon{
-  width:34px;height:34px;min-width:34px;
+  width:30px;height:30px;min-width:30px;
   display:flex;align-items:center;justify-content:center;
   border-radius:50%;overflow:hidden;padding:1px;border:2px solid;
   background:#fff;
@@ -1398,8 +1398,8 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
 
 .p-chip-stat{background:rgba(255,255,255,.05);border-radius:4px;padding:0 .2rem;}
 .badge-lv{
-  border-radius:6px !important; padding:.05rem .3rem !important;
-  font-size:.62rem !important; font-weight:900 !important;
+  border-radius:6px !important; padding:.04rem .22rem !important;
+  font-size:.56rem !important; font-weight:900 !important;
 }
 
 /* ===== ゲーム画面 ===== */
@@ -6640,8 +6640,21 @@ function playBGM(name){
     },
 
     // ③ 緊迫BGM: FF風戦闘テーマ（目標金額達成者がいる間）
+    // ═══════════════════════════════════════════════════════════
+    // 約60秒ループ版「ラストスパート」
+    // 調: Aマイナー（Am）BPM≒120（1拍=0.3秒相当）
+    // 構成:
+    //   A (0〜9.3s)   : 既存メロ（Am）
+    //   B (9.3〜18.6s): 発展部（Am）
+    //   C (18.6〜27.9s): 転調部（Cメジャー → Eメジャー）※ピボットコード経由
+    //   D (27.9〜37.2s): 転調先クライマックス（Eメジャー）
+    //   E (37.2〜46.5s): 回帰部（E7 → Am）
+    //   F (46.5〜55.8s): Am再確立・最終盛り上がり
+    //   G (55.8〜60.0s): ループ接続（冒頭へ）
+    // ═══════════════════════════════════════════════════════════
     tension:()=>{
-      const mel=[[880,.15,0],[880,.15,.18],[1046.5,.25,.36],
+      // ── セクションA（既存・0〜9.3s）Aマイナー ──
+      const melA=[[880,.15,0],[880,.15,.18],[1046.5,.25,.36],
         [987.8,.15,.72],[880,.15,.9],[784,.25,1.08],
         [784,.15,1.44],[784,.15,1.62],[698.5,.25,1.80],
         [659,.15,2.16],[698.5,.15,2.34],[784,.5,2.52],
@@ -6653,20 +6666,224 @@ function playBGM(name){
         [784,.5,6.8],
         [880,.12,7.5],[880,.12,7.65],[1046.5,.25,7.8],[987.8,.4,8.1],
         [880,.6,8.55]];
+
+      // ── セクションB（9.3〜18.6s）Am発展：メロをオクターブ下で変奏 ──
+      // Am: A-C-E進行をベースにしたカウンターメロ
+      const O=9.3; // セクションBオフセット
+      const melB=[
+        // B1: 低音域でのAm主題（880→440へ）
+        [440,.15,O+0.0],[440,.15,O+.18],[523.3,.25,O+.36],
+        [493.9,.15,O+.72],[440,.15,O+.9],[392,.25,O+1.08],
+        // B2: 緊張感のある下降ライン
+        [392,.15,O+1.44],[349.2,.15,O+1.62],[329.6,.25,O+1.80],
+        [293.7,.15,O+2.16],[329.6,.15,O+2.34],[392,.5,O+2.52],
+        // B3: 上昇→解決（Eコード感）
+        [440,.15,O+3.2],[523.3,.15,O+3.38],[587.3,.25,O+3.56],
+        [554.4,.15,O+3.92],[493.9,.15,O+4.10],[440,.35,O+4.28],
+        // B4: 下降パッセージ→Amの5度
+        [392,.15,O+4.8],[349.2,.15,O+4.98],[329.6,.15,O+5.16],[293.7,.15,O+5.34],
+        [261.6,.5,O+5.52],
+        // B5: 疾走感ある16分音符群
+        [440,.12,O+6.2],[392,.12,O+6.35],[349.2,.12,O+6.5],[329.6,.12,O+6.65],
+        [392,.5,O+6.8],
+        // B6: 高音域への飛躍→Aセクションへブリッジ
+        [440,.12,O+7.5],[440,.12,O+7.65],[523.3,.25,O+7.8],[493.9,.4,O+8.1],
+        [440,.6,O+8.55]];
+
+      // ── セクションC（18.6〜27.9s）転調：Am→Cメジャー→Eメジャー ──
+      // ピボットコード: Am の同主調 Cメジャーを経由、C→G/B→E（属調）
+      // Eメジャースケール: E4=329.6 F#4=370 G#4=415.3 A4=440 B4=493.9 C#5=554.4 D#5=622.3 E5=659.3
+      const P=18.6;
+      const melC=[
+        // C1: Cメジャーの明るい導入（ピボット）
+        [523.3,.2,P+0.0],[587.3,.2,P+.3],[659.3,.3,P+.6],
+        [784,.2,P+1.0],[740,.15,P+1.3],[698.5,.15,P+1.55],
+        [659.3,.4,P+1.8],
+        // C2: G/Bを経由してEへの属和音準備
+        [493.9,.2,P+2.4],[554.4,.2,P+2.7],[587.3,.3,P+3.0],
+        [622.3,.2,P+3.4],[659.3,.15,P+3.7],[698.5,.15,P+3.95],
+        [740,.4,P+4.2],
+        // C3: Eメジャー到達！明るく輝くメロ
+        [659.3,.2,P+4.8],[740,.2,P+5.1],[830.6,.3,P+5.4],
+        [880,.4,P+5.8],[830.6,.2,P+6.3],[740,.2,P+6.6],
+        [659.3,.5,P+6.9],
+        // C4: Eメジャー内での展開
+        [740,.15,P+7.5],[830.6,.15,P+7.65],[880,.25,P+7.8],
+        [987.8,.4,P+8.1],[880,.6,P+8.55]];
+
+      // ── セクションD（27.9〜37.2s）Eメジャークライマックス ──
+      // E-B-C#m-A進行（Eメジャーの王道進行）
+      const Q=27.9;
+      const melD=[
+        // D1: Eメジャーの堂々たる主題
+        [1318.5,.15,Q+0.0],[1318.5,.15,Q+.18],[1174.7,.25,Q+.36],
+        [1244.5,.15,Q+.72],[1108.7,.15,Q+.9],[987.8,.25,Q+1.08],
+        // D2: C#m経由の哀愁
+        [1108.7,.15,Q+1.44],[987.8,.15,Q+1.62],[880,.25,Q+1.80],
+        [740,.15,Q+2.16],[830.6,.15,Q+2.34],[987.8,.5,Q+2.52],
+        // D3: Aコード（♭VII的な動き）で緊張感
+        [1046.5,.15,Q+3.2],[1174.7,.15,Q+3.38],[1318.5,.25,Q+3.56],
+        [1244.5,.15,Q+3.92],[1108.7,.15,Q+4.10],[987.8,.35,Q+4.28],
+        // D4: B7（ドミナント）→解決感の高まり
+        [880,.15,Q+4.8],[987.8,.15,Q+4.98],[1108.7,.15,Q+5.16],[1174.7,.15,Q+5.34],
+        [1244.5,.5,Q+5.52],
+        // D5: 疾走16分
+        [1318.5,.12,Q+6.2],[1244.5,.12,Q+6.35],[1174.7,.12,Q+6.5],[1108.7,.12,Q+6.65],
+        [987.8,.5,Q+6.8],
+        // D6: 最高音への到達
+        [1046.5,.12,Q+7.5],[1108.7,.12,Q+7.65],[1244.5,.25,Q+7.8],[1318.5,.4,Q+8.1],
+        [1174.7,.6,Q+8.55]];
+
+      // ── セクションE（37.2〜46.5s）回帰：E7 → Dm → Am ──
+      // 音楽理論的な回帰：Eメジャー → E7（属7） → AmのドミナントはE7→Am自然解決
+      const R=37.2;
+      const melE=[
+        // E1: E7の緊張感（GisをGに変えてE7→Am）
+        [987.8,.2,R+0.0],[880,.2,R+.3],[784,.3,R+.6],
+        [740,.2,R+1.0],[698.5,.15,R+1.3],[659.3,.15,R+1.55],
+        [622.3,.4,R+1.8],  // D#→D（メジャーからマイナーへの引力）
+        // E2: Am方向への引力強化（Dm経由）
+        [587.3,.2,R+2.4],[659.3,.2,R+2.7],[698.5,.3,R+3.0],
+        [784,.2,R+3.4],[698.5,.15,R+3.7],[659.3,.15,R+3.95],
+        [622.3,.4,R+4.2],
+        // E3: Am到達！元の主調に回帰
+        [659.3,.2,R+4.8],[698.5,.2,R+5.1],[784,.3,R+5.4],
+        [880,.4,R+5.8],[784,.2,R+6.3],[698.5,.2,R+6.6],
+        [659.3,.5,R+6.9],
+        // E4: Am確立
+        [880,.12,R+7.5],[784,.12,R+7.65],[698.5,.12,R+7.8],[659.3,.12,R+8.0],
+        [698.5,.3,R+8.2],[784,.25,R+8.55],[880,.5,R+8.85]];
+
+      // ── セクションF（46.5〜55.8s）Am再確立・最終盛り上がり ──
+      const S=46.5;
+      const melF=[
+        // F1: オリジナルAメロを高音域で再現（回帰の喜び）
+        [1760,.15,S+0.0],[1760,.15,S+.18],[2093,.25,S+.36],
+        [1975.5,.15,S+.72],[1760,.15,S+.9],[1568,.25,S+1.08],
+        [1568,.15,S+1.44],[1568,.15,S+1.62],[1396.9,.25,S+1.80],
+        [1318.5,.15,S+2.16],[1396.9,.15,S+2.34],[1568,.5,S+2.52],
+        // F2: 高らかなクライマックスライン
+        [1760,.15,S+3.2],[2093,.15,S+3.38],[2349.3,.25,S+3.56],
+        [2217.5,.15,S+3.92],[1975.5,.15,S+4.10],[1760,.35,S+4.28],
+        // F3: 下降して収束へ
+        [1568,.15,S+4.8],[1396.9,.15,S+4.98],[1318.5,.15,S+5.16],[1174.7,.15,S+5.34],
+        [1046.5,.5,S+5.52],
+        // F4: 疾走→ループ直前の予感
+        [1760,.12,S+6.2],[1568,.12,S+6.35],[1396.9,.12,S+6.5],[1318.5,.12,S+6.65],
+        [1568,.5,S+6.8],
+        // F5: 大団円→ループ接続へ
+        [1760,.12,S+7.5],[1760,.12,S+7.65],[2093,.25,S+7.8],[1975.5,.4,S+8.1],
+        [1760,.6,S+8.55]];
+
+      // ── セクションG（55.8〜60.0s）ループ接続 ──
+      const T=55.8;
+      const melG=[
+        // 下降してAメロの冒頭（880Hz）に自然につながる
+        [1046.5,.2,T+0.0],[987.8,.2,T+.3],[880,.3,T+.6],
+        [784,.2,T+1.0],[698.5,.2,T+1.3],[659.3,.2,T+1.6],
+        [587.3,.2,T+1.9],[523.3,.3,T+2.2],
+        [587.3,.2,T+2.6],[659.3,.2,T+2.9],[784,.3,T+3.2],
+        [880,.5,T+3.6]];
+
+      const mel=[...melA,...melB,...melC,...melD,...melE,...melF,...melG];
+
+      // ── パルス低音（square）全体通して継続 ──
       const pulse=[];
+      // A相当（0〜9.3s）既存
       for(let i=0;i<30;i++) pulse.push([73.4,.1,i*.3]);
       [3.6,3.9,4.2,4.5].forEach((dl,i)=>pulse.push([[55,61.7,65.4,73.4][i],.15,dl]));
       [6.0,6.3,6.6,6.9,7.2,7.5,7.8,8.1,8.5,8.8,9.0]
         .forEach((dl,i)=>pulse.push([[55,55,61.7,61.7,55,55,55,55,55,61.7,73.4][i],.1+(i===10?.1:0),dl]));
-      const str=[[261.6,.6,0],[311.1,.6,.7],[329.6,.6,1.4],[293.7,.6,2.1],
+      // B相当（9.3〜18.6s）Am継続
+      for(let i=0;i<31;i++) pulse.push([73.4,.1,O+i*.3]);
+      [O+3.6,O+3.9,O+4.2,O+4.5].forEach((dl,i)=>pulse.push([[55,61.7,65.4,73.4][i],.15,dl]));
+      [O+6.0,O+6.3,O+6.6,O+6.9,O+7.2,O+7.5,O+7.8,O+8.1,O+8.5,O+8.8,O+9.0]
+        .forEach((dl,i)=>pulse.push([[55,55,61.7,61.7,55,55,55,55,55,61.7,73.4][i],.1,dl]));
+      // C相当（18.6〜27.9s）Cメジャー→Eメジャー（ベース音変化）
+      // C: 65.4=C2, G: 49.0=G1, E: 41.2=E1
+      [P+0,P+.3,P+.6,P+.9,P+1.2,P+1.5,P+1.8,P+2.1,P+2.4].forEach(t=>pulse.push([65.4,.1,t]));
+      [P+2.7,P+3.0,P+3.3,P+3.6,P+3.9,P+4.2].forEach(t=>pulse.push([49.0,.1,t]));
+      [P+4.5,P+4.8,P+5.1,P+5.4,P+5.7,P+6.0,P+6.3,P+6.6,P+6.9,P+7.2,P+7.5,P+7.8,P+8.1,P+8.5,P+8.8,P+9.0]
+        .forEach(t=>pulse.push([41.2,.1,t])); // E1
+      // D相当（27.9〜37.2s）Eメジャークライマックス（E2=82.4）
+      for(let i=0;i<31;i++) pulse.push([82.4,.1,Q+i*.3]);
+      [Q+3.6,Q+3.9,Q+4.2,Q+4.5].forEach((dl,i)=>pulse.push([[82.4,98.0,103.8,123.5][i],.15,dl]));
+      // E相当（37.2〜46.5s）回帰（E→Dm→Am、ベース E→D→A）
+      [R+0,R+.3,R+.6,R+.9,R+1.2,R+1.5,R+1.8,R+2.1].forEach(t=>pulse.push([82.4,.1,t]));
+      [R+2.4,R+2.7,R+3.0,R+3.3,R+3.6,R+3.9].forEach(t=>pulse.push([73.4,.1,t]));
+      for(let i=0;i<20;i++) pulse.push([55.0,.1,R+4.2+i*.3]);
+      // F相当（46.5〜55.8s）Am強化（元のパターンを強調）
+      for(let i=0;i<31;i++) pulse.push([73.4,.1,S+i*.3]);
+      [S+3.6,S+3.9,S+4.2,S+4.5].forEach((dl,i)=>pulse.push([[55,61.7,65.4,73.4][i],.15,dl]));
+      [S+6.0,S+6.3,S+6.6,S+6.9,S+7.2,S+7.5,S+7.8,S+8.1,S+8.5,S+8.8,S+9.0]
+        .forEach((dl,i)=>pulse.push([[55,55,61.7,61.7,55,55,55,55,55,61.7,73.4][i],.1,dl]));
+      // G相当（55.8〜60s）ループ接続
+      [T+0,T+.3,T+.6,T+.9,T+1.2,T+1.5,T+1.8,T+2.1,T+2.4,T+2.7,T+3.0,T+3.3,T+3.6,T+3.9]
+        .forEach(t=>pulse.push([73.4,.1,t]));
+
+      // ── 弦楽パート（sawtooth）全体通して ──
+      const str=[
+        // A相当（既存）
+        [261.6,.6,0],[311.1,.6,.7],[329.6,.6,1.4],[293.7,.6,2.1],
         [261.6,.6,2.8],[246.9,.6,3.5],[220,.6,4.2],[246.9,.6,4.9],
-        [261.6,.6,5.6],[233.1,.6,6.3],[220,.6,7.0],[246.9,.6,7.7],[261.6,.9,8.4]];
+        [261.6,.6,5.6],[233.1,.6,6.3],[220,.6,7.0],[246.9,.6,7.7],[261.6,.9,8.4],
+        // B相当（Am: C-D-E-F-G進行）
+        [261.6,.6,O+0],[329.6,.6,O+.7],[349.2,.6,O+1.4],[329.6,.6,O+2.1],
+        [293.7,.6,O+2.8],[277.2,.6,O+3.5],[261.6,.6,O+4.2],[246.9,.6,O+4.9],
+        [261.6,.6,O+5.6],[220,.6,O+6.3],[246.9,.6,O+7.0],[261.6,.6,O+7.7],[293.7,.9,O+8.4],
+        // C相当（Cメジャー→Eメジャー）
+        [261.6,.6,P+0],[293.7,.6,P+.7],[329.6,.6,P+1.4],[311.1,.6,P+2.1],  // C→G
+        [329.6,.6,P+2.8],[311.1,.6,P+3.5],[293.7,.6,P+4.2],                 // G/B→E準備
+        [329.6,.6,P+4.9],[370.0,.6,P+5.6],[415.3,.6,P+6.3],                 // Eメジャー
+        [440,.6,P+7.0],[415.3,.6,P+7.7],[370.0,.9,P+8.4],
+        // D相当（Eメジャー）
+        [329.6,.6,Q+0],[415.3,.6,Q+.7],[493.9,.6,Q+1.4],[466.2,.6,Q+2.1],
+        [415.3,.6,Q+2.8],[370.0,.6,Q+3.5],[329.6,.6,Q+4.2],[370.0,.6,Q+4.9],
+        [415.3,.6,Q+5.6],[466.2,.6,Q+6.3],[493.9,.6,Q+7.0],[415.3,.6,Q+7.7],[329.6,.9,Q+8.4],
+        // E相当（回帰：E→Dm→Am）
+        [329.6,.6,R+0],[311.1,.6,R+.7],[293.7,.6,R+1.4],[277.2,.6,R+2.1],  // E7→D
+        [293.7,.6,R+2.8],[311.1,.6,R+3.5],[293.7,.6,R+4.2],
+        [261.6,.6,R+4.9],[246.9,.6,R+5.6],[233.1,.6,R+6.3],                 // →Am
+        [220,.6,R+7.0],[246.9,.6,R+7.7],[261.6,.9,R+8.4],
+        // F相当（Am再確立・高揚）
+        [261.6,.6,S+0],[311.1,.6,S+.7],[329.6,.6,S+1.4],[293.7,.6,S+2.1],
+        [261.6,.6,S+2.8],[246.9,.6,S+3.5],[220,.6,S+4.2],[246.9,.6,S+4.9],
+        [261.6,.6,S+5.6],[293.7,.6,S+6.3],[329.6,.6,S+7.0],[311.1,.6,S+7.7],[293.7,.9,S+8.4],
+        // G相当（ループ接続）
+        [261.6,.6,T+0],[246.9,.6,T+.7],[233.1,.6,T+1.4],
+        [220,.6,T+2.1],[246.9,.6,T+2.8],[261.6,.9,T+3.5],
+      ];
+
+      // ── 和音パート（chord）各セクションに対応 ──
+      // A相当（既存）
+      const chords=[];
+      [[146.8,174.6,220],[138.6,164.8,207.7],[130.8,155.6,196]]
+        .forEach(([a,b,cc],i)=>chords.push([a,b,cc,i*3.0]));
+      // B相当（Am / Em / F）
+      [[110,130.8,165.0],[123.5,146.8,185.0],[130.8,155.6,196]]  // Am/F/C
+        .forEach(([a,b,cc],i)=>chords.push([a,b,cc,O+i*3.0]));
+      // C相当（C→G→E）
+      [[130.8,164.8,196],[98.0,123.5,196],[82.4,123.5,164.8]]  // C/G/E
+        .forEach(([a,b,cc],i)=>chords.push([a,b,cc,P+i*3.0]));
+      // D相当（E→C#m→A）
+      [[82.4,103.8,123.5],[103.8,123.5,155.6],[110,138.6,165.0]] // E/C#m/A
+        .forEach(([a,b,cc],i)=>chords.push([a,b,cc,Q+i*3.0]));
+      // E相当（E7→Dm→Am）
+      [[82.4,98.0,123.5],[110,130.8,174.6],[110,130.8,165.0]]  // E7/Dm/Am
+        .forEach(([a,b,cc],i)=>chords.push([a,b,cc,R+i*3.0]));
+      // F相当（Am / F / C / G）
+      [[110,130.8,165.0],[87.3,110,138.6],[130.8,164.8,196],[98.0,123.5,146.8]]
+        .forEach(([a,b,cc],i)=>chords.push([a,b,cc,S+i*2.8]));
+      // G相当
+      [[110,130.8,165.0],[98.0,123.5,196]]
+        .forEach(([a,b,cc],i)=>chords.push([a,b,cc,T+i*2.0]));
+
+      // 再生
       mel.forEach(([f,d,dl])=>{if(f>0)_bgmNote(f,'sawtooth',d,.10,dl,7,4);});
       pulse.forEach(([f,d,dl])=>_bgmNote(f,'square',d,.18,dl));
       str.forEach(([f,d,dl])=>_bgmNote(f,'sawtooth',d,.09,dl,5.5,3));
-      [[146.8,174.6,220],[138.6,164.8,207.7],[130.8,155.6,196]]
-        .forEach(([a,b,cc],i)=>_bgmChord([a,b,cc],'sawtooth',2.8,.05,i*3.0,6,5));
-      return 9.3;
+      chords.forEach(([a,b,cc,dl])=>_bgmChord([a,b,cc],'sawtooth',2.8,.05,dl,6,5));
+      return 60.0;
     },
 
     // ④ 結果発表: FFファンファーレ→勝利テーマ
@@ -13977,7 +14194,16 @@ function payToll(player,sq,callback){
         // 売られる側の総資産が目標金額の90%以上の場合は5倍買いしない
         if(getPlayerAssets(owner).total>=G.goalAmount*0.9){ callback();return; }
         let baseRate;
-        if(ch2&&(ch2.name==='宅建士りょう'||ch2.name==='りょう・S'||ch2.name==='ワイズ'||ch2.name==='クリスティー'||ch2.name==='サコ'||ch2.name==='はるか'||ch2.name==='ひかり'||ch2.name==='ポッター')){
+        if(ch2&&ch2.name==='ポッター'){
+          // ポッター専用: 段階的5倍買い確率
+          const _pRatio2=getPlayerAssets(player).total/Math.max(1,G.goalAmount);
+          if(_pRatio2>=0.8){
+            baseRate=0.4;
+          } else {
+            const _myCountNow2=getPlayerAreaCount(player.id,sq.area);
+            baseRate=(_myCountNow2+1)>=3?0.99:0.54;
+          }
+        } else if(ch2&&(ch2.name==='宅建士りょう'||ch2.name==='りょう・S'||ch2.name==='ワイズ'||ch2.name==='クリスティー'||ch2.name==='サコ'||ch2.name==='はるか'||ch2.name==='ひかり')){
           const _assetsNow=getPlayerAssets(player);
           baseRate=_assetsNow.total<G.goalAmount*0.8?(ch2.fiveTimesRate||0.70):(ch2.fiveTimesRateRich||0.50);
         } else if(ch2&&ch2.name==='ネネコ'){
@@ -14192,7 +14418,16 @@ function payToll(player,sq,callback){
         if(getPlayerAssets(owner).total>=G.goalAmount*0.9){ _afterFiveBuy();return; }
         // 宅建士りょう: 総資産80%未満→fiveTimesRate(0.95), 以上→fiveTimesRateRich(0.50)
         let baseRate;
-        if(ch2&&(ch2.name==='宅建士りょう'||ch2.name==='りょう・S'||ch2.name==='ワイズ'||ch2.name==='クリスティー'||ch2.name==='サコ'||ch2.name==='はるか'||ch2.name==='ひかり'||ch2.name==='ポッター')){
+        if(ch2&&ch2.name==='ポッター'){
+          // ポッター専用: 段階的5倍買い確率
+          const _pRatio2=getPlayerAssets(player).total/Math.max(1,G.goalAmount);
+          if(_pRatio2>=0.8){
+            baseRate=0.4;
+          } else {
+            const _myCountNow2=getPlayerAreaCount(player.id,sq.area);
+            baseRate=(_myCountNow2+1)>=3?0.99:0.54;
+          }
+        } else if(ch2&&(ch2.name==='宅建士りょう'||ch2.name==='りょう・S'||ch2.name==='ワイズ'||ch2.name==='クリスティー'||ch2.name==='サコ'||ch2.name==='はるか'||ch2.name==='ひかり')){
           const _assetsNow=getPlayerAssets(player);
           baseRate=_assetsNow.total<G.goalAmount*0.8?(ch2.fiveTimesRate||0.70):(ch2.fiveTimesRateRich||0.50);
         } else if(ch2&&ch2.name==='ネネコ'){
@@ -19844,7 +20079,7 @@ talkToPlayerGoalReached:['そこまで行くなんて…読めなかった。す
   },
   potter:{name:'ポッター', color:'#60a5fa',rank:'S',gender:'男',age:28,
     investMin1:60,investMin2:70,investMin3:100,investMin4:100,insiderMul:1.0,
-    fiveTimesRate:0.54,fiveTimesRateRich:0.40,routeSharp:true,spreadStock:true,
+    fiveTimesRate:0.54,fiveTimesRateRich:0.40,routeSharp:true,spreadStock:true, // ※実際の5倍買い確率は_decideFiveBuy/payToll内のポッター専用ロジックで制御
     speech:{
       preRoll:['さて、どこに止まるか計算済みだ','計算済みだ、行くぞ','全エリアが視野に入ってる','勝負！','全エリアを制圧する、その第一歩だ','さあ行くぞ、計算は済んでいる','どこに止まっても対応できる','冷静に行く'],
       buyShop:['このエリア、いただく','ここは押さえる必要がある','計算どおりの選択だ','このエリアも視野に入れてた','全エリア制圧への一歩だ','ここは押さえておく必要がある'],
@@ -23002,7 +23237,17 @@ function _decideFiveBuy(player, sq, rateBoost=1.0){
 
   // 基本確率決定（payToll内の判定と同じロジック）
   let baseRate;
-  if(ch.name==='宅建士りょう'||ch.name==='ワイズ'||ch.name==='クリスティー'||
+  if(ch.name==='ポッター'){
+    // ポッター専用: 段階的5倍買い確率
+    const _pRatio=getPlayerAssets(player).total/Math.max(1,G.goalAmount);
+    if(_pRatio>=0.8){
+      baseRate=0.4; // 目標80%以上は低確率
+    } else {
+      // 目標80%未満: 5倍買い後に自分の店が3軒以上揃うなら0.99、それ以外は0.54
+      const _myCountNow=getPlayerAreaCount(player.id,sq.area);
+      baseRate=(_myCountNow+1)>=3?0.99:0.54;
+    }
+  } else if(ch.name==='宅建士りょう'||ch.name==='ワイズ'||ch.name==='クリスティー'||
      ch.name==='サコ'||ch.name==='はるか'||ch.name==='ひかり'){
     const assets=getPlayerAssets(player);
     baseRate=assets.total<G.goalAmount*0.8?(ch.fiveTimesRate||0.70):(ch.fiveTimesRateRich||0.50);
