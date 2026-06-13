@@ -12644,25 +12644,24 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
   const FOCUS_DIST=6; // 残り6マス先を最重視
 
   // ═══════════════════════════════════════════════════════════════
-  // ポッター専用: サイコロ予知システム (5ターン先まで全員のサイコロを把握)
+  // 出目先読みシステム（ランク別先読み巡数）
   //
-  // 案A: 自分の次〜5ターン先の動きを先読み
-  // 案B: 敵プレイヤーの未来サイコロも先読み
-  // 案E: 危険回避を確率→確定値に
+  // Dランク: 先読みなし
+  // Cランク: 3巡先
+  // Bランク: 5巡先
+  // Aランク: 10巡先
+  // Sランク: 20巡先
   // ═══════════════════════════════════════════════════════════════
-  // 出目先読み機能の対象:
-  //   ポッター        → 5ターン先
-  //   他のSランク全員 → 3ターン先
-  //   Aランクのりょう・さくら・はるか・ワイズ → 2ターン先
-  const _lookaheadARank = ch && ch.rank === 'A' &&
-    (ch.name==='りょう' || ch.name==='さくら' || ch.name==='はるか' || ch.name==='ワイズ');
+  // 先読み有効フラグ（C以上全ランク）
+  const _lookaheadARank = ch && (ch.rank === 'A' || ch.rank === 'B' || ch.rank === 'C');
   const _isFFChar = ch && (ch.name==='シロマ'||ch.name==='クロマ'||ch.name==='忍者');
-  const isPotter = ch && (ch.rank === 'S' || _lookaheadARank);
+  const isPotter = ch && (ch.rank === 'S' || ch.rank === 'A' || ch.rank === 'B' || ch.rank === 'C');
   const _isSRyou = ch && ch.name === 'りょう・S';
-  const POTTER_PREDICT_TURNS = (_isFFChar||_isSRyou) ? 7
-                             : (ch && ch.name === 'ポッター') ? 5
-                             : _lookaheadARank ? 2
-                             : 3;
+  const POTTER_PREDICT_TURNS = (ch && ch.rank === 'S') ? 20
+                             : (ch && ch.rank === 'A') ? 10
+                             : (ch && ch.rank === 'B') ? 5
+                             : (ch && ch.rank === 'C') ? 3
+                             : 0;
   let potterMyFutureDice = null;   // 自分の今後のサイコロ目
   let potterEnemyFutureDice = null;// 敵の今後のサイコロ目
   if(isPotter){
@@ -12713,9 +12712,10 @@ function cpuChooseRoute(player,nextIds,remSteps,_isFirstStep=false){
       for(let i=0; i<potterMyFutureDice.length; i++){
         cum += potterMyFutureDice[i];
         if(cum-1 === d){
-          // 距離 d のマスにぴったり止まる
-          // i=0 (次ターン) → 0.95、i=1 → 0.82、..., i=4 → 0.43
-          potterHit = Math.max(0.4, 0.95 - i*0.13);
+          // 先読み巡数に応じて確信度を動的に計算
+          // i=0(次ターン)→0.95、遠いほど減衰、最低0.15
+          const maxTurns = Math.max(1, POTTER_PREDICT_TURNS - 1);
+          potterHit = Math.max(0.15, 0.95 - (i / maxTurns) * 0.80);
           break;
         }
       }
@@ -21588,8 +21588,11 @@ function cpuTurn(player){
       if(myAssets.total<G.goalAmount){
         const sorted=[...G.players].filter(p=>!p.bankrupt).sort((a,b)=>getPlayerAssets(b).total-getPlayerAssets(a).total);
         const myRank=sorted.findIndex(p=>p.id===player.id); // 0始まり（0=1位）
-        // メイより上位のキャラ全員を妨害対象にする
-        const targets=sorted.slice(0,myRank).filter(p=>p.id!==player.id);
+        // ポッター・忍者・クロマ・シロマは全員を対象、それ以外は上位のみ
+        const _isAllTargetChar=ch&&(ch.name==='ポッター'||ch.name==='忍者'||ch.name==='クロマ'||ch.name==='シロマ');
+        const targets=_isAllTargetChar
+          ? sorted.filter(p=>p.id!==player.id)
+          : sorted.slice(0,myRank).filter(p=>p.id!==player.id);
         if(targets.length>0){
           // ── 35枚残し予定エリアを事前計算し、10枚売りから除外する ──
           // 銀行まで6マス以内なら、このターンmeiSmartStockSwapで35枚残しが発動しうる
@@ -21616,9 +21619,10 @@ function cpuTurn(player){
               const _sorted_sab=[...G.players].filter(p=>!p.bankrupt)
                 .sort((a,b)=>getPlayerAssets(b).total-getPlayerAssets(a).total);
               const _myRank_sab=_sorted_sab.findIndex(p=>p.id===player.id);
-              const _upperTargets_sab=_myRank_sab>0
-                ? _sorted_sab.slice(0,_myRank_sab).filter(p=>p.id!==player.id)
-                : [];
+              // ポッター・忍者・クロマ・シロマは35枚残し除外計算も全員対象
+              const _upperTargets_sab=_isAllTargetChar
+                ? _sorted_sab.filter(p=>p.id!==player.id)
+                : (_myRank_sab>0 ? _sorted_sab.slice(0,_myRank_sab).filter(p=>p.id!==player.id) : []);
               if(_upperTargets_sab.length>0){
                 for(let a=1;a<=16;a++){
                   const myHeld_sab=player.stocks[a]||0;
@@ -21655,6 +21659,7 @@ function cpuTurn(player){
               const tgtAssets=getPlayerAssets(tgt);
               const nearGoal=tgtAssets.total>=G.goalAmount*0.9;
               const tgtStockVal=tgtHeld*sp;
+              // 保有枚数条件は全SランクCPU共通（自分より敵の保有が多い場合のみ）
               const normalCond=tgtStockVal>4000&&myHeld<tgtHeld;
               const nearCond=nearGoal&&tgtStockVal>=1000&&myHeld<tgtHeld;
               if(normalCond||nearCond){
