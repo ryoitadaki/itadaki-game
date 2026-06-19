@@ -14855,8 +14855,8 @@ function cpuChooseFreeWarp(player){
     if(nd.type==='shop'&&nd.owner<0&&getLiquid(player)>=nd.price){ score+=2000+nd.price; }
     // 自分の店 → 増資できる
     if(nd.type==='shop'&&nd.owner===player.id){ score+=500+getRemainingInvest(nd); }
-    // ラッキーマス
-    if(nd.type==='lucky'){ score+=1500; }
+    // ラッキーマス（優先度は下げるが、敵の店へのワープよりは優先）
+    if(nd.type==='lucky'){ score+=50; }
     // 銀行（通常時）
     if(nd.type==='bank'&&!atGoal){ score+=800; }
     // ダイスマス（ボーナスサイコロ）
@@ -14880,6 +14880,62 @@ function cpuChooseFreeWarp(player){
     if(score>bestScore){ bestScore=score; best=nd; }
   }
   return best;
+}
+
+// ── 汎用ヘルパー: 「他プレイヤーがいるマス」をタップ選択→「ここにワープしますか？」確認 ──
+// イベント29・96など「強制ワープ（キャンセル不可）」用。
+// 「いいえ」を選んだ場合はマス選択モードに戻る（ワープ自体のキャンセルは不可）。
+// candidates: 選択可能なノード配列（他プレイヤーが現在いるマスのリスト）
+// hintText:   パネルに表示する案内文
+// confirmTitleFn: (nd)=>確認モーダルのタイトル文字列
+// confirmBodyFn:  (nd)=>確認モーダル本文行の配列（省略可）
+// onChosen:   「はい」確定時に呼ばれる (destNd)=>{}
+function showForcedWarpTargetSelect(candidates, hintText, confirmTitleFn, onChosen, confirmBodyFn){
+  const panel=document.getElementById('freewarp-panel');
+  if(!panel||!candidates.length){ if(candidates.length) onChosen(candidates[0]); return; }
+
+  const selectedEl=document.getElementById('fwp-selected');
+  const btnsEl=panel.querySelector('.fwp-btns');
+  const hintEl=panel.querySelector('.fwp-hint');
+  const titleEl=panel.querySelector('.fwp-title');
+  const idSet=new Set(candidates.map(c=>c.id));
+
+  // パネルを「タップ即確認」用の表示に（選択中表示・確定ボタンは使わないので隠す）
+  if(titleEl) titleEl.textContent='🌀 ワープ先を選択';
+  if(hintEl) hintEl.textContent=hintText;
+  if(selectedEl) selectedEl.style.display='none';
+  if(btnsEl) btnsEl.style.display='none';
+  panel.classList.add('active');
+  setCpuInputBlock(false);
+
+  // マップ上のハイライト表示用（クリック処理自体は_freewarpActiveが先取りするため競合しない）
+  _moveDestIds=new Set(idSet);
+  renderMap();
+
+  function _cleanup(){
+    _endFreeWarpSelect();
+    _moveDestIds=new Set();
+    if(selectedEl) selectedEl.style.display='';
+    if(btnsEl) btnsEl.style.display='';
+    renderMap();
+  }
+
+  G._freewarpActive=true;
+  G._freewarpSelectCb=(nd)=>{
+    if(!idSet.has(nd.id)){
+      showToast('⚠️ 他のプレイヤーがいるマスを選んでください');
+      return;
+    }
+    showModal(
+      confirmTitleFn(nd),
+      confirmBodyFn?confirmBodyFn(nd):['このマスへワープします。'],
+      [
+        {label:'✅ はい',key:'Enter',primary:true,action:()=>{ _cleanup(); onChosen(nd); }},
+        {label:'❌ いいえ',key:'Backspace',action:()=>{ /* 選択モードに戻る（パネルは表示継続） */ }},
+      ],
+      {rowButtons:true}
+    );
+  };
 }
 
 // ワープ実行（共通）
@@ -15363,10 +15419,19 @@ function landEvent(player,sq){
         if(nd.type==='shop'&&nd.owner<0&&getLiquid(player)-100>=nd.price)s=3000+nd.price;
         else if(nd.type==='shop'&&nd.owner===player.id)s=1000;
         else if(nd.type==='bank')s=800;
+        else if(nd.type==='shop'&&nd.owner>=0&&nd.owner!==player.id){
+          // 敵の店 → 買い物料を払う（マイナス）
+          const toll=calcToll(nd);
+          s=-toll*2;
+        }
+        else if(nd.type==='lucky')s=50; // ラッキーマス（優先度は下げるが、敵の店へのワープよりは優先）
         else s=100;
         if(s>bestS58){bestS58=s;best58=nd;}
       }
-      if(best58&&getPlayerAssets(player).total>=G.goalAmount+100){
+      // 支払い判断: 1)目標達成見込みが高い場合 2)現金100G以上かつ現金+株資産が2000G以上の場合は必ず支払う
+      const _canAffordWell58=player.cash>=100&&getLiquid(player)>=2000;
+      const _shouldPay58=best58&&(getPlayerAssets(player).total>=G.goalAmount+100||_canAffordWell58);
+      if(_shouldPay58){
         player.cash-=100;
         showEventNotif('🌀','100Gワープ！',`${player.name} 100G支払い「${best58.label||best58.type}」へ`,'#cc88ff',()=>_doFreeWarp(player,best58,()=>{}),false);
       } else {showEventNotif('🌀','100Gワープ','今回はパス','#cc88ff',()=>endAction(),false);}
@@ -16153,12 +16218,23 @@ function landEvent(player,sq){
       // 最も多くの人が集まれる or 自分に有利なマスの人を選ぶ
       showEventNotif('🚨','緊急集合！',`全員が指定したプレイヤーのマスに強制ワープ！${player.name} が場所を指定中…`,'#ff4500',()=>_doEmergency(others96[Math.floor(Math.random()*others96.length)]),false);
     } else {
-      showModal('🚨 緊急集合！誰かのマスに全員集まる',['全員（自分も含む）が指定した人のマスへ強制ワープします（マス効果なし）'],
-        others96.map(t=>({
-          label:`${t.name}のマス（${getNode(t.pos)?.label||'?'}）へ`,
-          action:()=>_doEmergency(t)
-        }))
-      );
+      // プレイヤー: マップ上のマスをタップして選択（キャンセル不可）
+      const destNodes96=[...new Map(others96.map(p=>[p.pos,getNode(p.pos)])).values()].filter(Boolean);
+      showEventNotif('🚨','緊急集合！','他のプレイヤーがいるマスをタップして選んでください（キャンセル不可）','#ff4500',()=>{
+        showForcedWarpTargetSelect(
+          destNodes96,
+          '他のプレイヤーがいるマスをタップしてください（キャンセル不可・マス効果なし）',
+          (nd)=>`🚨「${nd.label||nd.type}」に全員集まりますか？`,
+          (nd)=>{
+            const target=others96.find(p=>p.pos===nd.id);
+            if(target)_doEmergency(target);
+          },
+          (nd)=>{
+            const pHere=others96.filter(p=>p.pos===nd.id).map(p=>`<span style="color:${p.color}">${p.name}</span>`).join(' ');
+            return [`このマスにいる: ${pHere}`,'全員（自分も含む）が強制ワープします（マス効果なし）。'];
+          }
+        );
+      },true);
     }
     return;
   }}
@@ -16315,29 +16391,24 @@ function landEvent(player,sq){
     _flashOverlay('#cc88ff',_td(300),0.35);
       showEventNotif('🌀','プレイヤーワープ！',`${player.name}→「${best29.label||best29.type}」へ`,'#cc88ff',()=>_doPlayerWarp(best29),false);
     } else {
-      // プレイヤー: モーダルで選択（キャンセル不可）
-      const mc=document.getElementById('modal-content');
-      mc.innerHTML=`<div class="modal-drag"></div>
-        <h2>🌀 他のプレイヤーがいるマスへワープ</h2>
-        <p style="font-size:.82rem;color:var(--gray);margin-bottom:.6rem">キャンセル不可。ワープ先のマス効果が発動します。</p>
-        <div style="display:flex;flex-direction:column;gap:.4rem;max-height:55vh;overflow-y:auto;">
-          ${destNodes.map((nd,i)=>{
+      // プレイヤー: マップ上のマスをタップして選択（キャンセル不可）
+      showEventNotif('🌀','プレイヤーワープ！','他のプレイヤーがいるマスをタップして選んでください（キャンセル不可）','#cc88ff',()=>{
+        showForcedWarpTargetSelect(
+          destNodes,
+          '他のプレイヤーがいるマスをタップしてください（キャンセル不可）',
+          (nd)=>`🌀「${nd.label||nd.type}」にワープしますか？`,
+          (nd)=>_doPlayerWarp(nd),
+          (nd)=>{
             const pHere=occupied.filter(p=>p.pos===nd.id).map(p=>`<span style="color:${p.color}">${p.name}</span>`).join(' ');
-            let info='';
+            const lines=[`このマスにいる: ${pHere}`];
             if(nd.type==='shop'){
-              info=nd.owner>=0&&G.players[nd.owner]?` 持ち主:${G.players[nd.owner].name} 料金:${calcToll(nd).toLocaleString()}G`:` 空き店舗 ${nd.price.toLocaleString()}G`;
+              lines.push(nd.owner>=0&&G.players[nd.owner]?`持ち主:${G.players[nd.owner].name} 料金:${calcToll(nd).toLocaleString()}G`:`空き店舗 ${nd.price.toLocaleString()}G`);
             }
-            return `<button class="action-btn" data-idx="${i}" style="text-align:left;padding:.55rem .7rem">
-              <span style="font-weight:800">${nd.label||nd.type}</span>${info}
-              <span style="font-size:.72rem;margin-left:.4rem">${pHere}</span>
-            </button>`;
-          }).join('')}
-        </div>`;
-      document.getElementById('modal-overlay').classList.add('active');
-      G._modalButtons=null;G._numModal=null;
-      mc.querySelectorAll('[data-idx]').forEach(btn=>{
-        btn.onclick=()=>{closeModal();_doPlayerWarp(destNodes[parseInt(btn.dataset.idx)]);};
-      });
+            lines.push('ワープ先のマス効果が発動します。');
+            return lines;
+          }
+        );
+      },true);
     }
     return;
   }}
@@ -24120,8 +24191,10 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     const maxBuyNormal=Math.min(99,Math.floor(liq/sp));
     let maxBuy;
     if(rank==='D'||rank==='C'){
-      // 50%制限・最大49枚・ただし最低10枚は買える（現金が足りる限り）
-      maxBuy=Math.min(49,Math.max(10,Math.floor(maxBuyNormal*0.5)));
+      // 50%制限・最大49枚
+      const halfBuy=Math.floor(maxBuyNormal*0.5);
+      // 50%で9枚以下になるとき、現金が許す限り最低10枚を保証
+      maxBuy=Math.min(49, halfBuy<10 ? Math.min(10, maxBuyNormal) : halfBuy);
     } else {
       maxBuy=maxBuyNormal;
     }
