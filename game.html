@@ -2297,6 +2297,7 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
   <div id="top-bar" style="display:flex;align-items:center;gap:.4rem;padding:.3rem .5rem;justify-content:space-between;">
     <span class="top-goal" style="font-size:.8rem;font-weight:700;color:var(--gold);">目標:<span id="goal-display">0</span>G</span>
     <button id="spectate-title-btn" onclick="showTitle()" style="display:none;font-size:.68rem;padding:.18rem .45rem;border-radius:6px;border:1px solid rgba(255,180,50,.45);background:rgba(255,160,30,.15);color:#ffcc44;cursor:pointer;white-space:nowrap;touch-action:manipulation;">🏠 タイトルへ</button>
+    <button id="speech-toggle-btn" onclick="toggleCpuSpeech()" style="font-size:.68rem;padding:.18rem .45rem;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;cursor:pointer;white-space:nowrap;touch-action:manipulation;">💬 セリフON</button>
     <button id="speed-toggle-btn" onclick="toggleCpuSpeed()" style="font-size:.68rem;padding:.18rem .45rem;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;cursor:pointer;white-space:nowrap;touch-action:manipulation;">▶ 通常速度</button>
   </div>
 
@@ -10765,6 +10766,7 @@ let _moveDestIds=new Set(); // 移動先候補マスID（案2: 終着点選択�
 // 分岐選択後の進行矢印アニメーション用
 let _cpuSpeedX2=false; // CPU演出倍速フラグ（互換用）
 let _cpuSpeedMode=0;  // 0=通常, 1=倍速, 2=3倍速
+let _cpuSpeechEnabled=true; // CPUのセリフ表示ON/OFF（吹き出し表示。OFF時もログには残る）
 let _investGlowNode=null;  // 増資光演出対象ノード
 let _investGlowUntil=0;    // 光演出終了時刻(ms)
 let _investGlowColor='#4ade80'; // 光の色
@@ -11525,6 +11527,24 @@ function toggleCpuSpeed(){
     btn.style.background=bgs[_cpuSpeedMode];
     btn.style.borderColor=bds[_cpuSpeedMode];
     btn.style.color=cls[_cpuSpeedMode];
+  }
+}
+
+// CPUのセリフ吹き出し表示のON/OFFを切り替える（速度切り替えボタンの左隣のボタン用）
+// OFFにするとセリフの吹き出しは表示されなくなる（ログには引き続き記録される）
+function toggleCpuSpeech(){
+  _cpuSpeechEnabled = !_cpuSpeechEnabled;
+  const btn=document.getElementById('speech-toggle-btn');
+  if(btn){
+    btn.textContent = _cpuSpeechEnabled ? '💬 セリフON' : '🔇 セリフOFF';
+    btn.style.background = _cpuSpeechEnabled ? 'rgba(255,255,255,.08)' : 'rgba(239,68,68,.25)';
+    btn.style.borderColor = _cpuSpeechEnabled ? 'rgba(255,255,255,.25)' : '#f87171';
+    btn.style.color = _cpuSpeechEnabled ? '#fff' : '#f87171';
+  }
+  // OFFに切り替えた瞬間、表示中のセリフ吹き出しがあれば即座に隠す
+  if(!_cpuSpeechEnabled){
+    const csb=document.getElementById('cpu-speech-bubble');
+    if(csb) csb.classList.remove('show');
   }
 }
 let _routeArrowPath=[];   // [{x,y}] のワールド座標列
@@ -20492,7 +20512,8 @@ const EMOTION_MAP={
 };
 
 function cpuSay(player,category){
-  // 3倍速モード: セリフをすべてカット（ログだけ残す）
+  // 64倍速モード、またはセリフOFF設定時: セリフ吹き出しをカット（ログだけ残す）
+  // ※3倍速では通常通りセリフを表示する
   const ch=getCpuChar(player);
   const charKey=player.cpuChar||null;
   const extra=ch&&charKey?CHAR_EXTRA_SPEECH[charKey]:null;
@@ -20501,7 +20522,7 @@ function cpuSay(player,category){
     ||CPU_SPEECH_DEFAULT[category]
     ||CPU_SPEECH_DEFAULT.preRoll;
   const line=pool[Math.floor(Math.random()*pool.length)];
-  if(_cpuSpeedMode>=2){
+  if(_cpuSpeedMode>=3||!_cpuSpeechEnabled){
     addLog(`💬 ${player.name}「${line}」`,'event');
     return;
   }
