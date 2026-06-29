@@ -5323,6 +5323,28 @@ function _encodeToItadaki(raw) {
   } catch(e) { return null; }
 }
 
+// ツアー実績エクスポート用: 指定モードを「全10章クリア済み」状態にしたセーブデータを生成
+// （ハード/エクストラ実績のURLに、下位モードの解放済み実績を埋め込むために使用）
+function _buildTourFullClearData(mode) {
+  return {
+    mode: mode,
+    clearedStages: [0,1,2,3,4,5,6,7,8,9],
+    maps: TOUR_NORMAL_MAPS.slice(),
+    mapIdx: 0,
+    charaKey: null,
+    charaName: ''
+  };
+}
+
+// raw（tour_save_*の生JSON文字列）に前提実績データ（_prereq）を埋め込む
+function _injectTourPrereq(raw, prereqPairs) {
+  try {
+    const obj = JSON.parse(raw);
+    obj._prereq = prereqPairs.map(([key, data]) => ({key, data}));
+    return JSON.stringify(obj);
+  } catch(e) { return raw; }
+}
+
 // Base64テキストからセーブデータをインポート
 function importSaveFromText(text, saveKey) {
   try {
@@ -5391,7 +5413,20 @@ function showSaveExportModal() {
   panel.innerHTML = innerHtml;
 
   entries.forEach((e, i) => {
-    const encoded = _encodeToItadaki(e.raw);
+    // ハード/エクストラ実績エクスポート時は、下位モードの「全10章クリア済み」情報を
+    // あらかじめ埋め込んでおく（インポート後、ツアーモードから即挑戦できるようにするため）
+    let exportRaw = e.raw;
+    if (e.key === 'tour_save_hard') {
+      exportRaw = _injectTourPrereq(exportRaw, [
+        ['tour_save_normal', _buildTourFullClearData('normal')]
+      ]);
+    } else if (e.key === 'tour_save_extra') {
+      exportRaw = _injectTourPrereq(exportRaw, [
+        ['tour_save_normal', _buildTourFullClearData('normal')],
+        ['tour_save_hard',   _buildTourFullClearData('hard')]
+      ]);
+    }
+    const encoded = _encodeToItadaki(exportRaw);
     const ta  = panel.querySelector(`#se-ta-${i}`);
     const btn = panel.querySelector(`#se-btn-${i}`);
     if (!ta || !btn || !encoded) return;
@@ -5586,7 +5621,23 @@ function showSaveImportModal() {
     } else if (parsed.mode && parsed.clearedStages) {
       const m = parsed.mode;
       type = (m === 'hard' ? 'ハード' : m === 'extra' ? 'エクストラ' : 'ノーマル') + 'モード実績';
-      _saveToAllStorages('tour_save_' + m, json);
+      // 埋め込まれた前提実績（下位モードの全章クリア情報）があれば先に復元
+      if (Array.isArray(parsed._prereq)) {
+        parsed._prereq.forEach(item => {
+          try {
+            if (item && item.key && item.data) {
+              _saveToAllStorages(item.key, JSON.stringify(item.data));
+            }
+          } catch(e) {}
+        });
+        // 解放フラグも保険として明示的に立てる
+        try {
+          if (m === 'hard')  localStorage.setItem('tour_hard_unlocked', '1');
+          if (m === 'extra') localStorage.setItem('tour_extra_unlocked', '1');
+        } catch(e) {}
+      }
+      delete parsed._prereq;
+      _saveToAllStorages('tour_save_' + m, JSON.stringify(parsed));
     } else {
       statusEl.style.color = '#ff6b6b';
       statusEl.textContent = '⚠️ 不明なデータ形式です（players/tourStateが見つかりません）';
