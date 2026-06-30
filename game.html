@@ -24856,6 +24856,17 @@ function cpuInvest(player,done){
       if(_srAny80GMS) return 80;                          // 80%到達者いれば80
       return 90;                                          // 基本90
     }
+    // りょう(Aランク): cnt>=3以上で、所有する店の合計残り増資余り率が50%未満の時は
+    // 通常より早い株70枚以上から増資する（りょう・Sの仕様をAランクにも適用）
+    // ※1軒1軒ではなく、エリア内で自分が所有する店の合計残り増資余りで判定する
+    if(_nm==='りょう'&&cnt>=3){
+      const aShopsGMR=areaNum?getAreaShops(areaNum):[];
+      const myShGMR=aShopsGMR.filter(s=>s.owner===player.id);
+      const totRemGMR=myShGMR.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
+      const totFullGMR=myShGMR.reduce((s,sq2)=>s+(sq2.investLimit||sq2.price),0)||1;
+      if(totRemGMR/Math.max(1,totFullGMR)<0.5) return 70; // 増資余り50%未満→70
+      // 50%以上の場合は通常閾値（investMin3/4＝90）にフォールスルー
+    }
     if(cnt>=4) return ch?.investMin4??90;
     if(cnt>=3) return ch?.investMin3??70;
     if(cnt>=2) return ch?.investMin2??ch?.investMin12??50;
