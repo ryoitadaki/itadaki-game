@@ -4,6 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>いただきSTREET</title>
+<script>
+// ── モバイルSafari対策: 実際に見えている高さをCSS変数 --vh に反映 ──
+// Safari等はアドレスバー/ツールバーが表示されていても 100vh を
+// 「ツールバーが隠れた時の最大の高さ」で固定計算するため、
+// ツールバー表示中は画面下部（操作ボタン等）が見切れてしまう。
+// window.visualViewport（対応ブラウザ）または window.innerHeight の実測値を使い、
+// ツールバーの出し引きやリサイズに追従して高さを更新する。
+(function(){
+  function _setAppVH(){
+    var h = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+    document.documentElement.style.setProperty('--vh', (h * 0.01) + 'px');
+    // ツールバーの出し引きでマップ表示エリアの高さが変わるため、地図キャンバスを再描画
+    try { if (typeof renderMap === 'function') renderMap(); } catch(e) {}
+  }
+  _setAppVH();
+  window.addEventListener('resize', _setAppVH);
+  window.addEventListener('orientationchange', _setAppVH);
+  window.addEventListener('pageshow', _setAppVH);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', _setAppVH);
+    window.visualViewport.addEventListener('scroll', _setAppVH);
+  }
+})();
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&family=Fredoka+One&display=swap');
 :root{
@@ -23,7 +47,13 @@ html,body{height:100%;overflow:hidden;touch-action:none;}
 body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(--white);font-size:14px;}
 
 /* ===== SCREENS ===== */
-.screen{display:none;width:100vw;height:100vh;position:fixed;inset:0;}
+/* 高さは 100vh→100dvh→JS実測(--vh) の順で上書き。対応ブラウザほど後の値が優先される */
+.screen{
+  display:none;width:100vw;position:fixed;inset:0;
+  height:100vh;
+  height:100dvh;
+  height:calc(var(--vh,1vh) * 100);
+}
 .screen.active{display:flex;}
 
 /* ===== TITLE ===== */
@@ -139,7 +169,12 @@ body{font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);color:var(-
   background-repeat:no-repeat;background-position:right .7rem center;padding-right:2rem;}
 
 /* ===== GAME SCREEN ===== */
-#game-screen{flex-direction:column;height:100vh;overflow:hidden;position:relative;}
+#game-screen{
+  flex-direction:column;overflow:hidden;position:relative;
+  height:100vh;
+  height:100dvh;
+  height:calc(var(--vh,1vh) * 100);
+}
 
 /* MAP AREA */
 #map-area{
