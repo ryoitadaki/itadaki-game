@@ -11999,6 +11999,14 @@ function calcToll(sq){
   return base;
 }
 
+// イベント修正前の買い物料（本来の買い物料）を返す
+// 株売買・増資画面等のUI表示ではこちらを使う
+function calcBaseToll(sq){
+  if(!sq||sq.owner<0)return 0;
+  const cnt=getPlayerAreaCount(sq.owner,sq.area);
+  return Math.floor(sq.baseToll*(1+sq.extraInvest/sq.basePrice*2)*getTollMulti(cnt));
+}
+
 function getPlayerAssets(p){
   if(!p)return{cash:0,stockAsset:0,total:0};
   let stockAsset=0;
@@ -17897,7 +17905,7 @@ function _showInvestHTML(player,done){
     }).join('');
     const rowsHtml=allAreaShops.map(sq=>{
       const rem=getRemainingInvest(sq);
-      const toll=calcToll(sq);
+      const toll=calcBaseToll(sq);
       const isOwn=sq.owner===player.id;
       const ownerColor=sq.owner>=0?G.players.find(p=>p.id===sq.owner)?.color||'#6b7280':'#6b7280';
       const ownerName=sq.owner>=0?(G.players.find(p=>p.id===sq.owner)?.name||'？'):'空き';
@@ -18021,7 +18029,7 @@ function _showInvestConfirm(player, sq, done){
   confirmEl.innerHTML=`
     <div style="font-size:.72rem;color:rgba(255,255,255,.55);margin-bottom:.25rem;">📍 増資対象</div>
     <div style="font-size:1rem;font-weight:900;color:${player.color||'#4ade80'};margin-bottom:.15rem;">${sq.label}</div>
-    <div style="font-size:.75rem;color:rgba(255,255,255,.65);margin-bottom:.7rem;">A${sq.area} ／ 買い物料 ${calcToll(sq).toLocaleString()}G ／ 増資余り ${getRemainingInvest(sq).toLocaleString()}G</div>
+    <div style="font-size:.75rem;color:rgba(255,255,255,.65);margin-bottom:.7rem;">A${sq.area} ／ 買い物料 ${calcBaseToll(sq).toLocaleString()}G ／ 増資余り ${getRemainingInvest(sq).toLocaleString()}G</div>
     <div style="font-size:.88rem;font-weight:700;color:#fff;margin-bottom:.7rem;">この店に増資しますか？</div>
     <div style="display:flex;gap:.6rem;justify-content:center;">
       <button id="icp-yes" style="flex:1;max-width:120px;padding:.55rem 0;border-radius:10px;border:none;background:${player.color||'#4ade80'};color:#111;font-weight:900;font-size:.92rem;cursor:pointer;">はい</button>
@@ -18059,7 +18067,7 @@ function showInvestModal(player,sq,done){
   }
   const cnt=getPlayerAreaCount(player.id,sq.area);
   const multi=getTollMulti(cnt);
-  const curToll=calcToll(sq);
+  const curToll=calcBaseToll(sq);
   const curStockPrice=G.areas[sq.area].stockPrice;
   const areaShops=getAreaShops(sq.area);
   const areaB=G.areas[sq.area].B;
@@ -18315,7 +18323,7 @@ function showSellShopForDebt(player,done){
     }).join('');
 
     const shopRows=allAreaShops.map(sq=>{
-      const toll=calcToll(sq);
+      const toll=calcBaseToll(sq);
       const rem=getRemainingInvest(sq);
       const maxInv=getMaxExtraInvest(sq);
       const remPct=maxInv>0?Math.round(rem/maxInv*100):0;
@@ -18416,7 +18424,7 @@ function _showStockBuyHTML(player,callback){
     // 1軒ごと詳細
     const shopRows=shops.map(sq=>{
       const rem=getRemainingInvest(sq);
-      const toll=calcToll(sq);
+      const toll=calcBaseToll(sq);
       const ownerColor=sq.owner>=0?G.players[sq.owner].color:'#6b7280';
       const ownerName=sq.owner>=0?G.players[sq.owner].name:'空き';
       const isMe=sq.owner===player.id;
@@ -18523,7 +18531,7 @@ function showStockStatusModal(player,done){
     // 1軒ごと詳細
     const shopRows=shops.map(sq=>{
       const rem=getRemainingInvest(sq);
-      const toll=calcToll(sq);
+      const toll=calcBaseToll(sq);
       const ownerColor=sq.owner>=0?G.players[sq.owner].color:'#6b7280';
       const ownerName=sq.owner>=0?G.players[sq.owner].name:'空き';
       const isMe=sq.owner===player.id;
@@ -19167,7 +19175,7 @@ function _showSellStockHTML(player,done,neededCash){
     }).join('');
     const shopRows=shops.map(sq=>{
       const rem=getRemainingInvest(sq);
-      const toll=calcToll(sq);
+      const toll=calcBaseToll(sq);
       const ownerColor=sq.owner>=0?G.players[sq.owner].color:'#6b7280';
       const ownerName=sq.owner>=0?G.players[sq.owner].name:'空き';
       const isMe=sq.owner===player.id;
@@ -22513,7 +22521,7 @@ function _showAuctionShopSelect(player,done){
 
     // 店ごとの行（株売買画面と同じ形式・自分の店は競売ボタン付き）
     const shopRows=allAreaShops.map(sq=>{
-      const toll=calcToll(sq);
+      const toll=calcBaseToll(sq);
       const rem=getRemainingInvest(sq);
       const maxInv=getMaxExtraInvest(sq);
       const remPct=maxInv>0?Math.round(rem/maxInv*100):0;
@@ -29393,7 +29401,7 @@ function showSqInfo(sq,px,py){
     html+=`<br>店価格: ${(sq.price||0).toLocaleString()}G`;
     if(sq.owner>=0&&G.players[sq.owner]){
       html+=`<br>持ち主: <span style="color:${G.players[sq.owner].color}">${G.players[sq.owner].name}</span>`;
-      html+=`<br>買い物料: ${calcToll(sq).toLocaleString()}G`;
+      html+=`<br>買い物料: ${calcBaseToll(sq).toLocaleString()}G`;
       html+=`<br>増資余り: ${getRemainingInvest(sq).toLocaleString()}G`;
     }else{
       html+=`<br>買い物料: ${(sq.baseToll||0).toLocaleString()}G`;
