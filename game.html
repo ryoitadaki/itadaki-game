@@ -5218,26 +5218,47 @@ const _IDB = (() => {
   const DB_NAME = 'itadaki_db';
   const STORE = 'saves';
   let _db = null;
+
   function open() {
     return new Promise((res, rej) => {
+      // 既存コネクションが有効なら再利用
       if (_db) { res(_db); return; }
       const req = indexedDB.open(DB_NAME, 1);
       req.onupgradeneeded = e => e.target.result.createObjectStore(STORE);
-      req.onsuccess = e => { _db = e.target.result; res(_db); };
+      req.onsuccess = e => {
+        _db = e.target.result;
+        // コネクションが閉じられた時 or バージョン変更時はキャッシュを破棄
+        _db.onclose = () => { _db = null; };
+        _db.onversionchange = () => { _db.close(); _db = null; };
+        res(_db);
+      };
       req.onerror = () => rej(req.error);
     });
   }
+
+  // InvalidStateError（コネクションが既に閉じている）の場合はキャッシュ破棄して1回だけ再試行
+  function withDb(fn) {
+    return open().then(fn).catch(err => {
+      if (err && (err.name === 'InvalidStateError' || err.message?.includes('closing'))) {
+        _db = null; // 古いコネクションを破棄
+        return open().then(fn); // 再オープンして再試行
+      }
+      return Promise.reject(err);
+    });
+  }
+
   return {
     set(key, value) {
-      return open().then(db => new Promise((res, rej) => {
+      return withDb(db => new Promise((res, rej) => {
         const tx = db.transaction(STORE, 'readwrite');
         tx.objectStore(STORE).put(value, key);
         tx.oncomplete = () => res();
         tx.onerror = () => rej(tx.error);
+        tx.onabort = () => rej(tx.error);
       }));
     },
     get(key) {
-      return open().then(db => new Promise((res, rej) => {
+      return withDb(db => new Promise((res, rej) => {
         const tx = db.transaction(STORE, 'readonly');
         const req = tx.objectStore(STORE).get(key);
         req.onsuccess = () => res(req.result ?? null);
@@ -5245,11 +5266,12 @@ const _IDB = (() => {
       }));
     },
     del(key) {
-      return open().then(db => new Promise((res, rej) => {
+      return withDb(db => new Promise((res, rej) => {
         const tx = db.transaction(STORE, 'readwrite');
         tx.objectStore(STORE).delete(key);
         tx.oncomplete = () => res();
         tx.onerror = () => rej(tx.error);
+        tx.onabort = () => rej(tx.error);
       }));
     }
   };
@@ -24896,6 +24918,59 @@ function cpuInvest(player,done){
     }
     return{sq,rem,cnt,myHeld};
   }).filter(Boolean);
+
+  // ── 自分が既に目標金額以上の場合: 増資で他プレイヤーが目標に到達してしまう店は除外 ──
+  // 増資→株価上昇→他プレイヤーの株式資産増→総資産が目標到達 を厳密計算で防ぐ
+  // Sランクの9枚売却調整テクニックの場合も同様に考慮する（増資額が変わるが株価上昇は同じ）
+  if(G.goalAmount && getPlayerAssets(player).total >= G.goalAmount && scored.length > 0){
+    const _goal = G.goalAmount;
+    const _enemies = G.players.filter(p => !p.bankrupt && p.id !== player.id);
+
+    // 増資額Xを与えた時の増資後株価を計算（_calcSRankInvestAmtのsimStockPriceと同じ式）
+    function _simSP(area, extraInvest){
+      const _shops = getAreaShops(area);
+      const _B = G.areas[area].B;
+      const _n = _shops.length || 1;
+      const _baseSum = _shops.reduce((s,sh) => s + sh.price, 0);
+      return Math.max(1, Math.floor((_baseSum + extraInvest) / _n / 65536 * _B));
+    }
+
+    // ある増資候補{sq,rem}について、実際に使われる増資額を推定する
+    // （Sランクは_calcSRankInvestAmtで絞られるが、最大でもmaxInvestが上限なので
+    //   「最大増資額で株価が上がる」ケースが最悪ケース。最悪ケースで弾けば安全）
+    function _wouldEnemyReachGoal(entry){
+      const _area = entry.sq.area;
+      const _rem  = entry.rem;
+      const _sp0  = G.areas[_area].stockPrice; // 増資前株価
+
+      // 増資額の上限（実際の増資額はこれ以下になるが、最悪ケースとして最大値で判定）
+      const _maxInvest = Math.min(999, _rem, Math.floor(liq * 0.6));
+      if(_maxInvest < 1) return false;
+
+      const _sp1 = _simSP(_area, _maxInvest); // 増資後の株価
+      const _spDiff = _sp1 - _sp0;
+      if(_spDiff <= 0) return false; // 株価が上がらないなら影響なし
+
+      // 各敵プレイヤーの現在総資産に、株価上昇分×保有枚数を加算して目標到達判定
+      for(const _ep of _enemies){
+        const _held = _ep.stocks[_area] || 0;
+        if(_held <= 0) continue; // このエリアの株を持っていなければ影響なし
+        const _gain = _held * _spDiff;
+        const _epCurrentTotal = getPlayerAssets(_ep).total;
+        if(_epCurrentTotal + _gain >= _goal){
+          return true; // 増資するとこの敵が目標到達 → 除外対象
+        }
+      }
+      return false;
+    }
+
+    const _scoredFiltered = scored.filter(entry => !_wouldEnemyReachGoal(entry));
+    // フィルタ後も1件以上残る場合のみ絞り込む（全件除外になる場合は元のscoredを使う）
+    if(_scoredFiltered.length > 0){
+      scored.length = 0;
+      _scoredFiltered.forEach(e => scored.push(e));
+    }
+  }
 
   // ===== ポッター専用: 400G底上げ（フォールバック）=====
   // 仕様:
