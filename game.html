@@ -18971,6 +18971,51 @@ const CHAR_SVGS={
 <ellipse cx="10" cy="26" rx="3.5" ry="2.5" fill="#4455aa" transform="rotate(-20,10,26)"/>
 <ellipse cx="30" cy="26" rx="3.5" ry="2.5" fill="#4455aa" transform="rotate(20,30,26)"/>
 </svg>`,
+  marchello:`<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+<!-- 背景: 深い青 -->
+<circle cx="20" cy="20" r="19" fill="#0c1a3a" stroke="#2255cc" stroke-width="2"/>
+<!-- 後ろ髪（ロングの黒髪が肩まで） -->
+<path d="M10 12 Q7 22 8 34" stroke="#1a1a2a" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M30 12 Q33 22 32 34" stroke="#1a1a2a" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M11 13 Q9 24 10 36" stroke="#2a2a3a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<path d="M29 13 Q31 24 30 36" stroke="#2a2a3a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<!-- 顔 -->
+<circle cx="20" cy="20" r="11.5" fill="#e8d4bc"/>
+<ellipse cx="20" cy="25" rx="7" ry="4.5" fill="#ddc8ac"/>
+<!-- 前髪（黒、やや長め） -->
+<ellipse cx="20" cy="11" rx="10" ry="6.5" fill="#1a1a28"/>
+<path d="M10 12 Q12 7 20 6 Q28 7 30 12" fill="#111120"/>
+<path d="M12 13 Q14 9.5 17 11" fill="#0e0e1c"/>
+<path d="M28 13 Q26 9.5 23 11" fill="#0e0e1c"/>
+<!-- 耳 -->
+<ellipse cx="8.5" cy="20" rx="2.2" ry="2.8" fill="#ddb89a"/>
+<ellipse cx="31.5" cy="20" rx="2.2" ry="2.8" fill="#ddb89a"/>
+<!-- 鋭い目（暗い茶） -->
+<ellipse cx="15.5" cy="19" rx="2.8" ry="2" fill="#1a0a00"/>
+<ellipse cx="24.5" cy="19" rx="2.8" ry="2" fill="#1a0a00"/>
+<ellipse cx="15.5" cy="19" rx="2" ry="1.4" fill="#3a1800"/>
+<ellipse cx="24.5" cy="19" rx="2" ry="1.4" fill="#3a1800"/>
+<circle cx="16" cy="18.5" r="0.7" fill="white" opacity=".8"/>
+<circle cx="25" cy="18.5" r="0.7" fill="white" opacity=".8"/>
+<!-- 眉（鋭く上がった眉） -->
+<path d="M13 15.5 Q15.5 14 18.5 15" stroke="#2a1800" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+<path d="M21.5 15 Q24.5 14 27 15.5" stroke="#2a1800" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+<!-- 口（薄く引き結んだ） -->
+<path d="M17.5 23 Q20 24.2 22.5 23" stroke="#a07850" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+<!-- 青いジャケット（聖堂騎士団服） -->
+<path d="M10 28 Q14 25 20 25 Q26 25 30 28 L31 38 L9 38 Z" fill="#1a3a8a"/>
+<!-- 白い縁取り（リム） -->
+<path d="M10 28 Q14 25.5 20 25.5 Q26 25.5 30 28" stroke="#ccccff" stroke-width="1.5" fill="none"/>
+<!-- 金のボタン/留め具 -->
+<circle cx="20" cy="28" r="1.8" fill="#d4a820"/>
+<circle cx="20" cy="28.2" r="0.9" fill="#f0cc44" opacity=".7"/>
+<!-- 赤いマント（右肩から） -->
+<path d="M27 24 Q34 22 35 30 Q34 36 29 38" fill="#aa1111" opacity=".9"/>
+<!-- 剣（柄と刃・右側斜め） -->
+<line x1="28" y1="38" x2="35" y2="16" stroke="#aaaacc" stroke-width="2" stroke-linecap="round"/>
+<rect x="30.5" y="27" width="3" height="5" rx="1" fill="#5a3a1a" transform="rotate(-15,32,29)"/>
+<ellipse cx="33" cy="26" rx="3" ry="1" fill="#aa8830" transform="rotate(-15,33,26)"/>
+</svg>`,
   aerith:`<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
 <!-- 背景: 淡いピンク -->
 <circle cx="20" cy="20" r="19" fill="#fff5f8" stroke="#cc4466" stroke-width="2"/>
@@ -19383,6 +19428,7 @@ const CHAR_SVGS_NO_BG={
   sephiroth:``,
   yuna:``,
   ryuuou:``,
+  marchello:``,
   aerith:``,
   squall:``,
   meetia:``,
@@ -19484,6 +19530,7 @@ const CHAR_ICONS={
   haruka:'🌊',hikari:'🌟',neneko:'🎩',
   potter:'🔵',
   ff_shirma:'🤍',ff_kuroma:'🖤',ff_ninja:'⚔️',
+  marchello:'⚔️',
 };
 // ── 株価20%UP エリア選択画面（株売買画面と同じ形式）──
 // areas: 選択可能エリア配列, cpuTargetArea: CPUが選ぶエリア番号(nullならプレイヤー操作)
@@ -21331,6 +21378,57 @@ talkToPlayerGoalReached:['そこまで行くなんて…読めなかった。す
         rank3:['……3位か', '…反省する', 'くっ…もっとうまくやれた'],
         rank4:['……4位か。最悪だ', '…どうでもいい、とは言えない結果だ', 'SeeDとして恥ずかしい。次は違う'],
         bankrupt:['破産か……', '…これは認めたくない。だが事実だ', 'どうでもいい…って言いたいが、そうもいかない。次こそ勝つ'],
+      },
+    }
+  },
+  marchello:{name:'マルチェロ', color:'#2255cc',rank:'S',gender:'男',age:21,
+    investMin1:60,investMin2:60,investMin3:90,investMin4:90,investMin12:60,insiderMul:1.0,
+    fiveTimesRate:0.40, fiveTimesRateRich:0.30, fiveTimesRateVeryRich:0,
+    routeSharp:true, spreadStock:true,
+    speech:{
+      gameStart:['ふん…貴様らと同席するとは、まったく不本意だが。見せてやろう、本物の実力というものを','この盤面を制するのは私だ。それだけのことよ。余計な期待はしないことだ','まあ、よくぞ集まったものだ。敗北を学ぶには格好の機会だろう？'],
+      preRoll:['ふん、行くぞ','まあ、どこへなりと','私の計算に狂いはない','さて、どこが適切か…','ふふ…思い通りだ','予定通りに進めよう','ちっ、どこに落ちるか'],
+      buyShop:['このエリアはいただいておこう','ふん、計算どおりだ','私のものとなった','当然の選択よ','ここは押さえるべきだな'],
+      cantBuyShop:['今は見送るとしよう','資金が足りぬとは…忌々しい','時期を待つとしよう','今は動かない。それだけよ'],
+      skipInvest:['まだ株が足りない。急ぐことはない','増資は見送ろう。焦りは禁物だ','株を積んでから動く。それが正道よ'],
+      dangerAhead:['あのマスは…賢明に避けるとしよう','ふん、罠など踏まぬ','不吉な気配がする。迂回だ','忌々しい…だが避ける'],
+      payToll:['ちっ…払ってやろう','この程度の出費、誤差よ誤差','覚えておくがいい。後で取り返す','くっ…予定外の出費だ','ふん…仕方あるまい'],
+      buyStock:['私のエリアに着実に仕込む','ふん、これが本来の手順というものよ','このエリアの株を積み上げる。当然のことだ','インサイダーこそが正攻法よ'],
+      buyStockRider:['このエリアにも目を付けていた','育ったエリアに乗るのは合理的な判断よ','ふふ…相乗りも侮れまい','敵の努力、ありがたく利用させてもらう'],
+      levelUp:['ふん、これで一段上に立った','昇格だ。当然の結果よ','計算どおり。次へ進もう','マーク全部揃えた。私の実力、見せてやろう'],
+      richComment:['ふふ…このまま逃げ切るだけよ','差がついた。もはや誰も私には追いつくまい','ふん、勝負はもう見えている','余裕だな。このペースで十分よ'],
+      poorComment:['ちっ…まだ諦めていないぞ','ふん、ここからが本当の力の見せどころよ','私が負けるなど、あってはならぬことだ','くっ…だが戦略は生きている'],
+      sabotage:['ふふ…少し邪魔させてもらうぞ','これも戦略のうちよ','ちっ、少しばかり株を整理してやる','あなたの資産、いただいておこう'],
+      investDone:['ふん、店が育った。買い物料が上がるぞ','増資完了。これで差がまた開く','ふふ…またひとつ強くなった'],
+      heavyToll:['くっ…これは痛い。整理が必要だ','ふん…さすがに笑えない額よ','株を売るしかないか…忌々しい'],
+      cheapToll:['ふん、この程度？誤差よ誤差','こんな端金、痛くも痒くもない','大した金額ではない。余裕で払おう'],
+      shop2:['2軒目だ。このエリアが形になってきた','ふん、計算どおり。2軒になった','このエリア、私の色に染まりつつある'],
+      shop3:['3軒。独占まであと一歩よ','ふふ…このエリアはもらったも同然だ','3軒揃えた。独占が見えてきたぞ'],
+      shop4:['このエリアは完全に私のものだ','独占完了。ふん、当然の結末よ','4軒全て私のものとなった。覚悟するがいい'],
+      shop4mid:['4軒目！あと1軒で独占だ','もうすぐ独占になる。ふふ…','4軒まで来た。次で決める'],
+      shop5:['5軒独占！このエリア丸ごといただいた','ふふふ…5軒全て私のものよ','完全制覇だ。誰も止められまい'],
+      shop5mid:['5軒目！あと1軒で独占よ','もう一息だ。次で完成させる'],
+      shop6:['6軒独占！ふふ…完璧な支配だ','このエリア全て私のもの。誰も踏み込めまい'],
+      landedLucky:['ふふ…ラッキーマスか。計算どおりよ','全員の店から受け取る。これが実力の差よ','ラッキーマス！ふん、当然といえば当然だが'],
+      landedRest:['ふん…休日か。英気を養うとしよう','少し休む。次のターンで巻き返す','これも戦略のうちよ。計画を練り直す'],
+      monopolyBlocked:['ちっ…邪魔をされたか','独占が…ふん、覚えておくがいい','くっ、邪魔をするな。後で思い知らせてやる'],
+      talkToPlayer:['ふん…なかなかやるではないか','貴様の動き、全て読んでいるぞ','ふふ、次はどこに止まるつもりだ？','私の前では無駄な足掻きよ'],
+      talkToPlayerLosing:['ふん…今は遅れているが、これが本当の力ではない','くっ…まだ終わっていないぞ。貴様に負けるつもりはない','ちっ、この借り…必ず取り返す'],
+      talkToPlayerLeading:['ふふ…差がついてきたな。このまま終わらせてやろう','貴様では私には届かない','ふん、もう勝負は決まったようなものよ'],
+      talkToPlayerGoalReached:['ちっ…先に目標に近づかれたか。ふん、まだ終わらせはしない','くっ…急がなくては。このまま勝たせるつもりはないぞ','先にゴールされるわけにはいかない。全力で追う'],
+      nearLevelUp:['もうすぐレベルアップだ。銀行まであと少し','ふふ…昇格が見えてきたぞ','計画どおり。銀行へ向かう'],
+      selfGoalReached:['ふん、目標達成だ。あとは銀行へ戻るだけよ','ふふ…目標金額に達した。このまま勝利をいただく','計算どおりの到達よ。誰にも邪魔はさせない','終わりにしよう。これが実力の差というものよ'],
+      sabotageCounted:['誰かが株を荒らしているか…ふん、許さぬぞ','損失が積み重なっている。整理が必要だ','ちっ…邪魔をする者がいるか。対処する'],
+      playerLanded:['ふふ、いらっしゃい。しっかり受け取ろう','ふん、来たか。いただくぞ','計算どおりだ。ありがたく受け取る','ふふ…ようこそ、私の店へ'],
+      playerLandedBig:['ふふふ…これは大きい！','ふん！大金をいただく。これが実力の差よ','計算以上の収穫だ！ありがたく受け取ろう'],
+      bankrupt:['まさか私が破産するとは…','ふん…認めたくないが、完敗だ','この屈辱、忘れんぞ。必ず取り返す'],
+      result:{
+        win:['ふん、当然の結末よ。これが実力の差というものだ', 'ふふ…最初から私が勝つと決まっていた', '諸君、よく頑張ったが…勝つのは私よ。それだけのことだ'],
+        richlose:['先にゴールされたか…ちっ、悔しいが認めよう。次は逃がさない', 'ふん…資産では負けていない。だが悔しいことは確かよ', '次こそ先にゴールしてみせる。これで終わりではない'],
+        rank2:['2位か…ふん、悔しいが認めよう。次は負けない', '惜しかった。次こそは私が1位よ', 'ふん、2位でも私の実力は本物だ'],
+        rank3:['3位か…想定外だった。反省する', 'ふん…戦略を見直す必要があるな', 'この結果は認めたくないが…次は違う'],
+        rank4:['4位とは…これは屈辱よ', 'ふん…笑えない結末だ。次こそ本気を見せる', 'この負けは忘れない。必ず取り返す'],
+        bankrupt:['破産か…信じられない', 'ふん…まさかここまで追い詰められるとは', 'この屈辱は絶対に忘れない。次こそ勝つ'],
       },
     }
   },
@@ -24504,6 +24602,12 @@ function _decideFiveBuy(player, sq, rateBoost=1.0){
     if(_ryuRatio>=0.9){return false;}
     else if(_ryuRatio>=0.8){baseRate=0.40;}
     else{baseRate=0.99;}
+  } else if(ch.name==='マルチェロ'){
+    // マルチェロ: 80%未満=0.40, 80-90%=0.30, 90%以上=0
+    const _marRatio=getPlayerAssets(player).total/Math.max(1,G.goalAmount);
+    if(_marRatio>=0.9){return false;}
+    else if(_marRatio>=0.8){baseRate=0.30;}
+    else{baseRate=0.40;}
   } else if(ch.name==='エアリス'){
     // エアリス: 70%未満=0.70, 70-90%=0.90（逆転型：中盤に最も積極的）, 90%以上=0
     const _aeRatio=getPlayerAssets(player).total/Math.max(1,G.goalAmount);
@@ -25171,6 +25275,10 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     if(ch&&ch.name==='りゅうおう'&&a===1){
       ch._ryuuouMode=Math.random()<0.90?'standard':'insider';
     }
+    // マルチェロのモード決定（ターン最初に1回）: 90%スタンダード / 10%インサイダー
+    if(ch&&ch.name==='マルチェロ'&&a===1){
+      ch._marchelloMode=Math.random()<0.90?'standard':'insider';
+    }
     // エアリスのモード決定（ターン最初に1回）: 80%スタンダード / 20%インサイダー
     if(ch&&ch.name==='エアリス'&&a===1){
       ch._aerithMode=Math.random()<0.80?'standard':'insider';
@@ -25438,6 +25546,16 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
         ?(myShops>=4?15.0:myShops>=3?7.5:myShops>=2?3.125:2.5)
         :(myShops>=4?7.5:myShops>=3?3.75:myShops>=2?1.5625:1.25);
       score=(myRem*_ryuuouX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
+    } else if(ch&&ch.name==='マルチェロ'){
+      // マルチェロ株スコア式
+      // スタンダード(90%): x: 1軒=0.7, 2軒=0.875, 3軒=1.75, 4軒以上=4.0
+      // インサイダー(10%): x: 1軒=1.4, 2軒=1.75, 3軒=3.5, 4軒以上=8.0
+      const _marchMode=ch._marchelloMode||'standard';
+      const _marchX=_marchMode==='insider'
+        ?(myShops>=4?8.0:myShops>=3?3.5:myShops>=2?1.75:1.4)
+        :(myShops>=4?4.0:myShops>=3?1.75:myShops>=2?0.875:0.7);
+      // 敵倍率: 1軒=1.0, 2軒=1.25, 3軒=2.5, 4軒+=5.0
+      score=(myRem*_marchX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
     } else if(ch&&ch.name==='エアリス'){
       // エアリス株スコア式
       // スタンダード(80%): x: 1軒=1.5, 2軒=1.875, 3軒=3.75, 4軒以上=7.5
@@ -25875,6 +25993,8 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
         _threshold=0.5; // エリア主の50%以上持てば相乗り不要
       } else if(ch&&ch.name==='りゅうおう'){
         _threshold=0.75; // エリア主の75%以上持てば相乗り不要
+      } else if(ch&&ch.name==='マルチェロ'){
+        _threshold=0.50; // エリア主の50%以上持てば相乗り不要
       } else if(ch&&ch.name==='エアリス'){
         _threshold=0.75; // エリア主の75%以上持てば相乗り不要
       } else if(ch&&ch.name==='スコール'){
@@ -26205,6 +26325,33 @@ function cpuInvest(player,done){
           const _totFullRyu=_myShopsRyu3.reduce((s,sq2)=>s+(sq2.investLimit||sq2.price),0)||1;
           if(_totRemRyu/Math.max(1,_totFullRyu)<=0.5) return 99;
           return 120;
+        }
+      }
+      // マルチェロ: 独自の増資閾値ロジック
+      // 1〜2軒: 自分の通行料≥敵→60枚（Bランク以上最低保有60枚）、<敵かつ流動1000G以上→0枚
+      // 3〜4軒以上:
+      //   ①誰かが目標90%以上 → 60枚
+      //   ②所有店の合計残り増資余り率が50%以下（半分以上増資済み） → 60枚
+      //   ③それ以外 → 90枚
+      if(_nm==='マルチェロ'){
+        if(cnt===1||cnt===2){
+          const _myShopsMar=_aShops.filter(s=>s.owner===player.id);
+          const _myMinTollMar=_myShopsMar.length?Math.min(..._myShopsMar.map(s=>calcBaseToll(s))):0;
+          const _enShopsMar=_aShops.filter(s=>s.owner>=0&&s.owner!==player.id);
+          const _enMaxTollMar=_enShopsMar.length?Math.max(..._enShopsMar.map(s=>calcBaseToll(s))):0;
+          if(_myMinTollMar>=_enMaxTollMar) return 60;
+          const _liqMar=getLiquid(player);
+          return _liqMar>=1000?0:60;
+        }
+        if(cnt>=3){
+          const _goalMar=G.goalAmount||10000;
+          const _anyNear90Mar=G.players.some(p=>!p.bankrupt&&getPlayerAssets(p).total>=_goalMar*0.9);
+          if(_anyNear90Mar) return 60;
+          const _myShopsMar3=_aShops.filter(s=>s.owner===player.id);
+          const _totRemMar=_myShopsMar3.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
+          const _totFullMar=_myShopsMar3.reduce((s,sq2)=>s+(sq2.investLimit||sq2.price),0)||1;
+          if(_totRemMar/Math.max(1,_totFullMar)<=0.5) return 60;
+          return 90;
         }
       }
       // エアリス: 独自の増資閾値ロジック
@@ -30055,6 +30202,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
     sephiroth:'#f0ece8',
     yuna:'#fde8d0',
     ryuuou:'#5566bb',
+    marchello:'#e8d4bc',
     aerith:'#fde8d4',
     squall:'#f0e0cc',
     meetia:'#fde8d0',
@@ -30084,6 +30232,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
     sephiroth:'#7a7aaa',
     yuna:'#7a5ab5',
     ryuuou:'#8855cc',
+    marchello:'#2255cc',
     aerith:'#cc4466',
     squall:'#4466aa',
     meetia:'#cc6622',
@@ -30142,6 +30291,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
     sephiroth:{tail:'#111122',belly:'#c8c8d8',pattern:'plain'},
     yuna:     {tail:'#6b42a8',belly:'#f0f0f8',pattern:'plain'},
     ryuuou:   {tail:'#6633aa',belly:'#5566bb',pattern:'plain'},
+    marchello:{tail:'#1a3a8a',belly:'#e8d4bc',pattern:'plain'},
     aerith:   {tail:'#cc2222',belly:'#f0e0e8',pattern:'plain'},
     squall:   {tail:'#111122',belly:'#f0e0cc',pattern:'plain'},
     meetia:   {tail:'#cc3322',belly:'#f0f0f0',pattern:'plain'},
@@ -30439,7 +30589,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
   }
 
   // ── 名前プレート ──
-  const _CHAR_NAMES={mei:'メイ',honkikiyoko:'本気きよこ',kakuseihiroshi:'覚醒ひろし',ryou:'りょう',takken_ryou:'宅建士りょう',sako:'サコ',wise:'ワイズ',christie:'クリスティー',sakura:'さくら',hiroshi:'ひろし',orika:'おりか',kiyoko:'きよこ',ena:'エナ',hayuu:'はゆう',souma:'そうま',haruka:'はるか',hikari:'ひかり',neneko:'ネネコ',potter:'ポッター',ff_shirma:'シロマ',ff_kuroma:'クロマ',ff_ninja:'忍者',s_souma:'S・そうま',s_christie:'S・クリスティー',s_ena:'S・エナ',s_orika:'S・おりか',s_hayuu:'S・はゆう',s_sakura:'S・さくら',s_wise:'S・ワイズ',s_haruka:'S・はるか',s_hikari:'S・ひかり',s_ryou:'りょう・S',kukuru:'ククール',zesika:'ゼシカ',sephiroth:'セフィロス',yuna:'ユウナ',ryuuou:'りゅうおう',aerith:'エアリス',squall:'スコール',meetia:'ミーティア',auron:'アーロン',flora:'フローラ',yangus:'ヤンガス'};
+  const _CHAR_NAMES={mei:'メイ',honkikiyoko:'本気きよこ',kakuseihiroshi:'覚醒ひろし',ryou:'りょう',takken_ryou:'宅建士りょう',sako:'サコ',wise:'ワイズ',christie:'クリスティー',sakura:'さくら',hiroshi:'ひろし',orika:'おりか',kiyoko:'きよこ',ena:'エナ',hayuu:'はゆう',souma:'そうま',haruka:'はるか',hikari:'ひかり',neneko:'ネネコ',potter:'ポッター',ff_shirma:'シロマ',ff_kuroma:'クロマ',ff_ninja:'忍者',s_souma:'S・そうま',s_christie:'S・クリスティー',s_ena:'S・エナ',s_orika:'S・おりか',s_hayuu:'S・はゆう',s_sakura:'S・さくら',s_wise:'S・ワイズ',s_haruka:'S・はるか',s_hikari:'S・ひかり',s_ryou:'りょう・S',kukuru:'ククール',zesika:'ゼシカ',sephiroth:'セフィロス',yuna:'ユウナ',ryuuou:'りゅうおう',marchello:'マルチェロ',aerith:'エアリス',squall:'スコール',meetia:'ミーティア',auron:'アーロン',flora:'フローラ',yangus:'ヤンガス'};
   const nameText = charKey ? (_CHAR_NAMES[charKey]||'?') : 'YOU';
   ctx.font='bold 8px "M PLUS Rounded 1c",sans-serif';
   const tw=ctx.measureText(nameText).width;
@@ -32756,6 +32906,21 @@ const CPU_GUIDE_DATA = [
     ],
   },
   {
+    key:'marchello', rank:'S',
+    tagline:'ふん…貴様らに負けるつもりは毛頭ない',
+    stars:[3,4,3],
+    tend:[
+      'ドラゴンクエストVIIIに登場するマイエラ修道院の聖堂騎士団長。仲間のククールの異母兄であり、表向きは礼儀正しい口調を保ちながらも、強い野心と相手を見下す慇懃無礼な態度が特徴の人物です。',
+      '株購入では<b>全エリアを広く見渡しながら、敵が育てたエリアへの相乗りも積極的に評価します。</b>自分のエリアを持ちつつも相乗りの機会を逃さない柔軟な判断が特徴で、自エリアが増えるにつれて集中度を高めていきます。',
+      '<b>増資タイミングは通行料の状況と流動資産を見ながら判断します。</b>1〜2軒時は自分の通行料が敵より低い状況で十分な流動資産があれば早めに増資を仕掛けます。3軒以上では局面と増資の進捗を見ながら、<b>増資が半分以上進んだエリアでは早めに増資を開始します。</b>Sランクテクニックも全て使いこなします。',
+      '<b>5倍買いは慎重さが光ります。</b>資産が目標に近づくにつれて積極性が下がっていき、十分な余裕を持った状況でのみ仕掛けます。',
+    ],
+    tips:[
+      'マルチェロは<b>自エリアと相乗りのバランスをとりながら着実に資産を積み上げます。</b>どのエリアにも目を配っているため、育てたエリアに相乗りされる可能性があります。自分のエリアの株を多めに保有しておきましょう。',
+      '<b>増資の早仕掛けに注意が必要です。</b>自分の通行料が低い状況でも流動資産があれば素早く増資してきます。マルチェロのエリアに株を持っておくことで増資による株価上昇の恩恵を受けることができます。',
+    ],
+  },
+  {
     key:'aerith', rank:'A',
     tagline:'でも……運命は変えられる。ね？',
     stars:[3,4,3],
@@ -32991,7 +33156,7 @@ function showHelp(){
 }
 
 // ===== SETUP UI =====
-const CHAR_ORDER=['mei','honkikiyoko','kakuseihiroshi','sako','neneko','ryou','s_ryou','takken_ryou','potter','haruka','s_haruka','sakura','s_sakura','hiroshi','orika','s_orika','kiyoko','ena','s_ena','hayuu','s_hayuu','wise','s_wise','hikari','s_hikari','christie','s_christie','souma','s_souma','ff_shirma','ff_kuroma','ff_ninja','kukuru','zesika','sephiroth','yuna','ryuuou','aerith','squall','meetia','auron','flora','yangus'];
+const CHAR_ORDER=['mei','honkikiyoko','kakuseihiroshi','sako','neneko','ryou','s_ryou','takken_ryou','potter','haruka','s_haruka','sakura','s_sakura','hiroshi','orika','s_orika','kiyoko','ena','s_ena','hayuu','s_hayuu','wise','s_wise','hikari','s_hikari','christie','s_christie','souma','s_souma','ff_shirma','ff_kuroma','ff_ninja','kukuru','zesika','sephiroth','yuna','ryuuou','marchello','aerith','squall','meetia','auron','flora','yangus'];
 const RANK_BADGE={'S':'🔴S','A':'🟠A','C':'🔵C','B':'🟡B','C':'🟢C','D':'⚪D'};
 // 各スロットに選択されているキャラID ('human' or cpuChar key or null=なし)
 let _gameRunning=false;  // ゲーム進行フラグ
