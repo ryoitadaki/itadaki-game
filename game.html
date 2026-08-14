@@ -19229,6 +19229,58 @@ const CHAR_SVGS={
 <ellipse cx="11" cy="30" rx="2" ry="1" fill="#d4aa20"/>
 <ellipse cx="29" cy="30" rx="2" ry="1" fill="#d4aa20"/>
 </svg>`,
+  trode:`<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+<!-- 背景: 深緑 -->
+<circle cx="20" cy="20" r="19" fill="#1a2a0a" stroke="#6aaa22" stroke-width="2"/>
+<!-- 体（ずんぐりしたオレンジ色の修道服） -->
+<ellipse cx="20" cy="30" rx="13" ry="10" fill="#c8661a"/>
+<!-- 修道服の紐 -->
+<line x1="20" y1="22" x2="20" y2="33" stroke="#e8aa55" stroke-width="1.2"/>
+<line x1="17" y1="24" x2="23" y2="24" stroke="#e8aa55" stroke-width="1"/>
+<line x1="17" y1="27" x2="23" y2="27" stroke="#e8aa55" stroke-width="1"/>
+<!-- フード（オレンジ） -->
+<path d="M10 17 Q12 10 20 9 Q28 10 30 17 Q28 15 20 14 Q12 15 10 17Z" fill="#c8661a"/>
+<!-- 大きな緑の頭（丸くて大きい） -->
+<ellipse cx="20" cy="18" rx="12" ry="11" fill="#5aaa22"/>
+<!-- 頭の影 -->
+<ellipse cx="20" cy="22" rx="10" ry="4" fill="#4a8a18" opacity=".5"/>
+<!-- 大きな耳（とがった魔物の耳） -->
+<path d="M8 14 Q3 10 6 7 Q9 12 10 14Z" fill="#5aaa22"/>
+<path d="M32 14 Q37 10 34 7 Q31 12 30 14Z" fill="#5aaa22"/>
+<!-- 耳の内側 -->
+<path d="M8 13 Q5 10 7 8 Q9 11.5 9.5 13Z" fill="#3a8a12" opacity=".6"/>
+<path d="M32 13 Q35 10 33 8 Q31 11.5 30.5 13Z" fill="#3a8a12" opacity=".6"/>
+<!-- 眉（タレ目で不満げ） -->
+<path d="M12 13 Q15 11 18 13" stroke="#2a5a08" stroke-width="2" fill="none" stroke-linecap="round"/>
+<path d="M22 13 Q25 11 28 13" stroke="#2a5a08" stroke-width="2" fill="none" stroke-linecap="round"/>
+<!-- 目（半眼・だるそうな目） -->
+<ellipse cx="15.5" cy="16" rx="2.8" ry="2" fill="#111a08"/>
+<ellipse cx="24.5" cy="16" rx="2.8" ry="2" fill="#111a08"/>
+<ellipse cx="15.5" cy="16" rx="1.8" ry="1.3" fill="#1a2a08"/>
+<ellipse cx="24.5" cy="16" rx="1.8" ry="1.3" fill="#1a2a08"/>
+<!-- 白目（少しだけ） -->
+<ellipse cx="15.5" cy="15.2" rx="2.8" ry="0.8" fill="#ccddcc" opacity=".7"/>
+<ellipse cx="24.5" cy="15.2" rx="2.8" ry="0.8" fill="#ccddcc" opacity=".7"/>
+<circle cx="16.2" cy="15.8" r="0.6" fill="white" opacity=".8"/>
+<circle cx="25.2" cy="15.8" r="0.6" fill="white" opacity=".8"/>
+<!-- 鼻（ずんぐり） -->
+<ellipse cx="20" cy="19" rx="2.5" ry="1.8" fill="#4a8a12"/>
+<circle cx="18.8" cy="19.5" r="0.8" fill="#3a7a0a"/>
+<circle cx="21.2" cy="19.5" r="0.8" fill="#3a7a0a"/>
+<!-- 口（紫色の分厚い唇） -->
+<path d="M15 22 Q20 24.5 25 22" fill="#aa55aa"/>
+<path d="M15 22 Q20 22.5 25 22" fill="#cc88cc" opacity=".5"/>
+<!-- ヒゲ（ちょびっと） -->
+<path d="M17 23.5 Q20 24.5 23 23.5" stroke="#3a6a0a" stroke-width="1" fill="none"/>
+<!-- ベルト -->
+<path d="M10 29 Q20 27.5 30 29" stroke="#3a2a0a" stroke-width="2.5" fill="none"/>
+<rect x="18.5" y="27.5" width="3" height="3" rx="0.5" fill="#8a6a20"/>
+<!-- 緑の手（左、指を立てている） -->
+<ellipse cx="8" cy="25" rx="3" ry="4" fill="#5aaa22"/>
+<circle cx="7" cy="21.5" r="1.5" fill="#5aaa22"/>
+<circle cx="9.5" cy="21" r="1.5" fill="#5aaa22"/>
+<circle cx="8" cy="20" r="1.5" fill="#5aaa22"/>
+</svg>`,
   yangus:`<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
 <!-- 背景: 渋い茶 -->
 <circle cx="20" cy="20" r="19" fill="#2a1808" stroke="#cc8822" stroke-width="2"/>
@@ -19429,6 +19481,7 @@ const CHAR_SVGS_NO_BG={
   yuna:``,
   ryuuou:``,
   marchello:``,
+  trode:``,
   aerith:``,
   squall:``,
   meetia:``,
@@ -19531,6 +19584,7 @@ const CHAR_ICONS={
   potter:'🔵',
   ff_shirma:'🤍',ff_kuroma:'🖤',ff_ninja:'⚔️',
   marchello:'⚔️',
+  trode:'👑',
 };
 // ── 株価20%UP エリア選択画面（株売買画面と同じ形式）──
 // areas: 選択可能エリア配列, cpuTargetArea: CPUが選ぶエリア番号(nullならプレイヤー操作)
@@ -21582,6 +21636,57 @@ talkToPlayerGoalReached:['そこまで行くなんて…読めなかった。す
         rank3:['3位……反省いたしますわ', '……もっとうまくやれたはずですわ', 'また挑戦いたしますわ'],
         rank4:['4位ですわ……父に顔向けできませんわ', 'くっ……このような結果は納得いかないですわ', 'ヤキモチをやく余裕もないくらい悔しいですわ……次は違います'],
         bankrupt:['破産してしまいましたわ……', 'ヤキモチより悔しいですわ……また挑戦いたします', '次こそサラボナの令嬢として勝ってみせますわ'],
+      },
+    }
+  },
+  trode:{name:'トロデ', color:'#6aaa22',rank:'D',gender:'男',age:50,
+    investMin1:140,investMin2:140,investMin3:140,investMin4:140,investMin12:0,insiderMul:1.0,
+    fiveTimesRate:0.10, fiveTimesRateRich:0.05, fiveTimesRateVeryRich:0,
+    routeSharp:false, spreadStock:false,
+    speech:{
+      gameStart:['おい！わしを誰だと思っておる！トロデーン国王トロデじゃ！負けるわけにはいかぬのじゃ！','このままでは帰る城もないも同然じゃ。こうなったらわしはとことん行くしかないんじゃ！','わしの呪いが解けるまで……まあ、ついでに勝ってやるとしようかのぉ','娘のためにもここで負けるわけにはいかぬ！トロデーン兵法書にも書いてある！勝って帰るのじゃ！','ミーティアが見ておる！父として格好悪いところは見せられぬのじゃ！'],
+      preRoll:['ではいくぞ！','うむ、参るのじゃ','ええい、転がれ！','よいか……','どこへ行くかのぉ','いくぞいくぞ！','うぬぬ……'],
+      buyShop:['このマスはわしのものじゃ！','うむ！ここは買い取るぞ！','トロデーン国王として当然の判断じゃ','ふむ、いただいておくとしようかのぉ','買った！これはわしの店じゃ！'],
+      cantBuyShop:['ぬぬ……資金が足りぬのじゃ','くぬぬ……今は買えぬとは情けない','王といえど金がなければ買えぬとは……','ちっ、見送るしかないのぉ'],
+      skipInvest:['株がまだ足りぬのじゃ……','もう少し株を積まねばならぬのぉ','今はまだ増資のときではないわい','待て待て……もう少し株を集めるのじゃ'],
+      dangerAhead:['あのマスはいかぬ！迂回するのじゃ！','むむ……嫌な予感がするのぉ。避けるぞ','トロデーン兵法書にも書いてある。罠は踏むなと！','あそこは危ないのじゃ！'],
+      payToll:['くぬぬ……払ってやるわい！','ぐぬぬ……情けない……','こんなところで金を取られるとは……','わしともあろう者が……仕方ないのじゃ','ちっ……覚えておるぞ'],
+      buyStock:['うむ、株を積むとしようかのぉ','このエリアの株じゃ！しっかり持つぞ','コツコツ積み上げていくのじゃ','トロデーン兵法書 第一条……着実に株を積め！'],
+      buyStockRider:['このエリアにも目をつけておったのじゃ！','相乗りさせてもらうぞ！','育ったエリアに乗るのも立派な戦略じゃ','ありがたく便乗するとしようかのぉ'],
+      levelUp:['おお！レベルアップじゃ！わしを誰だと思っておる！','昇格じゃ！さすがはトロデーン国王！','マークが全部揃ったのじゃ！やったぞ！','うむ！昇格！これでまた一歩近づいたのじゃ！'],
+      richComment:['このまま逃げ切るのじゃ！','ふむふむ……うまくいっておるのぉ','トロデーン国王の底力を見せてやるのじゃ！','このペースなら勝てるのぉ……ふふふ'],
+      poorComment:['くぬぬ……まだ諦めてはおらぬぞ！','ぐぬぬ……このわしが後れを取るとは……','巻き返すのじゃ！トロデーン国王の意地じゃ！','こ こんな状況でも……わしはまだやれるのじゃ！'],
+      sabotage:['すまぬのぉ……少し邪魔させてもらうぞ','これも王として苦渋の決断じゃ','トロデーン兵法書にも書いてある……ときに邪魔も必要なのじゃ','悪いのじゃが、ここは手を出させてもらうぞ'],
+      investDone:['増資したのじゃ！通行料が上がったぞ！','お店が育ったのぉ！うむうむ！','これでまた強くなったのじゃ！'],
+      heavyToll:['くぬぬ……これは痛いのじゃ……','ぐぬぬ……笑えぬ金額じゃのぉ……','株を売らねばならぬか……情けない……'],
+      cheapToll:['この程度なら問題ないのじゃ！','わしにとっては大した額でもないのぉ','余裕で払えるのじゃ！'],
+      shop2:['2軒目じゃ！このエリアが形になってきたのぉ！','うむ！2軒になったぞ！','トロデーン国王、2軒目ゲットじゃ！'],
+      shop3:['3軒！独占まであと少しじゃ！','おお！3軒になったのぉ！独占が見えてきたぞ！','3軒揃えた！このエリアはわしのものじゃ！'],
+      shop4:['独占じゃ〜〜！！わしの天下じゃ！','このエリア全部わしのものじゃ！やったのぉ！','独占！トロデーン国王の底力を見よ！'],
+      shop4mid:['4軒！あと1軒で独占じゃ！','もうすぐ独占なのぉ……楽しみじゃ！'],
+      shop5:['5軒独占〜〜！！最高じゃのぉ！','5軒全部わしのもの！ふふふ……','完全制覇じゃ！誰も勝てぬのぉ！'],
+      shop5mid:['5軒！あと1軒で独占じゃぞ！','もう少しじゃ……次で完成させるのじゃ！'],
+      shop6:['6軒独占！わしは天下無双じゃ〜〜！！','このエリア全て制覇じゃ！ふふふ……最高じゃのぉ！'],
+      landedLucky:['ラッキーマスじゃ〜〜！！全員から受け取るのじゃ！','う うるさいわい！！これは目がヨダレをたらしておるのじゃ！泣いておらんぞ！！','ラッキー！やったのぉ〜！わしの運も捨てたものではないのじゃ！','全員から受け取るぞ！これが王の力じゃ！'],
+      landedRest:['休日じゃ……英気を養うとしようかのぉ','少し休む……ミーティアのことを考えておるのじゃ','ゆっくりする……しかし早く呪いを解かねばならぬのじゃ'],
+      monopolyBlocked:['くぬぬ！邪魔をされたのじゃ！','そこを取られてしまったのぉ……','取り返すのじゃ！わしはまだ諦めてはおらぬ！'],
+      talkToPlayer:['なかなかやるのぉ……わしも本気を出さねばならぬか','おぬし、侮れないのじゃ','うむ……いい勝負じゃのぉ','わしも負けてはおれぬのじゃ'],
+      talkToPlayerLosing:['くぬぬ……まだ諦めてはおらぬぞ！','ぐぬぬ……巻き返すのじゃ！','こんなところで負けるわけにはいかぬのじゃ！'],
+      talkToPlayerLeading:['ふふふ……このまま逃げ切るのじゃ！','差がついてきたのぉ。このペースでいくぞ！','トロデーン国王の力、思い知るがよい！'],
+      talkToPlayerGoalReached:['ぬぬ……先に目標に近づかれたか……急ぐのじゃ！','くぬぬ……追いかけるのじゃ！負けてはおれぬ！','先にゴールされるわけにはいかぬのじゃ！'],
+      nearLevelUp:['銀行まであと少しじゃ！昇格するのじゃ！','レベルアップが見えてきたのぉ！','もうすぐ昇格……がんばるのじゃ！'],
+      selfGoalReached:['やったのじゃ〜〜！！目標達成じゃ！！','目標金額に届いたのじゃ！このまま勝つぞ！','ミーティア……父は勝てそうじゃ！あとは銀行へ戻るのみ！','トロデーン兵法書 第二十七条……勝利を手にした者は一気に決めよ！いくのじゃ！'],
+      sabotageCounted:['誰かわしの株を荒らしておるのじゃ……','ぐぬぬ……損が出ておる。整理が必要じゃ','邪魔者がおるのか……許さぬのじゃ'],
+      playerLanded:['来たのじゃ！ありがたく受け取るぞ！','いらっしゃい！しっかりいただくのじゃ！','ふふふ……通行料じゃ！払ってもらうぞ！','トロデーン国王の店へようこそじゃ！'],
+      playerLandedBig:['ぬわ〜〜！！大金じゃ〜！！','う うるさいわい！これは目がヨダレを……いや、嬉しいのじゃ！！','でかいのじゃ〜〜！！最高じゃのぉ！！'],
+      bankrupt:['わわわ……破産とは……','くぬぬ……まさかわしが……','ミーティア……父は負けてしまったのじゃ……'],
+      result:{
+        win:['やったのじゃ〜〜！！わしの勝ちじゃ！トロデーン万歳！', 'ふふふ……トロデーン国王を舐めてはいかぬのじゃ！', 'う うるさいわい！！これは目がヨダレをたらしておるのじゃ！泣いておらんぞ！！……嬉しいのじゃ！'],
+        richlose:['先にゴールされてしまったのぉ……くぬぬ……次は逃がさぬぞ', 'ぐぬぬ……あと少しだったのじゃ……次こそ勝つ', '悔しいのじゃ……次は先にゴールしてみせる'],
+        rank2:['2位か……うむ、悔しいのじゃ。次は1位じゃ', 'あと少しだったのぉ……次こそはわしが勝つ', '2位でも……トロデーン国王の底力は本物じゃ'],
+        rank3:['3位か……くぬぬ……反省するのじゃ', 'ぐぬぬ……もっとうまくやれたはずじゃ……', '3位とは……情けないのじゃ。次は違うぞ'],
+        rank4:['4位とは……トロデーン兵法書に書いてある……負けを認めて次に活かせと……', 'くぬぬ……最下位とは……ミーティアに顔向けできぬのじゃ', 'ぐぬぬ……次こそはわしの力を見せてやるのじゃ'],
+        bankrupt:['破産とは……まさか……', 'くぬぬ……王といえど破産するとは……情けない……', 'ミーティア……父は完敗じゃ……次こそは……'],
       },
     }
   },
@@ -24603,11 +24708,16 @@ function _decideFiveBuy(player, sq, rateBoost=1.0){
     else if(_ryuRatio>=0.8){baseRate=0.40;}
     else{baseRate=0.99;}
   } else if(ch.name==='マルチェロ'){
-    // マルチェロ: 80%未満=0.40, 80-90%=0.30, 90%以上=0
     const _marRatio=getPlayerAssets(player).total/Math.max(1,G.goalAmount);
     if(_marRatio>=0.9){return false;}
     else if(_marRatio>=0.8){baseRate=0.30;}
     else{baseRate=0.40;}
+  } else if(ch.name==='トロデ'){
+    // トロデ: 80%未満=0.10, 80-90%=0.05, 90%以上=0
+    const _trodeRatio=getPlayerAssets(player).total/Math.max(1,G.goalAmount);
+    if(_trodeRatio>=0.9){return false;}
+    else if(_trodeRatio>=0.8){baseRate=0.05;}
+    else{baseRate=0.10;}
   } else if(ch.name==='エアリス'){
     // エアリス: 70%未満=0.70, 70-90%=0.90（逆転型：中盤に最も積極的）, 90%以上=0
     const _aeRatio=getPlayerAssets(player).total/Math.max(1,G.goalAmount);
@@ -25279,6 +25389,10 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     if(ch&&ch.name==='マルチェロ'&&a===1){
       ch._marchelloMode=Math.random()<0.90?'standard':'insider';
     }
+    // トロデのモード決定（ターン最初に1回）: 50%スタンダード / 50%インサイダー
+    if(ch&&ch.name==='トロデ'&&a===1){
+      ch._trodeMode=Math.random()<0.50?'standard':'insider';
+    }
     // エアリスのモード決定（ターン最初に1回）: 80%スタンダード / 20%インサイダー
     if(ch&&ch.name==='エアリス'&&a===1){
       ch._aerithMode=Math.random()<0.80?'standard':'insider';
@@ -25548,14 +25662,20 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
       score=(myRem*_ryuuouX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
     } else if(ch&&ch.name==='マルチェロ'){
       // マルチェロ株スコア式
-      // スタンダード(90%): x: 1軒=0.7, 2軒=0.875, 3軒=1.75, 4軒以上=4.0
-      // インサイダー(10%): x: 1軒=1.4, 2軒=1.75, 3軒=3.5, 4軒以上=8.0
       const _marchMode=ch._marchelloMode||'standard';
       const _marchX=_marchMode==='insider'
         ?(myShops>=4?8.0:myShops>=3?3.5:myShops>=2?1.75:1.4)
         :(myShops>=4?4.0:myShops>=3?1.75:myShops>=2?0.875:0.7);
-      // 敵倍率: 1軒=1.0, 2軒=1.25, 3軒=2.5, 4軒+=5.0
       score=(myRem*_marchX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
+    } else if(ch&&ch.name==='トロデ'){
+      // トロデ株スコア式
+      // スタンダード(50%): x: 1軒=100, 2軒=125, 3軒=250, 4軒以上=500
+      // インサイダー(50%): x: 1軒=200, 2軒=250, 3軒=500, 4軒以上=1000
+      const _trodeMode=ch._trodeMode||'standard';
+      const _trodeX=_trodeMode==='insider'
+        ?(myShops>=4?1000:myShops>=3?500:myShops>=2?250:200)
+        :(myShops>=4?500:myShops>=3?250:myShops>=2?125:100);
+      score=(myRem*_trodeX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
     } else if(ch&&ch.name==='エアリス'){
       // エアリス株スコア式
       // スタンダード(80%): x: 1軒=1.5, 2軒=1.875, 3軒=3.75, 4軒以上=7.5
@@ -25994,13 +26114,15 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
       } else if(ch&&ch.name==='りゅうおう'){
         _threshold=0.75; // エリア主の75%以上持てば相乗り不要
       } else if(ch&&ch.name==='マルチェロ'){
-        _threshold=0.50; // エリア主の50%以上持てば相乗り不要
+        _threshold=0.50;
+      } else if(ch&&ch.name==='トロデ'){
+        _threshold=0.75; // エリア主の75%以上持てば相乗り不要
       } else if(ch&&ch.name==='エアリス'){
         _threshold=0.75; // エリア主の75%以上持てば相乗り不要
       } else if(ch&&ch.name==='スコール'){
         _threshold=0.75; // エリア主の75%以上持てば相乗り不要
       } else if(ch&&ch.name==='ミーティア'){
-        _threshold=0.75; // エリア主の75%以上持てば相乗り不要
+        _threshold=4.0; // エリア主の400%以上持てば相乗り不要
       } else if(ch&&ch.name==='アーロン'){
         _threshold=1.2; // エリア主の120%以上持てば相乗り不要（そうまと同じ）
       } else if(ch&&ch.name==='フローラ'){
@@ -26325,6 +26447,27 @@ function cpuInvest(player,done){
           const _totFullRyu=_myShopsRyu3.reduce((s,sq2)=>s+(sq2.investLimit||sq2.price),0)||1;
           if(_totRemRyu/Math.max(1,_totFullRyu)<=0.5) return 99;
           return 120;
+        }
+      }
+      // トロデ: 独自の増資閾値ロジック
+      // 1〜2軒: 自分の通行料≥敵→140枚、<敵かつ流動1000G以上→0枚
+      // 3〜4軒以上:
+      //   ①誰かが目標90%未満 → 140枚
+      //   ②誰かが目標90%以上 → 99枚
+      if(_nm==='トロデ'){
+        if(cnt===1||cnt===2){
+          const _myShopsTr=_aShops.filter(s=>s.owner===player.id);
+          const _myMinTollTr=_myShopsTr.length?Math.min(..._myShopsTr.map(s=>calcBaseToll(s))):0;
+          const _enShopsTr=_aShops.filter(s=>s.owner>=0&&s.owner!==player.id);
+          const _enMaxTollTr=_enShopsTr.length?Math.max(..._enShopsTr.map(s=>calcBaseToll(s))):0;
+          if(_myMinTollTr>=_enMaxTollTr) return 140;
+          const _liqTr=getLiquid(player);
+          return _liqTr>=1000?0:140;
+        }
+        if(cnt>=3){
+          const _goalTr=G.goalAmount||10000;
+          const _anyNear90Tr=G.players.some(p=>!p.bankrupt&&getPlayerAssets(p).total>=_goalTr*0.9);
+          return _anyNear90Tr?99:140;
         }
       }
       // マルチェロ: 独自の増資閾値ロジック
@@ -30203,6 +30346,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
     yuna:'#fde8d0',
     ryuuou:'#5566bb',
     marchello:'#e8d4bc',
+    trode:'#5aaa22',
     aerith:'#fde8d4',
     squall:'#f0e0cc',
     meetia:'#fde8d0',
@@ -30233,6 +30377,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
     yuna:'#7a5ab5',
     ryuuou:'#8855cc',
     marchello:'#2255cc',
+    trode:'#6aaa22',
     aerith:'#cc4466',
     squall:'#4466aa',
     meetia:'#cc6622',
@@ -30292,6 +30437,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
     yuna:     {tail:'#6b42a8',belly:'#f0f0f8',pattern:'plain'},
     ryuuou:   {tail:'#6633aa',belly:'#5566bb',pattern:'plain'},
     marchello:{tail:'#1a3a8a',belly:'#e8d4bc',pattern:'plain'},
+    trode:    {tail:'#8a5510',belly:'#5aaa22',pattern:'plain'},
     aerith:   {tail:'#cc2222',belly:'#f0e0e8',pattern:'plain'},
     squall:   {tail:'#111122',belly:'#f0e0cc',pattern:'plain'},
     meetia:   {tail:'#cc3322',belly:'#f0f0f0',pattern:'plain'},
@@ -30589,7 +30735,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
   }
 
   // ── 名前プレート ──
-  const _CHAR_NAMES={mei:'メイ',honkikiyoko:'本気きよこ',kakuseihiroshi:'覚醒ひろし',ryou:'りょう',takken_ryou:'宅建士りょう',sako:'サコ',wise:'ワイズ',christie:'クリスティー',sakura:'さくら',hiroshi:'ひろし',orika:'おりか',kiyoko:'きよこ',ena:'エナ',hayuu:'はゆう',souma:'そうま',haruka:'はるか',hikari:'ひかり',neneko:'ネネコ',potter:'ポッター',ff_shirma:'シロマ',ff_kuroma:'クロマ',ff_ninja:'忍者',s_souma:'S・そうま',s_christie:'S・クリスティー',s_ena:'S・エナ',s_orika:'S・おりか',s_hayuu:'S・はゆう',s_sakura:'S・さくら',s_wise:'S・ワイズ',s_haruka:'S・はるか',s_hikari:'S・ひかり',s_ryou:'りょう・S',kukuru:'ククール',zesika:'ゼシカ',sephiroth:'セフィロス',yuna:'ユウナ',ryuuou:'りゅうおう',marchello:'マルチェロ',aerith:'エアリス',squall:'スコール',meetia:'ミーティア',auron:'アーロン',flora:'フローラ',yangus:'ヤンガス'};
+  const _CHAR_NAMES={mei:'メイ',honkikiyoko:'本気きよこ',kakuseihiroshi:'覚醒ひろし',ryou:'りょう',takken_ryou:'宅建士りょう',sako:'サコ',wise:'ワイズ',christie:'クリスティー',sakura:'さくら',hiroshi:'ひろし',orika:'おりか',kiyoko:'きよこ',ena:'エナ',hayuu:'はゆう',souma:'そうま',haruka:'はるか',hikari:'ひかり',neneko:'ネネコ',potter:'ポッター',ff_shirma:'シロマ',ff_kuroma:'クロマ',ff_ninja:'忍者',s_souma:'S・そうま',s_christie:'S・クリスティー',s_ena:'S・エナ',s_orika:'S・おりか',s_hayuu:'S・はゆう',s_sakura:'S・さくら',s_wise:'S・ワイズ',s_haruka:'S・はるか',s_hikari:'S・ひかり',s_ryou:'りょう・S',kukuru:'ククール',zesika:'ゼシカ',sephiroth:'セフィロス',yuna:'ユウナ',ryuuou:'りゅうおう',marchello:'マルチェロ',trode:'トロデ',aerith:'エアリス',squall:'スコール',meetia:'ミーティア',auron:'アーロン',flora:'フローラ',yangus:'ヤンガス'};
   const nameText = charKey ? (_CHAR_NAMES[charKey]||'?') : 'YOU';
   ctx.font='bold 8px "M PLUS Rounded 1c",sans-serif';
   const tw=ctx.measureText(nameText).width;
@@ -32996,6 +33142,21 @@ const CPU_GUIDE_DATA = [
     ],
   },
   {
+    key:'trode', rank:'D',
+    tagline:'このままでは帰る城もないも同然じゃ。とことん行くしかないのじゃ！',
+    stars:[1,1,1],
+    tend:[
+      'ドラゴンクエストVIIIに登場するトロデーン王国の国王。悪党の呪いにより緑色の肌を持つ魔物の姿に変えられており、愛娘ミーティア姫の呪いを解くため主人公たちと旅をする情に厚い王様です。一人称は「わし」、「〜じゃ」「〜のぉ」という王様口調が特徴。',
+      '<b>自分の店があるエリアへの株評価が飛び抜けて高い超集中型です。</b>自エリアの株を最優先で積み上げることに全力を注ぐため、他のエリアへの相乗り評価は極めて低く、ひたすら自エリアに特化した動きをします。',
+      '<b>増資タイミングはかなり慎重で、十分な株数が揃わないと増資を始めません。</b>1〜2軒時は通行料が敵より低い状況でも流動資産があれば増資を仕掛けますが、全体的に増資の開始が遅めです。誰かが目標に近づくと少し早まります。',
+      '<b>5倍買いへの積極性は控えめです。</b>Dランクのため一度に購入できる株数が少なく、地道に株を積み上げていく必要があります。増資額も小さいため、株を大量に持って増資しても通行料の上昇幅は限られています。',
+    ],
+    tips:[
+      'トロデは<b>自エリアへの株評価が突出して高いため、トロデが店を持ったエリアの株を放置するとあっという間に株主を独占されます。</b>早めに株を確保しておきましょう。',
+      '<b>増資は遅めですが、自エリアの株を大量に抱えています。</b>トロデのエリアに相乗りしておくと、遅れて来る増資の恩恵を受けることができます。',
+    ],
+  },
+  {
     key:'yangus', rank:'D',
     tagline:'アッシも本気出すでがすよ！負けるつもりはねえでがす！',
     stars:[5,1,2],
@@ -33156,7 +33317,7 @@ function showHelp(){
 }
 
 // ===== SETUP UI =====
-const CHAR_ORDER=['mei','honkikiyoko','kakuseihiroshi','sako','neneko','ryou','s_ryou','takken_ryou','potter','haruka','s_haruka','sakura','s_sakura','hiroshi','orika','s_orika','kiyoko','ena','s_ena','hayuu','s_hayuu','wise','s_wise','hikari','s_hikari','christie','s_christie','souma','s_souma','ff_shirma','ff_kuroma','ff_ninja','kukuru','zesika','sephiroth','yuna','ryuuou','marchello','aerith','squall','meetia','auron','flora','yangus'];
+const CHAR_ORDER=['mei','honkikiyoko','kakuseihiroshi','sako','neneko','ryou','s_ryou','takken_ryou','potter','haruka','s_haruka','sakura','s_sakura','hiroshi','orika','s_orika','kiyoko','ena','s_ena','hayuu','s_hayuu','wise','s_wise','hikari','s_hikari','christie','s_christie','souma','s_souma','ff_shirma','ff_kuroma','ff_ninja','kukuru','zesika','sephiroth','yuna','ryuuou','marchello','aerith','squall','meetia','auron','flora','trode','yangus'];
 const RANK_BADGE={'S':'🔴S','A':'🟠A','C':'🔵C','B':'🟡B','C':'🟢C','D':'⚪D'};
 // 各スロットに選択されているキャラID ('human' or cpuChar key or null=なし)
 let _gameRunning=false;  // ゲーム進行フラグ
