@@ -26520,49 +26520,39 @@ function cpuInvest(player,done){
         }
         if(cnt>=3) return 99; // 3軒以上は常に99枚
       }
-      // スコール: 独自の増資閾値ロジック
-      // 1軒: 自分の通行料≥敵→99枚、<敵かつ流動2000G以上→0枚
-      // 2軒:
-      //   ①自分の通行料≥敵 → 198枚
-      //   ②自分の通行料<敵かつ流動5000G以上 → 0枚
-      //   ③自分の通行料<敵（流動5000G未満） → 99枚
-      //   ④増資余り率50%以下 → 99枚（優先）
-      // 3軒以上:
-      //   ①誰かが目標90%以上 → 99枚
-      //   ②増資余り率50%以下 → 99枚
-      //   ③それ以外 → 198枚
+      // スコール: 独自の増資閾値ロジック（_aShopsスコープ外で完全自己完結）
+      // 優先順位:
+      //   0. 最優先: 1軒で通行料<敵かつ流動2000G以上→0枚 / 2軒で通行料<敵かつ流動5000G以上→0枚
+      //   1. 誰かが目標90%以上 → 99枚
+      //   2. 残り増資余り率による段階的閾値（80〜90%→180, 70〜80%→160, 60〜70%→140, 50〜60%→120, 50%未満→99）
+      //   3. 通行料・流動資産による判定（1軒→99, 2軒→198, 3軒以上→198）
+      // ※ cnt>=3はこのブロック外（末尾専用ブロック）で処理
       if(_nm==='スコール'){
-        if(cnt===1){
-          const _mySq1=_aShops.filter(s=>s.owner===player.id);
-          const _myMinSq1=_mySq1.length?Math.min(..._mySq1.map(s=>calcBaseToll(s))):0;
-          const _enSq1=_aShops.filter(s=>s.owner>=0&&s.owner!==player.id);
-          const _enMaxSq1=_enSq1.length?Math.max(..._enSq1.map(s=>calcBaseToll(s))):0;
-          if(_myMinSq1>=_enMaxSq1) return 99;
-          return getLiquid(player)>=2000?0:99;
-        }
-        if(cnt===2){
-          const _mySq2=_aShops.filter(s=>s.owner===player.id);
-          const _myMinSq2=_mySq2.length?Math.min(..._mySq2.map(s=>calcBaseToll(s))):0;
-          const _enSq2=_aShops.filter(s=>s.owner>=0&&s.owner!==player.id);
-          const _enMaxSq2=_enSq2.length?Math.max(..._enSq2.map(s=>calcBaseToll(s))):0;
-          // ④増資余り率50%以下チェック（最優先）
-          const _totRemSq2=_mySq2.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
-          const _totFullSq2=_mySq2.reduce((s,sq2)=>s+(sq2.investLimit||sq2.price),0)||1;
-          if(_totRemSq2/Math.max(1,_totFullSq2)<=0.5) return 99;
-          if(_myMinSq2>=_enMaxSq2) return 198; // ①通行料≥敵
-          if(getLiquid(player)>=5000) return 0;  // ②流動5000G以上
-          return 99;                              // ③それ以外
-        }
-        if(cnt>=3){
-          const _goalSq=G.goalAmount||10000;
-          const _anyNear90Sq=G.players.some(p=>!p.bankrupt&&getPlayerAssets(p).total>=_goalSq*0.9);
-          if(_anyNear90Sq) return 99;
-          const _mySq3=_aShops.filter(s=>s.owner===player.id);
-          const _totRemSq3=_mySq3.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
-          const _totFullSq3=_mySq3.reduce((s,sq2)=>s+(sq2.investLimit||sq2.price),0)||1;
-          if(_totRemSq3/Math.max(1,_totFullSq3)<=0.5) return 99;
-          return 198;
-        }
+        const _sqShops=areaNum?getAreaShops(areaNum):[];
+        const _sqMy=_sqShops.filter(s=>s.owner===player.id);
+        const _sqEn=_sqShops.filter(s=>s.owner>=0&&s.owner!==player.id);
+        const _sqMyMinToll=_sqMy.length?Math.min(..._sqMy.map(s=>calcBaseToll(s))):0;
+        const _sqEnMaxToll=_sqEn.length?Math.max(..._sqEn.map(s=>calcBaseToll(s))):0;
+        const _sqLiq=getLiquid(player);
+        // --- 優先度0（最優先）: 通行料<敵かつ流動資産条件で即増資 ---
+        if(cnt===1&&_sqMyMinToll<_sqEnMaxToll&&_sqLiq>=2000) return 0;
+        if(cnt===2&&_sqMyMinToll<_sqEnMaxToll&&_sqLiq>=5000) return 0;
+        // --- 優先度1: 誰かが目標90%以上 → 99枚 ---
+        const _sqAnyNear90=G.players.some(p=>!p.bankrupt&&getPlayerAssets(p).total>=(G.goalAmount||10000)*0.9);
+        if(_sqAnyNear90) return 99;
+        // --- 増資余り率計算 ---
+        const _sqTotRem=_sqMy.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
+        const _sqTotFull=_sqMy.reduce((s,sq2)=>s+getMaxExtraInvest(sq2),0)||1;
+        const _sqRemRate=_sqTotRem/Math.max(1,_sqTotFull);
+        // --- 優先度2: 残り増資余り率による段階的閾値 ---
+        if(_sqRemRate<0.5) return 99;
+        if(_sqRemRate<0.6) return 120;
+        if(_sqRemRate<0.7) return 140;
+        if(_sqRemRate<0.8) return 160;
+        if(_sqRemRate<0.9) return 180;
+        // --- 優先度3: 通行料による基本判定（1〜2軒のみ、3軒以上は末尾専用ブロックで処理） ---
+        if(cnt===1) return 99;
+        if(cnt===2) return _sqMyMinToll>=_sqEnMaxToll?198:99;
       }
       // ミーティア: エアリスと同じ増資閾値ロジック
       // 1軒: 自分の通行料≥敵→99枚、<敵かつ流動2000G以上→0枚
@@ -26696,6 +26686,24 @@ function cpuInvest(player,done){
       if(totRemGMS/Math.max(1,totFullGMS)<0.5) return 70; // 増資余り50%未満→70
       if(_srAny80GMS) return 80;                          // 80%到達者いれば80
       return 90;                                          // 基本90
+    }
+    // スコール: cnt>=3以上は増資余り率・目標90%判定で閾値変動
+    if(_nm==='スコール'&&cnt>=3){
+      const _sqShops3=areaNum?getAreaShops(areaNum):[];
+      const _sqMy3=_sqShops3.filter(s=>s.owner===player.id);
+      const _sqTotRem3=_sqMy3.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
+      const _sqTotFull3=_sqMy3.reduce((s,sq2)=>s+getMaxExtraInvest(sq2),0)||1;
+      const _sqRemRate3=_sqTotRem3/Math.max(1,_sqTotFull3);
+      // 優先度1: 誰かが目標90%以上 → 99枚
+      const _sqAny90_3=G.players.some(p=>!p.bankrupt&&getPlayerAssets(p).total>=(G.goalAmount||10000)*0.9);
+      if(_sqAny90_3) return 99;
+      // 優先度2: 増資余り率による段階的閾値
+      if(_sqRemRate3<0.5) return 99;
+      if(_sqRemRate3<0.6) return 120;
+      if(_sqRemRate3<0.7) return 140;
+      if(_sqRemRate3<0.8) return 160;
+      if(_sqRemRate3<0.9) return 180;
+      return 198; // 増資余り率90%以上（まだ十分余裕がある）
     }
     // りょう(Aランク): cnt>=3以上で、所有する店の合計残り増資余り率が50%未満の時は
     // 通常より早い株70枚以上から増資する（りょう・Sの仕様をAランクにも適用）
