@@ -26135,7 +26135,8 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
         _threshold=(ch&&ch.name==='りょう')?0.50:0.75;
       }
       const _myHeldThresh=Math.floor(_lordHeld*_threshold);
-      const _minHeld=(rank==='D'||rank==='C')?40:60;
+      const _isBRankAbove=(rank==='S'||rank==='A'||rank==='B');
+      const _minHeld=(rank==='D'||rank==='C')?40:(_isBRankAbove&&_lordHeld<60)?20:60;
       if(myHeld>=_minHeld && myHeld>=_myHeldThresh){
         // 十分相乗りできている → これ以上は不要
         continue;
@@ -26357,17 +26358,7 @@ function cpuInvest(player,done){
           const _liqZ=getLiquid(player);
           return _liqZ>=1000?0:99;
         }
-        if(cnt>=3){
-          const _goal=G.goalAmount||10000;
-          const _anyNear90=G.players.some(p=>!p.bankrupt&&getPlayerAssets(p).total>=_goal*0.9);
-          if(_anyNear90) return 99;
-          // 所有店の合計残り増資余り率が50%以下（増資が半分以上終わっている）→ 99枚
-          const _myShopsZ3=_aShops.filter(s=>s.owner===player.id);
-          const _totRemZ=_myShopsZ3.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
-          const _totFullZ=_myShopsZ3.reduce((s,sq2)=>s+(sq2.investLimit||sq2.price),0)||1;
-          if(_totRemZ/Math.max(1,_totFullZ)<=0.5) return 99;
-          return 140;
-        }
+        // cnt>=3は末尾専用ブロックで処理
       }
       // 1〜2軒: 自分の通行料≥敵→99枚、<敵かつ流動1000G以上→0枚
       // 3軒以上: 誰かが目標90%以上なら99枚、そうでなければ140枚
@@ -26381,17 +26372,7 @@ function cpuInvest(player,done){
           const _liqSe=getLiquid(player);
           return _liqSe>=1000?0:99;
         }
-        if(cnt>=3){
-          const _goalSe=G.goalAmount||10000;
-          const _anyNear90Se=G.players.some(p=>!p.bankrupt&&getPlayerAssets(p).total>=_goalSe*0.9);
-          if(_anyNear90Se) return 99;
-          // 所有店の合計残り増資余り率が50%以下（増資が半分以上終わっている）→ 99枚
-          const _myShopsSe3=_aShops.filter(s=>s.owner===player.id);
-          const _totRemSe=_myShopsSe3.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
-          const _totFullSe=_myShopsSe3.reduce((s,sq2)=>s+(sq2.investLimit||sq2.price),0)||1;
-          if(_totRemSe/Math.max(1,_totFullSe)<=0.5) return 99;
-          return 140;
-        }
+        // cnt>=3は末尾専用ブロックで処理
       }
       // 1〜2軒: セフィロス/ゼシカと同様（自分の通行料≥敵→99枚、<敵かつ流動1000G以上→0枚）
       // 3〜4軒以上:
@@ -26408,25 +26389,12 @@ function cpuInvest(player,done){
           const _liqYu=getLiquid(player);
           return _liqYu>=1000?0:99;
         }
-        if(cnt>=3){
-          const _goalYu=G.goalAmount||10000;
-          const _anyNear90Yu=G.players.some(p=>!p.bankrupt&&getPlayerAssets(p).total>=_goalYu*0.9);
-          if(_anyNear90Yu) return 99;
-          // 所有店の合計残り増資余り率が50%以下（増資が半分以上終わっている）→ 99枚
-          const _myShopsYu3=_aShops.filter(s=>s.owner===player.id);
-          const _totRemYu=_myShopsYu3.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
-          const _totFullYu=_myShopsYu3.reduce((s,sq2)=>s+(sq2.investLimit||sq2.price),0)||1;
-          if(_totRemYu/Math.max(1,_totFullYu)<=0.5) return 99;
-          return 110;
-        }
+        // cnt>=3は末尾専用ブロックで処理
       }
       // りゅうおう: 独自の増資閾値ロジック
       // りゅうおう: 独自の増資閾値ロジック
       // 1〜2軒: ゼシカ/セフィロスと同様（自分の通行料≥敵→99枚、<敵かつ流動1000G以上→0枚）
-      // 3〜4軒以上:
-      //   ①誰かが目標90%以上 → 99枚
-      //   ②所有店の合計残り増資余り率が50%以下（半分以上増資済み） → 99枚
-      //   ③それ以外 → 120枚
+      // 3〜4軒以上: cnt>=3は末尾専用ブロックで処理
       if(_nm==='りゅうおう'){
         if(cnt===1||cnt===2){
           const _myShopsRyu=_aShops.filter(s=>s.owner===player.id);
@@ -26437,17 +26405,7 @@ function cpuInvest(player,done){
           const _liqRyu=getLiquid(player);
           return _liqRyu>=1000?0:99;
         }
-        if(cnt>=3){
-          const _goalRyu=G.goalAmount||10000;
-          const _anyNear90Ryu=G.players.some(p=>!p.bankrupt&&getPlayerAssets(p).total>=_goalRyu*0.9);
-          if(_anyNear90Ryu) return 99;
-          // 所有店の合計残り増資余り率が50%以下（増資が半分以上終わっている）→ 99枚
-          const _myShopsRyu3=_aShops.filter(s=>s.owner===player.id);
-          const _totRemRyu=_myShopsRyu3.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
-          const _totFullRyu=_myShopsRyu3.reduce((s,sq2)=>s+(sq2.investLimit||sq2.price),0)||1;
-          if(_totRemRyu/Math.max(1,_totFullRyu)<=0.5) return 99;
-          return 120;
-        }
+        // cnt>=3は末尾専用ブロックで処理
       }
       // トロデ: 独自の増資閾値ロジック
       // 1〜2軒: 自分の通行料≥敵→140枚、<敵かつ流動1000G以上→0枚
@@ -26704,6 +26662,48 @@ function cpuInvest(player,done){
       if(_sqRemRate3<0.8) return 160;
       if(_sqRemRate3<0.9) return 180;
       return 198; // 増資余り率90%以上（まだ十分余裕がある）
+    }
+    // ゼシカ・セフィロス: cnt>=3以上は目標90%・増資余り率50%以下で閾値変動
+    if((_nm==='ゼシカ'||_nm==='セフィロス')&&cnt>=3){
+      const _zsShops=areaNum?getAreaShops(areaNum):[];
+      const _zsMy=_zsShops.filter(s=>s.owner===player.id);
+      const _zsTotRem=_zsMy.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
+      const _zsTotFull=_zsMy.reduce((s,sq2)=>s+getMaxExtraInvest(sq2),0)||1;
+      const _zsRemRate=_zsTotRem/Math.max(1,_zsTotFull);
+      // 優先度1: 誰かが目標90%以上 → 99枚
+      const _zsAny90=G.players.some(p=>!p.bankrupt&&getPlayerAssets(p).total>=(G.goalAmount||10000)*0.9);
+      if(_zsAny90) return 99;
+      // 優先度2: 増資余り率50%以下（半分以上増資済み）→ 99枚
+      if(_zsRemRate<=0.5) return 99;
+      return 140;
+    }
+    // りゅうおう: cnt>=3以上は目標90%・増資余り率50%以下で閾値変動（基本120枚）
+    if(_nm==='りゅうおう'&&cnt>=3){
+      const _ryuShops=areaNum?getAreaShops(areaNum):[];
+      const _ryuMy=_ryuShops.filter(s=>s.owner===player.id);
+      const _ryuTotRem=_ryuMy.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
+      const _ryuTotFull=_ryuMy.reduce((s,sq2)=>s+getMaxExtraInvest(sq2),0)||1;
+      const _ryuRemRate=_ryuTotRem/Math.max(1,_ryuTotFull);
+      // 優先度1: 誰かが目標90%以上 → 99枚
+      const _ryuAny90=G.players.some(p=>!p.bankrupt&&getPlayerAssets(p).total>=(G.goalAmount||10000)*0.9);
+      if(_ryuAny90) return 99;
+      // 優先度2: 増資余り率50%以下（半分以上増資済み）→ 99枚
+      if(_ryuRemRate<=0.5) return 99;
+      return 120;
+    }
+    // ユウナ: cnt>=3以上は目標90%・増資余り率50%以下で閾値変動（基本110枚）
+    if(_nm==='ユウナ'&&cnt>=3){
+      const _yuShops=areaNum?getAreaShops(areaNum):[];
+      const _yuMy=_yuShops.filter(s=>s.owner===player.id);
+      const _yuTotRem=_yuMy.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
+      const _yuTotFull=_yuMy.reduce((s,sq2)=>s+getMaxExtraInvest(sq2),0)||1;
+      const _yuRemRate=_yuTotRem/Math.max(1,_yuTotFull);
+      // 優先度1: 誰かが目標90%以上 → 99枚
+      const _yuAny90=G.players.some(p=>!p.bankrupt&&getPlayerAssets(p).total>=(G.goalAmount||10000)*0.9);
+      if(_yuAny90) return 99;
+      // 優先度2: 増資余り率50%以下（半分以上増資済み）→ 99枚
+      if(_yuRemRate<=0.5) return 99;
+      return 110;
     }
     // りょう(Aランク): cnt>=3以上で、所有する店の合計残り増資余り率が50%未満の時は
     // 通常より早い株70枚以上から増資する（りょう・Sの仕様をAランクにも適用）
