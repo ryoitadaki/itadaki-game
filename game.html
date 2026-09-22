@@ -21999,7 +21999,23 @@ s_souma:{...CPU_CHARS['souma'], name:'S・そうま', color:'#93c5fd', rank:'S',
   s_haruka:{...CPU_CHARS['haruka'], name:'S・はるか', color:'#a7f3d0', rank:'S', routeSharp:true, spreadStock:true, insiderMul:1.5,
     speech:{...CPU_CHARS['haruka'].speech, gameStart:['今日は全力で行く。ひかり、見てろ', 'Aランクの俺より強い。それが今日のはるかだ']}},
   s_hikari:{...CPU_CHARS['hikari'], name:'S・ひかり', color:'#bae6fd', rank:'S', routeSharp:true, spreadStock:true, insiderMul:0.9,
-    speech:{...CPU_CHARS['hikari'].speech, gameStart:['今日は本気！お兄ちゃんも驚くよ！', 'Bランクのひかりとは違うよ。全力でいきます！']}}
+    speech:{...CPU_CHARS['hikari'].speech, gameStart:['今日は本気！お兄ちゃんも驚くよ！', 'Bランクのひかりとは違うよ。全力でいきます！']}},
+  s_bianca:{...CPU_CHARS['bianca'], name:'ビアンカS', color:'#1a8a70', rank:'S', routeSharp:true, spreadStock:true, insiderMul:1.0,
+    investMin1:60, investMin2:70, investMin3:60, investMin4:60, investMin12:0,
+    fiveTimesRate:0.38, fiveTimesRateRich:0.20, fiveTimesRateVeryRich:0,
+    speech:{...CPU_CHARS['bianca'].speech,
+      gameStart:[
+        'うふふ、Bランクのビアンカとは違うわよ。今日は全力でいくから覚悟してね！',
+        'ねえ、Sランクのビアンカって怖いでしょ？……冗談よ。でも本気だからね！',
+        'また一緒に旅ができるね！……今日は全エリアが私の視野に入ってるけど',
+      ],
+      sabotageCounted:[
+        'あら、株にかなりの損が出てる…10枚売りされたのかしら。対策しなきゃ',
+        'もう！こんなに損させて…10枚売りね。すぐに立て直すわよ',
+        '株の損失が積み上がってる。10枚売りをされたわね。見逃さないわよ',
+        'うふふ、やってくれたわね。でも私も黙ってないわよ',
+      ],
+    }},
 });
 
 // Sランク版アイコンSVG（CHAR_SVGS定義後に追加）
@@ -22013,7 +22029,8 @@ Object.assign(CHAR_SVGS,{
   's_sakura':CHAR_SVGS['sakura']||'',
   's_wise':CHAR_SVGS['wise']||'',
   's_haruka':CHAR_SVGS['haruka']||'',
-  's_hikari':CHAR_SVGS['hikari']||''
+  's_hikari':CHAR_SVGS['hikari']||'',
+  's_bianca':CHAR_SVGS['bianca']||''
 });
 Object.assign(CHAR_SVGS_NO_BG,{
   's_souma':CHAR_SVGS_NO_BG['souma']||'',
@@ -22025,7 +22042,8 @@ Object.assign(CHAR_SVGS_NO_BG,{
   's_sakura':CHAR_SVGS_NO_BG['sakura']||'',
   's_wise':CHAR_SVGS_NO_BG['wise']||'',
   's_haruka':CHAR_SVGS_NO_BG['haruka']||'',
-  's_hikari':CHAR_SVGS_NO_BG['hikari']||''
+  's_hikari':CHAR_SVGS_NO_BG['hikari']||'',
+  's_bianca':CHAR_SVGS_NO_BG['bianca']||''
 });
 Object.assign(CHAR_ICONS,{
   's_souma':CHAR_ICONS['souma']||'⭐',
@@ -22037,7 +22055,8 @@ Object.assign(CHAR_ICONS,{
   's_sakura':CHAR_ICONS['sakura']||'⭐',
   's_wise':CHAR_ICONS['wise']||'⭐',
   's_haruka':CHAR_ICONS['haruka']||'⭐',
-  's_hikari':CHAR_ICONS['hikari']||'⭐'
+  's_hikari':CHAR_ICONS['hikari']||'⭐',
+  's_bianca':CHAR_ICONS['bianca']||'⭐'
 });
 
 
@@ -25629,6 +25648,10 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
     if(ch&&ch.name==='ビアンカ'&&a===1){
       ch._biancaMode=Math.random()<0.60?'standard':'insider';
     }
+    // ビアンカSのモード決定（ターン最初に1回）: 50%スタンダード / 50%インサイダー
+    if(ch&&ch.name==='ビアンカS'&&a===1){
+      ch._biancaSMode=Math.random()<0.50?'standard':'insider';
+    }
     // マルチェロのモード決定（ターン最初に1回）: 90%スタンダード / 10%インサイダー
     if(ch&&ch.name==='マルチェロ'&&a===1){
       ch._marchelloMode=Math.random()<0.90?'standard':'insider';
@@ -25922,6 +25945,15 @@ function cpuBuyStock(player,callback,excludeAreas=[],options={}){
         ?(myShops>=4?56:myShops>=3?28:myShops>=2?10:8)
         :(myShops>=4?28:myShops>=3?14:myShops>=2?5:4);
       score=(myRem*_biancaX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
+    } else if(ch&&ch.name==='ビアンカS'){
+      // ビアンカS株スコア式
+      // スタンダード(50%): x: 1軒=1.0, 2軒=1.25, 3軒=2.5, 4軒以上=5.0
+      // インサイダー(50%): x: 1軒=4.0, 2軒=5.0, 3軒=10, 4軒以上=20
+      const _biancaSMode=ch._biancaSMode||'standard';
+      const _biancaSX=_biancaSMode==='insider'
+        ?(myShops>=4?20:myShops>=3?10:myShops>=2?5:4)
+        :(myShops>=4?5.0:myShops>=3?2.5:myShops>=2?1.25:1.0);
+      score=(myRem*_biancaSX+_simEnemyRemPerPlayer(a))/Math.max(1,sp);
     } else if(ch&&ch.name==='マルチェロ'){
       // マルチェロ株スコア式
       const _marchMode=ch._marchelloMode||'standard';
@@ -26704,6 +26736,27 @@ function cpuInvest(player,done){
         if(_myMinTollBi>=_enMaxTollBi) return 99;
         return getLiquid(player)>=1000?80:99;
       }
+      // ビアンカS: 1軒=通行料≥敵→60枚、<敵かつ流動1000G以上→0枚
+      //           2軒=通行料≥敵→70枚（増資余り率50%未満は60枚）、<敵かつ流動1000G以上→0枚
+      if(_nm==='ビアンカS'){
+        const _myShopsBS=_aShops.filter(s=>s.owner===player.id);
+        const _myMinTollBS=_myShopsBS.length?Math.min(..._myShopsBS.map(s=>calcBaseToll(s))):0;
+        const _enShopsBS=_aShops.filter(s=>s.owner>=0&&s.owner!==player.id);
+        const _enMaxTollBS=_enShopsBS.length?Math.max(..._enShopsBS.map(s=>calcBaseToll(s))):0;
+        const _liqBS=getLiquid(player);
+        if(cnt===1){
+          if(_myMinTollBS>=_enMaxTollBS) return 60;
+          return _liqBS>=1000?0:60;
+        }
+        if(cnt===2){
+          if(_myMinTollBS<_enMaxTollBS) return _liqBS>=1000?0:70;
+          // 通行料≥敵の場合、増資余り率50%未満なら60枚
+          const _totRemBS=_myShopsBS.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
+          const _totFullBS=_myShopsBS.reduce((s,sq2)=>s+getMaxExtraInvest(sq2),0)||1;
+          if(_totRemBS/Math.max(1,_totFullBS)<0.5) return 60;
+          return 70;
+        }
+      }
       // ルイーダ: 1〜2軒の増資閾値
       if(_nm==='ルイーダ'){
         const _myShopsLu=_aShops.filter(s=>s.owner===player.id);
@@ -26978,6 +27031,22 @@ function cpuInvest(player,done){
       // 優先度2: 増資余り率50%以下（半分以上増資済み）→ 99枚
       if(_biRemRate<=0.5) return 99;
       return 140;
+    }
+    // ビアンカS: cnt>=3以上は段階的増資余り率・目標90%判定
+    if(_nm==='ビアンカS'&&cnt>=3){
+      const _bsShops=areaNum?getAreaShops(areaNum):[];
+      const _bsMy=_bsShops.filter(s=>s.owner===player.id);
+      const _bsTotRem=_bsMy.reduce((s,sq2)=>s+getRemainingInvest(sq2),0);
+      const _bsTotFull=_bsMy.reduce((s,sq2)=>s+getMaxExtraInvest(sq2),0)||1;
+      const _bsRemRate=_bsTotRem/Math.max(1,_bsTotFull);
+      const _bsAny90=G.players.some(p=>!p.bankrupt&&getPlayerAssets(p).total>=(G.goalAmount||10000)*0.9);
+      // 優先度1: 誰かが目標90%以上 → 60枚
+      if(_bsAny90) return 60;
+      // 優先度2: 増資余り率による段階的閾値
+      if(_bsRemRate<0.25) return 60;   // 0〜25%未満
+      if(_bsRemRate<0.50) return 70;   // 25〜50%未満
+      if(_bsRemRate<0.75) return 80;   // 50〜75%未満
+      return 90;                        // 75%以上
     }
     // ゼシカ・セフィロス: cnt>=3以上は目標90%・増資余り率50%以下で閾値変動
     if((_nm==='ゼシカ'||_nm==='セフィロス')&&cnt>=3){
@@ -30673,6 +30742,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
     trode:'#5aaa22',
     luida:'#f0d0b0',
     bianca:'#f5ddb5',
+    s_bianca:'#f5ddb5',
     aerith:'#fde8d4',
     squall:'#f0e0cc',
     meetia:'#fde8d0',
@@ -30706,6 +30776,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
     trode:'#6aaa22',
     luida:'#8a2a1a',
     bianca:'#1a8a70',
+    s_bianca:'#1a8a70',
     aerith:'#cc4466',
     squall:'#4466aa',
     meetia:'#cc6622',
@@ -30768,6 +30839,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
     trode:    {tail:'#8a5510',belly:'#5aaa22',pattern:'plain'},
     luida:    {tail:'#8a2a1a',belly:'#f0d0b0',pattern:'plain'},
     bianca:   {tail:'#1a8a70',belly:'#f5ddb5',pattern:'plain'},
+    s_bianca: {tail:'#1a8a70',belly:'#f5ddb5',pattern:'plain'},
     aerith:   {tail:'#cc2222',belly:'#f0e0e8',pattern:'plain'},
     squall:   {tail:'#111122',belly:'#f0e0cc',pattern:'plain'},
     meetia:   {tail:'#cc3322',belly:'#f0f0f0',pattern:'plain'},
@@ -31065,7 +31137,7 @@ function drawPerson(ctx, px, py, color, charKey, isActive, phase){
   }
 
   // ── 名前プレート ──
-  const _CHAR_NAMES={mei:'メイ',honkikiyoko:'本気きよこ',kakuseihiroshi:'覚醒ひろし',ryou:'りょう',takken_ryou:'宅建士りょう',sako:'サコ',wise:'ワイズ',christie:'クリスティー',sakura:'さくら',hiroshi:'ひろし',orika:'おりか',kiyoko:'きよこ',ena:'エナ',hayuu:'はゆう',souma:'そうま',haruka:'はるか',hikari:'ひかり',neneko:'ネネコ',potter:'ポッター',ff_shirma:'シロマ',ff_kuroma:'クロマ',ff_ninja:'忍者',s_souma:'S・そうま',s_christie:'S・クリスティー',s_ena:'S・エナ',s_orika:'S・おりか',s_hayuu:'S・はゆう',s_sakura:'S・さくら',s_wise:'S・ワイズ',s_haruka:'S・はるか',s_hikari:'S・ひかり',s_ryou:'りょう・S',kukuru:'ククール',zesika:'ゼシカ',sephiroth:'セフィロス',yuna:'ユウナ',ryuuou:'りゅうおう',marchello:'マルチェロ',trode:'トロデ',luida:'ルイーダ',bianca:'ビアンカ',aerith:'エアリス',squall:'スコール',meetia:'ミーティア',auron:'アーロン',flora:'フローラ',yangus:'ヤンガス'};
+  const _CHAR_NAMES={mei:'メイ',honkikiyoko:'本気きよこ',kakuseihiroshi:'覚醒ひろし',ryou:'りょう',takken_ryou:'宅建士りょう',sako:'サコ',wise:'ワイズ',christie:'クリスティー',sakura:'さくら',hiroshi:'ひろし',orika:'おりか',kiyoko:'きよこ',ena:'エナ',hayuu:'はゆう',souma:'そうま',haruka:'はるか',hikari:'ひかり',neneko:'ネネコ',potter:'ポッター',ff_shirma:'シロマ',ff_kuroma:'クロマ',ff_ninja:'忍者',s_souma:'S・そうま',s_christie:'S・クリスティー',s_ena:'S・エナ',s_orika:'S・おりか',s_hayuu:'S・はゆう',s_sakura:'S・さくら',s_wise:'S・ワイズ',s_haruka:'S・はるか',s_hikari:'S・ひかり',s_ryou:'りょう・S',kukuru:'ククール',zesika:'ゼシカ',sephiroth:'セフィロス',yuna:'ユウナ',ryuuou:'りゅうおう',marchello:'マルチェロ',trode:'トロデ',luida:'ルイーダ',bianca:'ビアンカ',s_bianca:'ビアンカS',aerith:'エアリス',squall:'スコール',meetia:'ミーティア',auron:'アーロン',flora:'フローラ',yangus:'ヤンガス'};
   const nameText = charKey ? (_CHAR_NAMES[charKey]||'?') : 'YOU';
   ctx.font='bold 8px "M PLUS Rounded 1c",sans-serif';
   const tw=ctx.measureText(nameText).width;
@@ -33677,7 +33749,7 @@ function showHelp(){
 }
 
 // ===== SETUP UI =====
-const CHAR_ORDER=['mei','honkikiyoko','kakuseihiroshi','sako','neneko','ryou','s_ryou','takken_ryou','potter','haruka','s_haruka','sakura','s_sakura','hiroshi','orika','s_orika','kiyoko','ena','s_ena','hayuu','s_hayuu','wise','s_wise','hikari','s_hikari','christie','s_christie','souma','s_souma','ff_shirma','ff_kuroma','ff_ninja','kukuru','zesika','sephiroth','yuna','ryuuou','marchello','aerith','squall','meetia','auron','flora','luida','bianca','trode','yangus'];
+const CHAR_ORDER=['mei','honkikiyoko','kakuseihiroshi','sako','neneko','ryou','s_ryou','takken_ryou','potter','haruka','s_haruka','sakura','s_sakura','hiroshi','orika','s_orika','kiyoko','ena','s_ena','hayuu','s_hayuu','wise','s_wise','hikari','s_hikari','christie','s_christie','souma','s_souma','ff_shirma','ff_kuroma','ff_ninja','kukuru','zesika','sephiroth','yuna','ryuuou','marchello','aerith','squall','meetia','auron','flora','luida','bianca','s_bianca','trode','yangus'];
 const RANK_BADGE={'S':'🔴S','A':'🟠A','C':'🔵C','B':'🟡B','C':'🟢C','D':'⚪D'};
 // 各スロットに選択されているキャラID ('human' or cpuChar key or null=なし)
 let _gameRunning=false;  // ゲーム進行フラグ
